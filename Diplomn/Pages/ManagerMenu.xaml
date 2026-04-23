@@ -1,0 +1,66 @@
+﻿<Page x:Class="Diplomn.Pages.ManagerMenu"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:Diplomn.Pages"
+      mc:Ignorable="d" 
+      Title="ManagerMenu"
+      Background="White">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock x:Name="WelcomeText" 
+                       FontSize="20" 
+                       FontWeight="Bold" 
+                       Foreground="#4CAF50"/>
+            <TextBlock Text="Меню менеджера" 
+                       FontSize="16" 
+                       Foreground="#666666"/>
+        </StackPanel>
+
+        <!-- Кнопки меню -->
+        <WrapPanel Grid.Row="1">
+            <Button Width="150" Height="100" Margin="10" Background="#4CAF50" Click="ProductsBtn_Click">
+                <StackPanel>
+                    <TextBlock Text="📦" FontSize="40"/>
+                    <TextBlock Text="Товары"/>
+                </StackPanel>
+            </Button>
+
+            <Button Width="150" Height="100" Margin="10" Background="#FF9800" Click="CategoriesBtn_Click">
+                <StackPanel>
+                    <TextBlock Text="📁" FontSize="40"/>
+                    <TextBlock Text="Категории"/>
+                </StackPanel>
+            </Button>
+
+            <Button Width="150" Height="100" Margin="10" Background="#2196F3" Click="SuppliersBtn_Click">
+                <StackPanel>
+                    <TextBlock Text="🚚" FontSize="40"/>
+                    <TextBlock Text="Поставщики"/>
+                </StackPanel>
+            </Button>
+
+            <Button Width="150" Height="100" Margin="10" Background="#9C27B0" Click="OrdersBtn_Click">
+                <StackPanel>
+                    <TextBlock Text="📋" FontSize="40"/>
+                    <TextBlock Text="Заказы"/>
+                </StackPanel>
+            </Button>
+
+            <Button Width="150" Height="100" Margin="10" Background="#F44336" Click="SalesBtn_Click">
+                <StackPanel>
+                    <TextBlock Text="💰" FontSize="40"/>
+                    <TextBlock Text="Продажи"/>
+                </StackPanel>
+            </Button>
+        </WrapPanel>
+    </Grid>
+</Page>

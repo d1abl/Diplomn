@@ -1,0 +1,50 @@
+﻿<Window x:Class="Diplomn.AddSupplierWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Поставщик" Height="500" Width="450"
+        WindowStartupLocation="CenterOwner">
+
+    <ScrollViewer>
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Информация о поставщике" FontSize="18" FontWeight="Bold" 
+                       Foreground="#2196F3" HorizontalAlignment="Center"/>
+
+            <StackPanel Grid.Row="1" Margin="0,20">
+                <TextBlock Text="Наименование поставщика:" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding Наименование_поставщика}" Height="30" Margin="0,0,0,10"/>
+
+                <TextBlock Text="ИНН:" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding ИНН}" Height="30" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Адрес:" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding Адрес_поставщика}" Height="30" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Email:" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding Email_поставщика}" Height="30" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Контактное лицо (Фамилия):" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding Фамилия_контактного_лица}" Height="30" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Имя контактного лица:" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding Имя_контактного_лица}" Height="30" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Отчество контактного лица:" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding Отчество_контактного_лица}" Height="30" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Телефон:" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding Телефон_контактного_лица}" Height="30" Margin="0,0,0,10"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                <Button Content="Сохранить" Click="Save_Click"/>
+                <Button Content="Отмена" Click="Cancel_Click"/>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Window>

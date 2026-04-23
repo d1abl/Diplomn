@@ -1,0 +1,108 @@
+﻿<Window x:Class="Diplomn.AddEmployeeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Diplomn"
+        mc:Ignorable="d"
+        Title="Редактирование сотрудника" 
+        Height="450" 
+        Width="400"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок -->
+        <TextBlock Grid.Row="0" 
+               Text="Информация о сотруднике" 
+               FontSize="18" 
+               FontWeight="Bold" 
+               Foreground="#2196F3"
+               HorizontalAlignment="Center"
+               Margin="0,0,0,20"/>
+
+        <!-- Основная форма -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <!-- Фамилия -->
+                <TextBlock Text="Фамилия:" 
+                       FontWeight="SemiBold"
+                       Margin="0,5,0,0"/>
+                <TextBox x:Name="TxtLastName" 
+                     Text="{Binding Фамилия, UpdateSourceTrigger=PropertyChanged}"
+                     Height="30"
+                     Margin="0,0,0,10"/>
+
+                <!-- Имя -->
+                <TextBlock Text="Имя:" 
+                       FontWeight="SemiBold"/>
+                <TextBox x:Name="TxtFirstName" 
+                     Text="{Binding Имя, UpdateSourceTrigger=PropertyChanged}"
+                     Height="30" Margin="0,0,0,10"/>
+
+                <!-- Отчество -->
+                <TextBlock Text="Отчество:" 
+                       FontWeight="SemiBold"/>
+                <TextBox x:Name="TxtMiddleName" 
+                     Text="{Binding Отчество, UpdateSourceTrigger=PropertyChanged}"
+                     Height="30"
+                     Margin="0,0,0,10"/>
+
+                <!-- Номер телефона -->
+                <TextBlock Text="Номер телефона:" 
+                           FontWeight="SemiBold"/>
+                <TextBox x:Name="TxtNumber" 
+                         Text="{Binding Телефон, UpdateSourceTrigger=PropertyChanged}"
+                         Height="30"
+                         Margin="0,0,0,10"/>
+
+                <!-- Должность (ComboBox) -->
+                <TextBlock Text="Должность:" 
+                           FontWeight="SemiBold"/>
+                <ComboBox x:Name="CmbPosition" 
+                          Height="35" 
+                          Margin="0,0,0,10"
+                          DisplayMemberPath="Название"
+                          SelectedValuePath="Код_должности"
+                          SelectedValue="{Binding Код_должности, UpdateSourceTrigger=PropertyChanged}"/>
+
+                <!-- Логин -->
+                <TextBlock Text="Логин:" 
+                       FontWeight="SemiBold"/>
+                <TextBox x:Name="TxtLogin" 
+                     Text="{Binding Логин, UpdateSourceTrigger=PropertyChanged}"
+                     Height="30"
+                     Margin="0,0,0,10"/>
+
+                <!-- Пароль -->
+                <TextBlock Text="Пароль:" 
+                       FontWeight="SemiBold"/>
+                <PasswordBox x:Name="PassBox" 
+                         Height="30"
+                         Margin="0,0,0,10"
+                         PasswordChanged="PassBox_PasswordChanged"/>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Кнопки -->
+        <StackPanel Grid.Row="2" 
+                Orientation="Horizontal" 
+                HorizontalAlignment="Right"
+                Margin="0,20,0,0">
+
+            <Button x:Name="BtnSave" 
+                Content="💾 Сохранить" Click="BtnSave_Click"/>
+
+            <Button x:Name="BtnCancel" 
+                Content="✖ Отмена" Click="BtnCancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

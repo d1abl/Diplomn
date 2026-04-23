@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="3.0" xmlns:edmx="http://schemas.microsoft.com/ado/2009/11/edmx">
+ <!-- EF Designer content (DO NOT EDIT MANUALLY BELOW HERE) -->
+  <edmx:Designer xmlns="http://schemas.microsoft.com/ado/2009/11/edmx">
+    <!-- Diagram content (shape and connector positions) -->
+    <edmx:Diagrams>
+      <Diagram DiagramId="68c8684ce98343aba4cf5a764bf7d627" Name="Diagram1">
+        <EntityTypeShape EntityType="BDModel.Должность" Width="1.5" PointX="1.5" PointY="14.25" />
+        <EntityTypeShape EntityType="BDModel.Категории" Width="1.5" PointX="0.75" PointY="4.875" />
+        <EntityTypeShape EntityType="BDModel.Поставка" Width="1.5" PointX="6" PointY="14.125" />
+        <EntityTypeShape EntityType="BDModel.Поставщики" Width="1.5" PointX="6" PointY="9.625" />
+        <EntityTypeShape EntityType="BDModel.Продажи" Width="1.5" PointX="3" PointY="0.75" />
+        <EntityTypeShape EntityType="BDModel.Состав_заказа" Width="1.5" PointX="8.25" PointY="4.375" />
+        <EntityTypeShape EntityType="BDModel.Состав_продажи" Width="1.5" PointX="5.25" PointY="4.5" />
+        <EntityTypeShape EntityType="BDModel.Сотрудники" Width="1.5" PointX="3.75" PointY="13.5" />
+        <EntityTypeShape EntityType="BDModel.Товары" Width="1.5" PointX="3" PointY="4.375" />
+        <AssociationConnector Association="BDModel.FK_Сотрудники_Должность" />
+        <AssociationConnector Association="BDModel.FK_Товары_Категории" />
+        <AssociationConnector Association="BDModel.FK_Заказ_Сотрудники" />
+        <AssociationConnector Association="BDModel.FK_Состав_заказа_Заказ" />
+        <AssociationConnector Association="BDModel.FK_Состав_заказа_Поставщики" />
+        <AssociationConnector Association="BDModel.FK_Продажи_Сотрудники" />
+        <AssociationConnector Association="BDModel.FK_Состав_продажи_Продажи" />
+        <AssociationConnector Association="BDModel.FK_Состав_заказа_Товары" />
+        <AssociationConnector Association="BDModel.FK_Состав_продажи_Товары" />
+      </Diagram>
+    </edmx:Diagrams>
+  </edmx:Designer>
+</edmx:Edmx>
