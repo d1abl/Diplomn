@@ -1,0 +1,21 @@
+﻿<Page x:Class="Diplomn.Pages.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:Diplomn.Pages"
+      mc:Ignorable="d" 
+      Title="SettingsPage">
+
+    <Grid Margin="20">
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Top" Width="300">
+            <TextBlock Text="Выберите тему:" FontWeight="Bold" Margin="0,0,0,4" />
+            <ComboBox x:Name="ThemeSelector" SelectionChanged="ThemeSelector_SelectionChanged">
+                <ComboBoxItem Content="Theme 1" Tag="Theme1" />
+                <ComboBoxItem Content="Theme 2" Tag="Theme2" />
+                <ComboBoxItem Content="Theme 3" Tag="Theme3" />
+            </ComboBox>
+            <Button Content="Применить тему" Click="ApplyTheme_Click" Width="140" Margin="0,8,0,0" />
+        </StackPanel>
+    </Grid>
+</Page>
