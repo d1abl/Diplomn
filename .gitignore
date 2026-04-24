@@ -361,3 +361,17 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/Diplomn/AddCategoryWindow.xaml
+/Diplomn/AddCategoryWindow.xaml.cs
+/Diplomn/AddEmployeeWindow.xaml
+/Diplomn/AddEmployeeWindow.xaml.cs
+/Diplomn/Addons/GlobalSearchManager.cs
+/Diplomn/AddProductWindow.xaml
+/Diplomn/AddProductWindow.xaml.cs
+/Diplomn/AddSupplierWindow.xaml
+/Diplomn/AddSupplierWindow.xaml.cs
+/Diplomn/Pages/ManagerMenu.xaml.cs
+/Diplomn/Pages/ManagerMenu.xaml
+/Diplomn/Pages/ProjectsPage.xaml
+/Diplomn/Pages/ProjectsPage.xaml.cs
+/Diplomn/photo_2024-03-26_18-08-25.jpg
