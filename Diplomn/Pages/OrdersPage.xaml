@@ -61,7 +61,6 @@
                           AutoGenerateColumns="False" 
                           IsReadOnly="True"
                           SelectionMode="Single"
-                          SelectionUnit="FullRow"
                           Height="150"
                           Margin="0,5,0,0">
                     <DataGrid.Columns>
@@ -69,6 +68,7 @@
                         <DataGridTextColumn Header="Кол-во" Binding="{Binding Количество}" Width="60"/>
                         <DataGridTextColumn Header="Цена закупки" Binding="{Binding Цена, StringFormat={}{0:N2} ₽}" Width="100"/>
                         <DataGridTextColumn Header="Сумма" Binding="{Binding Сумма, StringFormat={}{0:N2} ₽}" Width="80"/>
+                        <DataGridTextColumn Header="Поставщик" Binding="{Binding Поставщик}" Width="120"/>
                     </DataGrid.Columns>
                 </DataGrid>
 

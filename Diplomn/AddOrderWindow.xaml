@@ -43,6 +43,7 @@
                     <DataGridTextColumn Header="Кол-во" Binding="{Binding Количество}" Width="80"/>
                     <DataGridTextColumn Header="Цена" Binding="{Binding Цена, StringFormat={}{0:N2} ₽}" Width="80"/>
                     <DataGridTextColumn Header="Сумма" Binding="{Binding Сумма, StringFormat={}{0:N2} ₽}" Width="80"/>
+                    <DataGridTextColumn Header="Поставщик" Binding="{Binding Поставщики.Наименование_поставщика}" Width="120"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Grid>

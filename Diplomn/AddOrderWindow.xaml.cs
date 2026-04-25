@@ -17,7 +17,7 @@ namespace Diplomn
             public Товары Товары { get; set; }
             public int Количество { get; set; }
             public decimal Цена { get; set; }
-            public Поставщики Поставщики {  get; set; }
+            public Поставщики Поставщики { get; set; }
             public decimal Сумма => Количество * Цена;
         }
 
@@ -63,20 +63,25 @@ namespace Diplomn
                 return;
             }
 
-            var existing = orderItems.FirstOrDefault(i => i.Товары?.Код_товара == product.Код_товара);
+            // Ищем существующую позицию с таким же товаром И таким же поставщиком
+            var existing = orderItems.FirstOrDefault(i =>
+                i.Товары?.Код_товара == product.Код_товара &&
+                i.Поставщики?.Код_поставщика == supplier.Код_поставщика);
+
             if (existing != null)
             {
+                // Если нашли - увеличиваем количество
                 existing.Количество += quantity;
-                existing.Поставщики = supplier;
             }
             else
             {
+                // Если не нашли - создаем новую позицию
                 orderItems.Add(new OrderItem
                 {
                     Товары = product,
                     Количество = quantity,
-                    Цена = product.Цена_за_ед_продажа
-                    ,Поставщики = supplier
+                    Цена = product.Цена_за_ед_продажа,
+                    Поставщики = supplier
                 });
             }
 
@@ -101,13 +106,6 @@ namespace Diplomn
 
             try
             {
-                var supplier = CmbSupplier.SelectedItem as Поставщики;
-                if (supplier == null)
-                {
-                    MessageBox.Show("Выберите поставщика для поставки!");
-                    return;
-                }
-
                 // Создаем поставку с текущей датой и временем
                 var order = new Поставка
                 {
@@ -126,7 +124,7 @@ namespace Diplomn
                         Код_товара = item.Товары.Код_товара,
                         Количество = item.Количество,
                         Цена_за_ед_покупка = item.Цена,
-                        Код_поставщика = item.Поставщики?.Код_поставщика ?? supplier.Код_поставщика
+                        Код_поставщика = item.Поставщики.Код_поставщика
                     };
                     context.Состав_заказа.Add(orderComposition);
 

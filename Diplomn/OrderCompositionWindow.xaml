@@ -20,6 +20,7 @@
                 <DataGridTextColumn Header="Количество" Binding="{Binding Количество, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
                 <DataGridTextColumn Header="Цена" Binding="{Binding Цена, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:N2} }" Width="100"/>
                 <DataGridTextColumn Header="Сумма" Binding="{Binding Сумма, StringFormat={}{0:N2} }" Width="100" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Поставщик" Binding="{Binding Поставщик}" Width="120" IsReadOnly="True"/>
             </DataGrid.Columns>
         </DataGrid>
 

@@ -17,6 +17,7 @@ namespace Diplomn.Pages
             public int Количество { get; set; }
             public decimal Цена { get; set; }
             public decimal Сумма => Количество * Цена;
+            public string Поставщик { get; set; }
         }
 
         public OrdersPage(Сотрудники user)
@@ -45,12 +46,14 @@ namespace Diplomn.Pages
 
                 var items = context.Состав_заказа
                     .Include("Товары")
+                    .Include("Поставщики")
                     .Where(i => i.Код_поставки == order.Код_поставки)
                     .Select(i => new OrderItemDisplay
                     {
                         Товар = i.Товары.Наименование,
                         Количество = i.Количество,
-                        Цена = i.Цена_за_ед_покупка
+                        Цена = i.Цена_за_ед_покупка,
+                        Поставщик = i.Поставщики != null ? i.Поставщики.Наименование_поставщика : "Не указан"
                     })
                     .ToList();
 

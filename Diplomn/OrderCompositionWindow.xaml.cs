@@ -20,6 +20,7 @@ namespace Diplomn
             public int Количество { get; set; }
             public decimal Цена { get; set; }
             public decimal Сумма => Количество * Цена;
+            public string Поставщик { get; set; }
         }
 
         public OrderCompositionWindow(BDEntities context, Поставка order)
@@ -30,6 +31,7 @@ namespace Diplomn
 
             var q = context.Состав_заказа
                 .Include("Товары")
+                .Include("Поставщики")
                 .Where(i => i.Код_поставки == order.Код_поставки)
                 .Select(i => new OrderItemDisplay2
                 {
@@ -37,7 +39,8 @@ namespace Diplomn
                     Код_товара = i.Код_товара,
                     Товар = i.Товары.Наименование,
                     Количество = i.Количество,
-                    Цена = i.Цена_за_ед_покупка
+                    Цена = i.Цена_за_ед_покупка,
+                    Поставщик = i.Поставщики != null ? i.Поставщики.Наименование_поставщика : "Не указан"
                 })
                 .ToList();
 
