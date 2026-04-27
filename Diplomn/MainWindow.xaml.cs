@@ -123,67 +123,52 @@ namespace Diplomn
         #endregion
 
         #region Методы навигации
-        public void BtnBack_Click(object sender, RoutedEventArgs e)
-        {
-            if (MainFrame?.CanGoBack == true)
-            {
-                MainFrame.GoBack();
-            }
-        }
+        public void BtnBack_Click(object sender, RoutedEventArgs e) => 
+            MainFrame?.GoBack();
                
-        private void CurrentUser_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame.Navigate(new CurrentEmployeeEditPage(currentUser));
-        }
+        private void CurrentUser_Click(object sender, RoutedEventArgs e) =>
+            MainFrame.NavigateIfDifferent(new CurrentEmployeeEditPage(currentUser));
+        
 
-        private void EmployeesBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame?.Navigate(new EmployeesPage(currentUser));
-        }
+        private void EmployeesBtn_Click(object sender, RoutedEventArgs e) =>        
+            MainFrame?.NavigateIfDifferent(new EmployeesPage(currentUser));
+        
 
-        private void RolesBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame?.Navigate(new RolePage(currentUser));
-        }
+        private void RolesBtn_Click(object sender, RoutedEventArgs e) =>       
+            MainFrame?.NavigateIfDifferent(new RolePage(currentUser));
+        
 
-        private void ProductsBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame?.Navigate(new ProductsPage(currentUser));
-        }
+        private void ProductsBtn_Click(object sender, RoutedEventArgs e) =>        
+            MainFrame?.NavigateIfDifferent(new ProductsPage(currentUser));
+        
 
-        private void CategoriesBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame?.Navigate(new CategoriesPage(currentUser));
-        }
+        private void CategoriesBtn_Click(object sender, RoutedEventArgs e) =>        
+            MainFrame?.NavigateIfDifferent(new CategoriesPage(currentUser));
+        
 
-        private void SuppliersBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame?.Navigate(new SuppliersPage(currentUser));
-        }
+        private void SuppliersBtn_Click(object sender, RoutedEventArgs e) =>        
+            MainFrame?.NavigateIfDifferent(new SuppliersPage(currentUser));
+        
 
-        private void SuppliesBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame?.Navigate(new SuppliesPage(currentUser));
-        }
+        private void SuppliesBtn_Click(object sender, RoutedEventArgs e) =>        
+            MainFrame?.NavigateIfDifferent(new SuppliesPage(currentUser));
+        
 
-        private void SalesBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame?.Navigate(new SalesPage(currentUser));
-        }
+        private void SalesBtn_Click(object sender, RoutedEventArgs e) =>        
+            MainFrame?.NavigateIfDifferent(new SalesPage(currentUser));
+        
 
-        private void ReportsBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame?.Navigate(new ReportPage(currentUser));
-        }
+        private void ReportsBtn_Click(object sender, RoutedEventArgs e) =>        
+            MainFrame?.NavigateIfDifferent(new ReportPage(currentUser));
+        
 
-        private void SettingsBtn_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame?.Navigate(new SettingsPage(currentUser));
-        }
+        private void SettingsBtn_Click(object sender, RoutedEventArgs e) =>        
+            MainFrame?.NavigateIfDifferent(new SettingsPage(currentUser));
+        
 
         private void CalendarBtn_Click(object sender, RoutedEventArgs e)
         {
-            //MainFrame?.Navigate(new CalendarPage(currentUser));
+            //MainFrame?.NavigateIfDifferent(new CalendarPage(currentUser));
         }
 
         #endregion

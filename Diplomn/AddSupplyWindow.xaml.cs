@@ -17,7 +17,6 @@ namespace Diplomn
             public Товары Товары { get; set; }
             public int Количество { get; set; }
             public decimal Цена { get; set; }
-            public Поставщики Поставщики { get; set; }
             public decimal Сумма => Количество * Цена;
         }
 
@@ -28,7 +27,6 @@ namespace Diplomn
             this.currentUser = user;
 
             CmbProduct.ItemsSource = context.Товары.ToList();
-            CmbSupplier.ItemsSource = context.Поставщики.ToList();
             CmbProduct.SelectionChanged += CmbProduct_SelectionChanged;
             DataGridOrderItems.ItemsSource = orderItems;
         }
@@ -37,7 +35,7 @@ namespace Diplomn
         {
             if (CmbProduct.SelectedItem is Товары product)
             {
-                TxtPrice.Text = product.Цена_за_ед_продажа.ToString() + " ₽" ?? "0";
+                TxtPrice.Text = $"{product.Цена_за_ед_продажа:N2} ₽";
             }
         }
 
@@ -46,48 +44,44 @@ namespace Diplomn
             var product = CmbProduct.SelectedItem as Товары;
             if (product == null)
             {
-                MessageBox.Show("Выберите товар!");
-                return;
-            }
-
-            var supplier = CmbSupplier.SelectedItem as Поставщики;
-            if (supplier == null)
-            {
-                MessageBox.Show("Выберите поставщика!");
+                MessageBox.Show("Выберите товар!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (!int.TryParse(TxtQuantity.Text, out int quantity) || quantity <= 0)
             {
-                MessageBox.Show("Введите корректное количество!");
+                MessageBox.Show("Введите корректное количество!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            // Ищем существующую позицию с таким же товаром И таким же поставщиком
-            var existing = orderItems.FirstOrDefault(i =>
-                i.Товары?.Код_товара == product.Код_товара &&
-                i.Поставщики?.Код_поставщика == supplier.Код_поставщика);
-
+            var existing = orderItems.FirstOrDefault(i => i.Товары?.Код_товара == product.Код_товара);
             if (existing != null)
             {
-                // Если нашли - увеличиваем количество
                 existing.Количество += quantity;
             }
             else
             {
-                // Если не нашли - создаем новую позицию
                 orderItems.Add(new OrderItem
                 {
                     Товары = product,
                     Количество = quantity,
-                    Цена = product.Цена_за_ед_продажа,
-                    Поставщики = supplier
+                    Цена = product.Цена_за_ед_продажа
                 });
             }
 
             TxtQuantity.Text = "1";
             UpdateTotal();
             DataGridOrderItems.Items.Refresh();
+        }
+
+        private void RemoveItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is OrderItem item)
+            {
+                orderItems.Remove(item);
+                UpdateTotal();
+                DataGridOrderItems.Items.Refresh();
+            }
         }
 
         private void UpdateTotal()
@@ -100,21 +94,48 @@ namespace Diplomn
         {
             if (!orderItems.Any())
             {
-                MessageBox.Show("Добавьте товары в поставку!");
+                MessageBox.Show("Добавьте товары в поставку!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             try
             {
-                // Создаем поставку с текущей датой и временем
+                // Выбор поставщика для всей поставки
+                var suppliers = context.Поставщики.ToList();
+                if (!suppliers.Any())
+                {
+                    MessageBox.Show("Нет доступных поставщиков!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                Поставщики selectedSupplier = null;
+                if (suppliers.Count == 1)
+                {
+                    selectedSupplier = suppliers.First();
+                }
+                else
+                {
+                    // Показываем диалог выбора поставщика
+                    var supplierNames = suppliers.Select(s => s.Наименование_поставщика).ToArray();
+                    var dialog = new SupplierSelectDialog(suppliers);
+                    if (dialog.ShowDialog() == true)
+                    {
+                        selectedSupplier = dialog.SelectedSupplier;
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+
                 var order = new Поставка
                 {
                     Код_сотрудника = currentUser.Код_сотрудника,
-                    Дата_оформления_постивки = DateTime.Now  // Сохраняем текущую дату и время
+                    Дата_оформления_постивки = DateTime.Now
                 };
 
                 context.Поставка.Add(order);
-                context.SaveChanges(); // Сохраняем чтобы получить Код_поставки
+                context.SaveChanges();
 
                 foreach (var item in orderItems)
                 {
@@ -124,29 +145,28 @@ namespace Diplomn
                         Код_товара = item.Товары.Код_товара,
                         Количество = item.Количество,
                         Цена_за_ед_покупка = item.Цена,
-                        Код_поставщика = item.Поставщики.Код_поставщика
+                        Код_поставщика = selectedSupplier.Код_поставщика
                     };
                     context.Состав_поставки.Add(orderComposition);
 
-                    // Увеличиваем количество товара на складе
                     var product = context.Товары.Find(item.Товары.Код_товара);
                     if (product != null)
-                    {
                         product.Количество += item.Количество;
-                    }
                 }
 
                 context.SaveChanges();
-                MessageBox.Show($"Поставка успешно оформлена!\nНомер поставки: {order.Код_поставки}\nДата: {order.Дата_оформления_постивки:dd.MM.yyyy HH:mm}",
-                                "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Поставка №{order.Код_поставки} оформлена!\nПоставщик: {selectedSupplier.Наименование_поставщика}",
+                    "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 DialogResult = true;
                 Close();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = false;

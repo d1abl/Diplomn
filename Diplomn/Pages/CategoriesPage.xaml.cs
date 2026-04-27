@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace Diplomn.Pages
 {
@@ -20,9 +21,42 @@ namespace Diplomn.Pages
             LoadData();
         }
 
+        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+                ApplyFilters();
+        }
+
+        private IQueryable<Категории> GetFilteredQuery()
+        {
+            var query = context.Категории.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
+            {
+                var term = TxtSearch.Text.Trim();
+                query = query.Where(c => c.Категория.Contains(term) ||
+                                        c.Описание_категории.Contains(term));
+            }
+
+            return query;
+        }
+
         private void LoadData()
         {
             DataGridCategories.ItemsSource = context.Категории.ToList();
+        }
+
+        private void ApplyFilters()
+        {
+            DataGridCategories.ItemsSource = GetFilteredQuery().ToList();
+        }
+
+        private void ApplyFilters_Click(object sender, RoutedEventArgs e) => ApplyFilters();
+
+        private void ClearFilters_Click(object sender, RoutedEventArgs e)
+        {
+            TxtSearch.Text = "";
+            LoadData();
         }
 
         private void DataGridCategories_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -42,42 +76,27 @@ namespace Diplomn.Pages
 
             if (string.IsNullOrWhiteSpace(name))
             {
-                errors.AppendLine("❌ Введите название категории!");
+                errors.AppendLine("• Введите название категории");
             }
             else
             {
                 if (name.Length < 2)
-                    errors.AppendLine("❌ Название категории должно содержать минимум 2 буквы!");
+                    errors.AppendLine("• Название должно содержать минимум 2 символа");
 
                 if (name.Length > 40)
-                    errors.AppendLine("❌ Название категории не должно превышать 40 символов!");
+                    errors.AppendLine("• Название не должно превышать 40 символов");
 
                 var allowed = new Regex(@"^[A-Za-zА-Яа-яЁё\-\s]+$");
                 if (!allowed.IsMatch(name))
-                    errors.AppendLine("❌ Название содержит недопустимые символы!");
-
-                var lettersOnly = Regex.Replace(name, @"[^A-Za-zА-Яа-яЁё]", "");
-                if (lettersOnly.Length < 2)
-                    errors.AppendLine("❌ Название должно содержать минимум 2 буквы!");
-
-                var vowel = new Regex(@"[AEIOUYaeiouyАЕЁИОУЫЭЮЯаеёиоуыэюя]");
-                var consonant = new Regex(@"[B-DF-HJ-NP-TV-Zb-df-hj-np-tv-zБ-ЖЗЙ-НП-РСТ-Яб-жзй-нп-рст-я]");
-
-                if (!vowel.IsMatch(lettersOnly))
-                    errors.AppendLine("❌ Название должно содержать хотя бы одну гласную!");
-
-                if (!consonant.IsMatch(lettersOnly))
-                    errors.AppendLine("❌ Название должно содержать хотя бы одну согласную!");
+                    errors.AppendLine("• Название содержит недопустимые символы");
 
                 // Проверка уникальности
-                bool exists;
-                if (excludeId.HasValue)
-                    exists = context.Категории.Any(c => c.Категория == name && c.Код_категория != excludeId.Value);
-                else
-                    exists = context.Категории.Any(c => c.Категория == name);
+                bool exists = excludeId.HasValue
+                    ? context.Категории.Any(c => c.Категория == name && c.Код_категория != excludeId.Value)
+                    : context.Категории.Any(c => c.Категория == name);
 
                 if (exists)
-                    errors.AppendLine("❌ Категория с таким названием уже существует!");
+                    errors.AppendLine("• Категория с таким названием уже существует");
             }
 
             errorMessage = errors.ToString();
@@ -109,7 +128,7 @@ namespace Diplomn.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при добавлении категории: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при добавлении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -149,7 +168,7 @@ namespace Diplomn.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при обновлении категории: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при обновлении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -172,39 +191,34 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                var productsWithCategory = context.Товары.Where(p => p.Код_категория == categoryId).Any();
+                var productsWithCategory = context.Товары.Any(p => p.Код_категория == categoryId);
                 if (productsWithCategory)
                 {
-                    MessageBox.Show("Нельзя удалить категорию, так как есть товары в этой категории!\n" +
+                    MessageBox.Show("Нельзя удалить категорию — есть товары в этой категории!\n" +
                                    "Сначала переназначьте или удалите эти товары.",
                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                var result = MessageBox.Show($"Вы уверены, что хотите удалить категорию '{category.Категория}'?",
-                                            "Подтверждение удаления",
-                                            MessageBoxButton.YesNo,
-                                            MessageBoxImage.Question);
+                var result = MessageBox.Show($"Удалить категорию '{category.Категория}'?",
+                    "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
                     context.Категории.Remove(category);
                     context.SaveChanges();
-                    MessageBox.Show("Категория успешно удалена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Категория удалена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                     LoadData();
                     ClearForm();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при удалении категории: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при удалении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void ClearForm_Click(object sender, RoutedEventArgs e)
-        {
-            ClearForm();
-        }
+        private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
 
         private void ClearForm()
         {

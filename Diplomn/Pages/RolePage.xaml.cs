@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace Diplomn.Pages
 {
@@ -19,9 +20,36 @@ namespace Diplomn.Pages
             LoadRoles();
         }
 
+        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+                ApplyFilters();
+        }
+
         private void LoadRoles()
         {
             DataGridRoles.ItemsSource = context.Должность.ToList();
+        }
+
+        private void ApplyFilters()
+        {
+            var query = context.Должность.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
+            {
+                var term = TxtSearch.Text.Trim();
+                query = query.Where(r => r.Название.Contains(term));
+            }
+
+            DataGridRoles.ItemsSource = query.ToList();
+        }
+
+        private void ApplyFilters_Click(object sender, RoutedEventArgs e) => ApplyFilters();
+
+        private void ClearFilters_Click(object sender, RoutedEventArgs e)
+        {
+            TxtSearch.Text = "";
+            LoadRoles();
         }
 
         private void DataGridRoles_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -37,30 +65,24 @@ namespace Diplomn.Pages
         private bool ValidateRole(out string errorMessage, int? excludeId = null)
         {
             var errors = new StringBuilder();
-
             string roleName = TxtRoleName.Text?.Trim();
 
-            // Название роли
             if (string.IsNullOrWhiteSpace(roleName))
-                errors.AppendLine("❌ Введите название роли!");
+                errors.AppendLine("• Введите название должности");
 
-            // Уровень доступа
             if (!int.TryParse(TxtAccessLevel.Text, out int accessLevel))
-                errors.AppendLine("❌ Уровень доступа должен быть числом!");
+                errors.AppendLine("• Уровень доступа должен быть числом");
             else if (accessLevel < 1 || accessLevel > 10)
-                errors.AppendLine("❌ Уровень доступа должен быть числом от 1 до 10!");
+                errors.AppendLine("• Уровень доступа должен быть от 1 до 10");
 
-            // Проверка уникальности названия роли
             if (!string.IsNullOrWhiteSpace(roleName))
             {
-                bool exists;
-                if (excludeId.HasValue)
-                    exists = context.Должность.Any(r => r.Название == roleName && r.Код_должности != excludeId.Value);
-                else
-                    exists = context.Должность.Any(r => r.Название == roleName);
+                bool exists = excludeId.HasValue
+                    ? context.Должность.Any(r => r.Название == roleName && r.Код_должности != excludeId.Value)
+                    : context.Должность.Any(r => r.Название == roleName);
 
                 if (exists)
-                    errors.AppendLine("❌ Роль с таким названием уже существует!");
+                    errors.AppendLine("• Должность с таким названием уже существует");
             }
 
             errorMessage = errors.ToString();
@@ -86,13 +108,13 @@ namespace Diplomn.Pages
                 context.Должность.Add(role);
                 context.SaveChanges();
 
-                MessageBox.Show("Роль успешно добавлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Должность успешно добавлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 LoadRoles();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при добавлении роли: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при добавлении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -102,7 +124,7 @@ namespace Diplomn.Pages
             {
                 if (string.IsNullOrWhiteSpace(TxtRoleId.Text))
                 {
-                    MessageBox.Show("Выберите роль для обновления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Выберите должность для обновления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -111,7 +133,7 @@ namespace Diplomn.Pages
 
                 if (role == null)
                 {
-                    MessageBox.Show("Роль не найдена!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("Должность не найдена!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
@@ -126,13 +148,13 @@ namespace Diplomn.Pages
 
                 context.SaveChanges();
 
-                MessageBox.Show("Роль успешно обновлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Должность успешно обновлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 LoadRoles();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при обновлении роли: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при обновлении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -142,7 +164,7 @@ namespace Diplomn.Pages
             {
                 if (string.IsNullOrWhiteSpace(TxtRoleId.Text))
                 {
-                    MessageBox.Show("Выберите роль для удаления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Выберите должность для удаления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -151,44 +173,38 @@ namespace Diplomn.Pages
 
                 if (role == null)
                 {
-                    MessageBox.Show("Роль не найдена!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("Должность не найдена!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
-                // Проверяем, есть ли сотрудники с этой ролью
                 var employeesWithRole = context.Сотрудники.Where(s => s.Код_должности == roleId).Any();
                 if (employeesWithRole)
                 {
-                    MessageBox.Show("Нельзя удалить роль, так как есть сотрудники, занимающие эту должность!\n" +
+                    MessageBox.Show("Нельзя удалить должность - есть сотрудники с этой должностью!\n" +
                                    "Сначала переназначьте или удалите этих сотрудников.",
                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                var result = MessageBox.Show($"Вы уверены, что хотите удалить роль '{role.Название}'?",
-                                            "Подтверждение удаления",
-                                            MessageBoxButton.YesNo,
-                                            MessageBoxImage.Question);
+                var result = MessageBox.Show($"Удалить должность '{role.Название}'?",
+                    "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
                     context.Должность.Remove(role);
                     context.SaveChanges();
-                    MessageBox.Show("Роль успешно удалена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Должность удалена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                     LoadRoles();
                     ClearForm();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при удалении роли: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при удалении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void ClearForm_Click(object sender, RoutedEventArgs e)
-        {
-            ClearForm();
-        }
+        private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
 
         private void ClearForm()
         {

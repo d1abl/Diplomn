@@ -70,6 +70,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Addons\FrameExtensions.cs" />
     <Compile Include="Addons\PhoneNumberConverter.cs" />
     <Compile Include="AddSupplyWindow.xaml.cs">
       <DependentUpon>AddSupplyWindow.xaml</DependentUpon>
@@ -133,6 +134,9 @@
     </Compile>
     <Compile Include="SaleCompositionWindow.xaml.cs">
       <DependentUpon>SaleCompositionWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SupplierSelectDialog.xaml.cs">
+      <DependentUpon>SupplierSelectDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="Бренд.cs">
       <DependentUpon>BD.tt</DependentUpon>
@@ -246,6 +250,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="SaleCompositionWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SupplierSelectDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

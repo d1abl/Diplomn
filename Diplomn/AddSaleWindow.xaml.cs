@@ -36,8 +36,8 @@ namespace Diplomn
         {
             if (CmbProduct.SelectedItem is Товары product)
             {
-                TxtPrice.Text = product.Цена_за_ед_продажа.ToString() + " ₽" ?? "0";
-                TxtAvailable.Text = product.Количество.ToString() ?? "0";
+                TxtPrice.Text = $"{product.Цена_за_ед_продажа:N2} ₽";
+                TxtAvailable.Text = product.Количество.ToString();
             }
         }
 
@@ -46,13 +46,13 @@ namespace Diplomn
             var product = CmbProduct.SelectedItem as Товары;
             if (product == null)
             {
-                MessageBox.Show("Выберите товар!");
+                MessageBox.Show("Выберите товар!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (!int.TryParse(TxtQuantity.Text, out int quantity) || quantity <= 0)
             {
-                MessageBox.Show("Введите корректное количество!");
+                MessageBox.Show("Введите корректное количество!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -61,19 +61,11 @@ namespace Diplomn
                 .Sum(i => i.Количество);
 
             int totalRequested = existingQuantity + quantity;
-            int available = product.Количество;
 
-            if (totalRequested > available)
+            if (totalRequested > product.Количество)
             {
-                MessageBox.Show($"Недостаточно товара!\n" +
-                                $"Доступно: {available}\n" +
-                                $"Уже в корзине: {existingQuantity}\n",
-                                "Ошибка",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Warning);
-                                //+
-                               //$"Запрошено: {quantity}\n" +
-                               //$"Итого: {totalRequested} из {available}"
+                MessageBox.Show($"Недостаточно товара на складе!\nДоступно: {product.Количество}\nУже в чеке: {existingQuantity}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -94,24 +86,33 @@ namespace Diplomn
 
             TxtQuantity.Text = "1";
             UpdateTotal();
-
             DataGridSaleItems.Items.Refresh();
+        }
+
+        private void RemoveItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is SaleItem item)
+            {
+                saleItems.Remove(item);
+                UpdateTotal();
+                DataGridSaleItems.Items.Refresh();
+            }
         }
 
         private void UpdateTotal()
         {
-            
             decimal total = saleItems.Sum(i => i.Сумма);
-            TxtTotal?.SetValue(TextBlock.TextProperty, total.ToString("N2") + " ₽");
+            TxtTotal.Text = $"{total:N2} ₽";
         }
 
         private void SaveSale_Click(object sender, RoutedEventArgs e)
         {
             if (!saleItems.Any())
             {
-                MessageBox.Show("Добавьте товары в чек!");
+                MessageBox.Show("Добавьте товары в чек!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+
             try
             {
                 var sale = new Продажи
@@ -134,22 +135,21 @@ namespace Diplomn
                     };
                     context.Состав_продажи.Add(saleComposition);
 
-                    // Уменьшаем количество товара на складе
                     var product = context.Товары.Find(item.Товары.Код_товара);
-                    product.Количество -= item.Количество;
+                    if (product != null)
+                        product.Количество -= item.Количество;
                 }
 
                 context.SaveChanges();
-                MessageBox.Show($"Продажа оформлена! Чек №{sale.Код_чека}");
+                MessageBox.Show($"Продажа оформлена! Чек №{sale.Код_чека}", "Успех",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
                 DialogResult = true;
                 Close();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при сохранении: {ex.Message}",
-                                "Ошибка",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -157,11 +157,6 @@ namespace Diplomn
         {
             DialogResult = false;
             Close();
-        }
-
-        private void TxtQuantity_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            UpdateTotal();
         }
     }
 }

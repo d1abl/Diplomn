@@ -1,8 +1,7 @@
 ﻿<Page x:Class="Diplomn.Pages.AuthPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-      Title="AuthPage"
-      >
+      Title="AuthPage">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -11,60 +10,49 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Основной контейнер страницы -->
-        <StackPanel Grid.Row="1" 
-                HorizontalAlignment="Center" 
-                VerticalAlignment="Center"
-                Width="300">
+        <Border Grid.Row="1" Padding="40" CornerRadius="10"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Width="380">
+            <StackPanel>
+                <!-- Заголовок -->
+                <TextBlock Text="Вход в систему" 
+                           FontSize="22" FontWeight="Bold" 
+                           Foreground="{DynamicResource AccentBrush}"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,30"/>
 
-            <!-- Заголовок -->
-            <TextBlock Text="Вход в систему" 
-                   FontSize="24" 
-                   FontWeight="Bold" 
-                   Foreground="#2196F3"
-                   HorizontalAlignment="Center"
-                   Margin="0,0,0,20"/>
+                <!-- Поле для логина -->
+                <TextBlock Text="Логин" FontSize="12" Margin="0,0,0,5" FontWeight="SemiBold"/>
+                <TextBox x:Name="LoginBox" Height="35" Margin="0,0,0,15" Text="admin"/>
 
-            <!-- Поле для логина -->
-            <TextBlock Text="Логин:" 
-                   FontWeight="SemiBold"/>
-            <TextBox x:Name="LoginBox" 
-                 Height="35"
-                 Margin="0,0,0,10" Text="admin"/>
+                <!-- Поле для пароля -->
+                <TextBlock Text="Пароль" FontSize="12" Margin="0,0,0,5" FontWeight="SemiBold"/>
+                <PasswordBox x:Name="PassBox" Height="35" Margin="0,0,0,25" Password="admin123"/>
 
-            <!-- Поле для пароля -->
-            <TextBlock Text="Пароль:" 
-                   FontWeight="SemiBold"/>
-            <PasswordBox x:Name="PassBox" 
-                     Height="35"
-                     Margin="0,0,0,20" Password="admin123"/>
+                <!-- Кнопки -->
+                <Grid Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-            <!-- Кнопки -->
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" x:Name="LoginBtn" Content="Войти" 
+                            Click="LoginBtn_Click" Height="38" Margin="0,0,5,0"
+                            Background="{DynamicResource AccentBrush}" 
+                            Foreground="White" FontWeight="Bold"/>
 
-                <Button Grid.Column="0" 
-                    x:Name="LoginBtn" 
-                    Content="Войти" 
-                    Click="LoginBtn_Click"
-                    Margin="0,0,5,0"/>
+                    <Button Grid.Column="1" x:Name="ExitBtn" Content="Выход" 
+                            Click="ExitBtn_Click" Height="38" Margin="5,0,0,0"/>
+                </Grid>
 
-                <Button Grid.Column="1" 
-                    x:Name="ExitBtn" 
-                    Content="Выход" 
-                    Click="ExitBtn_Click"
-                    Margin="5,0,0,0"/>
-            </Grid>
-
-            <!-- Сообщение об ошибке (Ожидаемый формат во всем приложении) -->
-            <TextBlock x:Name="ErrorText" 
-                   Foreground="#F44336"
-                   HorizontalAlignment="Center"
-                   Margin="0,10,0,0"
-                   Visibility="Collapsed"/>
-        </StackPanel>
+                <!-- Сообщение об ошибке -->
+                <Border x:Name="ErrorBorder" Background="#FFF44336" CornerRadius="4" 
+                        Padding="10" Visibility="Collapsed">
+                    <TextBlock x:Name="ErrorText" Foreground="White" 
+                               HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                </Border>
+            </StackPanel>
+        </Border>
     </Grid>
 </Page>

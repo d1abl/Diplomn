@@ -1,11 +1,13 @@
 ﻿using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media.Imaging;
 
 namespace Diplomn.Pages
@@ -24,9 +26,95 @@ namespace Diplomn.Pages
             LoadData();
         }
 
+        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+                ApplyFilters();
+        }
+
+        private IQueryable<Поставщики> GetFilteredQuery()
+        {
+            var query = context.Поставщики.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
+            {
+                var term = TxtSearch.Text.Trim();
+                query = query.Where(s => s.Наименование_поставщика.Contains(term) ||
+                                        s.ИНН.Contains(term) ||
+                                        s.Фамилия_контактного_лица.Contains(term));
+            }
+
+            return query;
+        }
+
         private void LoadData()
         {
             DataGridSuppliers.ItemsSource = context.Поставщики.ToList();
+        }
+
+        private void ApplyFilters()
+        {
+            DataGridSuppliers.ItemsSource = GetFilteredQuery().ToList();
+        }
+
+        private void ApplyFilters_Click(object sender, RoutedEventArgs e) => ApplyFilters();
+
+        private void ClearFilters_Click(object sender, RoutedEventArgs e)
+        {
+            TxtSearch.Text = "";
+            LoadData();
+        }
+
+        private void SaveReport_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var suppliers = GetFilteredQuery().ToList();
+
+                if (!suppliers.Any())
+                {
+                    MessageBox.Show("Нет данных для сохранения отчета.", "Информация",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var saveFileDialog = new SaveFileDialog
+                {
+                    Filter = "CSV файл (*.csv)|*.csv|Текстовый файл (*.txt)|*.txt",
+                    Title = "Сохранить отчет о поставщиках",
+                    FileName = $"Отчет_поставщики_{DateTime.Now:yyyy-MM-dd_HH-mm}"
+                };
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    var sb = new StringBuilder();
+                    sb.AppendLine($"Отчет о поставщиках от {DateTime.Now:dd.MM.yyyy HH:mm}");
+                    sb.AppendLine($"Сформировал: {currentUser.Фамилия} {currentUser.Имя}");
+
+                    if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
+                        sb.AppendLine($"Поиск: \"{TxtSearch.Text}\"");
+
+                    sb.AppendLine();
+                    sb.AppendLine($"Всего поставщиков: {suppliers.Count}");
+                    sb.AppendLine();
+                    sb.AppendLine("Код;Наименование;ИНН;Контактное лицо;Телефон;Email;Адрес");
+
+                    foreach (var supplier in suppliers)
+                    {
+                        var contactPerson = $"{supplier.Фамилия_контактного_лица} {supplier.Имя_контактного_лица} {supplier.Отчество_контактного_лица ?? ""}".Trim();
+                        sb.AppendLine($"{supplier.Код_поставщика};{supplier.Наименование_поставщика};{supplier.ИНН};{contactPerson};{supplier.Телефон_контактного_лица ?? "-"};{supplier.Email_поставщика};{supplier.Адрес_поставщика}");
+                    }
+
+                    File.WriteAllText(saveFileDialog.FileName, sb.ToString(), Encoding.UTF8);
+                    MessageBox.Show($"Отчет сохранен!\n{saveFileDialog.FileName}", "Успех",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при сохранении отчета: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void DataGridSuppliers_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -69,27 +157,24 @@ namespace Diplomn.Pages
                     SupplierLogo.Source = new BitmapImage(new Uri("/Photos/istocklogo.png", UriKind.RelativeOrAbsolute));
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                MessageBox.Show($"Ошибка загрузки логотипа: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
                 SupplierLogo.Source = new BitmapImage(new Uri("/Photos/istocklogo.png", UriKind.RelativeOrAbsolute));
             }
         }
 
-        private void SelectLogo_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void SelectLogo_Click(object sender, MouseButtonEventArgs e)
         {
             try
             {
-                OpenFileDialog openFileDialog = new OpenFileDialog
+                var openFileDialog = new OpenFileDialog
                 {
-                    Filter = "Изображения (*.jpg; *.jpeg; *.png; *.bmp)|*.jpg;*.jpeg;*.png;*.bmp|Все файлы (*.*)|*.*",
+                    Filter = "Изображения (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp",
                     Title = "Выберите логотип поставщика"
                 };
 
                 if (openFileDialog.ShowDialog() == true)
                 {
-                    // Загружаем и обрезаем изображение
                     selectedImageData = LoadAndResizeImage(openFileDialog.FileName, 200, 200);
 
                     using (var ms = new MemoryStream(selectedImageData))
@@ -112,14 +197,12 @@ namespace Diplomn.Pages
 
         private byte[] LoadAndResizeImage(string filePath, int maxWidth, int maxHeight)
         {
-            // Загружаем изображение
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
             bitmap.UriSource = new Uri(filePath);
             bitmap.CacheOption = BitmapCacheOption.OnLoad;
             bitmap.EndInit();
 
-            // Создаем обрезанную/масштабированную версию
             var resizedBitmap = new BitmapImage();
             resizedBitmap.BeginInit();
             resizedBitmap.UriSource = new Uri(filePath);
@@ -128,7 +211,6 @@ namespace Diplomn.Pages
             resizedBitmap.CacheOption = BitmapCacheOption.OnLoad;
             resizedBitmap.EndInit();
 
-            // Конвертируем в массив байтов
             using (var ms = new MemoryStream())
             {
                 var encoder = new PngBitmapEncoder();
@@ -138,7 +220,7 @@ namespace Diplomn.Pages
             }
         }
 
-        private bool ValidateSupplier(out string errorMessage)
+        private bool ValidateSupplier(out string errorMessage, int? excludeId = null)
         {
             var errors = new StringBuilder();
 
@@ -153,105 +235,62 @@ namespace Diplomn.Pages
 
             // Наименование
             if (string.IsNullOrWhiteSpace(name))
-                errors.AppendLine("❌ Поле 'Наименование поставщика' обязательно для заполнения.");
-            else
-            {
-                var lettersOnly = Regex.Replace(name, @"[^A-Za-zА-Яа-яЁё]", "");
-                if (lettersOnly.Length < 2)
-                    errors.AppendLine("❌ Наименование должно содержать минимум 2 буквы.");
-                else
-                {
-                    var vowel = new Regex(@"[AEIOUYaeiouyАЕЁИОУЫЭЮЯаеёиоуыэюя]");
-                    var consonant = new Regex(@"[B-DF-HJ-NP-TV-Zb-df-hj-np-tv-zБ-ЖЗЙ-НП-РСТ-Яб-жзй-нп-рст-я]");
-                    if (!vowel.IsMatch(lettersOnly) || !consonant.IsMatch(lettersOnly))
-                        errors.AppendLine("❌ Наименование должно содержать хотя бы одну гласную и одну согласную.");
-                }
-            }
+                errors.AppendLine("• Введите наименование поставщика");
 
             // ИНН
             if (string.IsNullOrWhiteSpace(inn))
-                errors.AppendLine("❌ Поле 'ИНН' обязательно для заполнения.");
-            else if (!Regex.IsMatch(inn, "^\\d+$"))
-                errors.AppendLine("❌ ИНН должен содержать только цифры.");
+                errors.AppendLine("• Введите ИНН");
+            else if (!Regex.IsMatch(inn, @"^\d+$"))
+                errors.AppendLine("• ИНН должен содержать только цифры");
             else if (inn.Length != 10 && inn.Length != 12)
-                errors.AppendLine("❌ ИНН должен содержать 10 или 12 цифр.");
+                errors.AppendLine("• ИНН должен содержать 10 или 12 цифр");
+            else
+            {
+                bool innExists = excludeId.HasValue
+                    ? context.Поставщики.Any(s => s.ИНН == inn && s.Код_поставщика != excludeId.Value)
+                    : context.Поставщики.Any(s => s.ИНН == inn);
+
+                if (innExists)
+                    errors.AppendLine("• Поставщик с таким ИНН уже существует");
+            }
 
             // Адрес
             if (string.IsNullOrWhiteSpace(address))
-                errors.AppendLine("❌ Поле 'Адрес поставщика' обязательно для заполнения.");
+                errors.AppendLine("• Введите адрес");
             else if (address.Length < 5)
-                errors.AppendLine("❌ Адрес должен содержать минимум 5 символов.");
-            else
-            {
-                var addressRegex = new Regex(@"^[A-Za-zА-Яа-яЁё0-9\s\.,\-/]+$");
-                if (!addressRegex.IsMatch(address))
-                    errors.AppendLine("❌ Адрес содержит недопустимые символы.");
-            }
+                errors.AppendLine("• Адрес должен содержать минимум 5 символов");
 
             // Email
             if (string.IsNullOrWhiteSpace(email))
-                errors.AppendLine("❌ Поле 'Email поставщика' обязательно для заполнения.");
+                errors.AppendLine("• Введите Email");
             else
             {
                 var emailRegex = new Regex(@"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$");
                 if (!emailRegex.IsMatch(email))
-                    errors.AppendLine("❌ Неверный формат Email.");
+                    errors.AppendLine("• Неверный формат Email");
+                else
+                {
+                    bool emailExists = excludeId.HasValue
+                        ? context.Поставщики.Any(s => s.Email_поставщика == email && s.Код_поставщика != excludeId.Value)
+                        : context.Поставщики.Any(s => s.Email_поставщика == email);
+
+                    if (emailExists)
+                        errors.AppendLine("• Поставщик с таким Email уже существует");
+                }
             }
 
-            // Фамилия контактного лица
+            // Контактное лицо
             if (string.IsNullOrWhiteSpace(contactLastName))
-                errors.AppendLine("❌ Поле 'Фамилия контактного лица' обязательно для заполнения.");
-            else
-            {
-                var lettersOnly = Regex.Replace(contactLastName, @"[^A-Za-zА-Яа-яЁё]", "");
-                if (lettersOnly.Length < 2)
-                    errors.AppendLine("❌ Фамилия должна содержать минимум 2 буквы.");
-                else
-                {
-                    var vowel = new Regex(@"[AEIOUYaeiouyАЕЁИОУЫЭЮЯаеёиоуыэюя]");
-                    var consonant = new Regex(@"[B-DF-HJ-NP-TV-Zb-df-hj-np-tv-zБ-ЖЗЙ-НП-РСТ-Яб-жзй-нп-рст-я]");
-                    if (!vowel.IsMatch(lettersOnly) || !consonant.IsMatch(lettersOnly))
-                        errors.AppendLine("❌ Фамилия должна содержать хотя бы одну гласную и одну согласную.");
-                }
-            }
+                errors.AppendLine("• Введите фамилию контактного лица");
 
-            // Имя контактного лица
             if (string.IsNullOrWhiteSpace(contactFirstName))
-                errors.AppendLine("❌ Поле 'Имя контактного лица' обязательно для заполнения.");
-            else
-            {
-                var lettersOnly = Regex.Replace(contactFirstName, @"[^A-Za-zА-Яа-яЁё]", "");
-                if (lettersOnly.Length < 2)
-                    errors.AppendLine("❌ Имя должно содержать минимум 2 буквы.");
-                else
-                {
-                    var vowel = new Regex(@"[AEIOUYaeiouyАЕЁИОУЫЭЮЯаеёиоуыэюя]");
-                    var consonant = new Regex(@"[B-DF-HJ-NP-TV-Zb-df-hj-np-tv-zБ-ЖЗЙ-НП-РСТ-Яб-жзй-нп-рст-я]");
-                    if (!vowel.IsMatch(lettersOnly) || !consonant.IsMatch(lettersOnly))
-                        errors.AppendLine("❌ Имя должно содержать хотя бы одну гласную и одну согласную.");
-                }
-            }
-
-            // Отчество (опционально)
-            if (!string.IsNullOrWhiteSpace(contactMiddleName))
-            {
-                var lettersOnly = Regex.Replace(contactMiddleName, @"[^A-Za-zА-Яа-яЁё]", "");
-                if (lettersOnly.Length < 2)
-                    errors.AppendLine("❌ Отчество должно содержать минимум 2 буквы.");
-                else
-                {
-                    var vowel = new Regex(@"[AEIOUYaeiouyАЕЁИОУЫЭЮЯаеёиоуыэюя]");
-                    var consonant = new Regex(@"[B-DF-HJ-NP-TV-Zb-df-hj-np-tv-zБ-ЖЗЙ-НП-РСТ-Яб-жзй-нп-рст-я]");
-                    if (!vowel.IsMatch(lettersOnly) || !consonant.IsMatch(lettersOnly))
-                        errors.AppendLine("❌ Отчество должно содержать хотя бы одну гласную и одну согласную.");
-                }
-            }
+                errors.AppendLine("• Введите имя контактного лица");
 
             // Телефон (опционально)
             if (!string.IsNullOrWhiteSpace(phone))
             {
                 if (!Regex.IsMatch(phone, @"^\+?\d{11}$"))
-                    errors.AppendLine("❌ Телефон должен содержать 11 цифр, можно с '+' в начале.");
+                    errors.AppendLine("• Телефон должен содержать 11 цифр");
             }
 
             errorMessage = errors.ToString();
@@ -268,36 +307,17 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                string inn = TxtInn.Text?.Trim();
-                string email = TxtEmail.Text?.Trim();
-
-                // Проверка уникальности ИНН
-                bool innExists = context.Поставщики.Any(s => s.ИНН == inn);
-                if (innExists)
-                {
-                    MessageBox.Show("Поставщик с таким ИНН уже существует!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                // Проверка уникальности Email
-                bool emailExists = context.Поставщики.Any(s => s.Email_поставщика == email);
-                if (emailExists)
-                {
-                    MessageBox.Show("Поставщик с таким Email уже существует!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
                 var supplier = new Поставщики
                 {
                     Наименование_поставщика = TxtSupplierName.Text?.Trim(),
-                    ИНН = inn,
+                    ИНН = TxtInn.Text?.Trim(),
                     Адрес_поставщика = TxtAddress.Text?.Trim(),
-                    Email_поставщика = email,
+                    Email_поставщика = TxtEmail.Text?.Trim(),
                     Фамилия_контактного_лица = TxtContactLastName.Text?.Trim(),
                     Имя_контактного_лица = TxtContactFirstName.Text?.Trim(),
                     Отчество_контактного_лица = TxtContactMiddleName.Text?.Trim(),
                     Телефон_контактного_лица = TxtPhone.Text?.Trim(),
-                    Логотип = selectedImageData  // Сохраняем логотип
+                    Логотип = selectedImageData
                 };
 
                 context.Поставщики.Add(supplier);
@@ -309,7 +329,7 @@ namespace Diplomn.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при добавлении поставщика: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при добавлении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -323,12 +343,6 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                if (!ValidateSupplier(out string errorMessage))
-                {
-                    MessageBox.Show(errorMessage, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
                 int supplierId = int.Parse(TxtSupplierId.Text);
                 var supplier = context.Поставщики.Find(supplierId);
 
@@ -338,39 +352,23 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                string inn = TxtInn.Text?.Trim();
-                string email = TxtEmail.Text?.Trim();
-
-                // Проверка уникальности ИНН (исключая текущего поставщика)
-                bool innExists = context.Поставщики.Any(s => s.ИНН == inn && s.Код_поставщика != supplierId);
-                if (innExists)
+                if (!ValidateSupplier(out string errorMessage, supplierId))
                 {
-                    MessageBox.Show("Поставщик с таким ИНН уже существует!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                // Проверка уникальности Email (исключая текущего поставщика)
-                bool emailExists = context.Поставщики.Any(s => s.Email_поставщика == email && s.Код_поставщика != supplierId);
-                if (emailExists)
-                {
-                    MessageBox.Show("Поставщик с таким Email уже существует!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(errorMessage, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
                 supplier.Наименование_поставщика = TxtSupplierName.Text?.Trim();
-                supplier.ИНН = inn;
+                supplier.ИНН = TxtInn.Text?.Trim();
                 supplier.Адрес_поставщика = TxtAddress.Text?.Trim();
-                supplier.Email_поставщика = email;
+                supplier.Email_поставщика = TxtEmail.Text?.Trim();
                 supplier.Фамилия_контактного_лица = TxtContactLastName.Text?.Trim();
                 supplier.Имя_контактного_лица = TxtContactFirstName.Text?.Trim();
                 supplier.Отчество_контактного_лица = TxtContactMiddleName.Text?.Trim();
                 supplier.Телефон_контактного_лица = TxtPhone.Text?.Trim();
 
-                // Обновляем логотип только если был выбран новый
                 if (selectedImageData != null)
-                {
                     supplier.Логотип = selectedImageData;
-                }
 
                 context.SaveChanges();
 
@@ -380,7 +378,7 @@ namespace Diplomn.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при обновлении поставщика: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при обновлении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -406,35 +404,30 @@ namespace Diplomn.Pages
                 var hasSupplies = context.Состав_поставки.Any(o => o.Код_поставщика == supplierId);
                 if (hasSupplies)
                 {
-                    MessageBox.Show("Нельзя удалить поставщика, так как он используется в заказах!",
-                                   "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Нельзя удалить поставщика — он используется в поставках!",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                var result = MessageBox.Show($"Вы уверены, что хотите удалить поставщика '{supplier.Наименование_поставщика}'?",
-                                            "Подтверждение удаления",
-                                            MessageBoxButton.YesNo,
-                                            MessageBoxImage.Question);
+                var result = MessageBox.Show($"Удалить поставщика '{supplier.Наименование_поставщика}'?",
+                    "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
                     context.Поставщики.Remove(supplier);
                     context.SaveChanges();
-                    MessageBox.Show("Поставщик успешно удален!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Поставщик удален!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                     LoadData();
                     ClearForm();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при удалении поставщика: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при удалении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void ClearForm_Click(object sender, RoutedEventArgs e)
-        {
-            ClearForm();
-        }
+        private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
 
         private void ClearForm()
         {
@@ -450,11 +443,6 @@ namespace Diplomn.Pages
             SupplierLogo.Source = new BitmapImage(new Uri("/Photos/istocklogo.png", UriKind.RelativeOrAbsolute));
             selectedImageData = null;
             DataGridSuppliers.SelectedItem = null;
-        }
-
-        private void Refresh_Click(object sender, RoutedEventArgs e)
-        {
-            LoadData();
         }
     }
 }
