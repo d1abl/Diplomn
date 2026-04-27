@@ -1,9 +1,12 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Data.Entity;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,6 +20,7 @@ namespace Diplomn.Pages
         private BDEntities context;
         private Сотрудники currentUser;
         private byte[] selectedImageData;
+        private ObservableCollection<ProductViewModel> productsView;
 
         public ProductsPage(Сотрудники user)
         {
@@ -24,6 +28,7 @@ namespace Diplomn.Pages
             context = new BDEntities();
             currentUser = user;
             WelcomeText.Text = $"Товары — {user.Фамилия} {user.Имя}";
+            productsView = new ObservableCollection<ProductViewModel>();
             LoadLookups();
             LoadData();
         }
@@ -67,19 +72,55 @@ namespace Diplomn.Pages
 
         private void LoadData()
         {
-            DataGridProducts.ItemsSource = context.Товары
+            var products = context.Товары
                 .Include("Категории")
                 .Include("Бренд")
                 .Include("Производитель")
                 .Include("Материал")
                 .Include("Фасовка")
                 .ToList();
+
+            UpdateProductsView(products);
         }
 
-        private void DataGridProducts_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void UpdateProductsView(List<Товары> products)
         {
-            if (DataGridProducts.SelectedItem is Товары product)
+            productsView.Clear();
+            foreach (var product in products)
             {
+                productsView.Add(new ProductViewModel(product));
+            }
+            ListViewProducts.ItemsSource = productsView;
+        }
+
+        private BitmapImage LoadImageFromBytes(byte[] imageData)
+        {
+            if (imageData == null || imageData.Length == 0)
+                return null;
+
+            try
+            {
+                using (var ms = new MemoryStream(imageData))
+                {
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.StreamSource = ms;
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    return bitmap;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private void ListViewProducts_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ListViewProducts.SelectedItem is ProductViewModel selectedProduct)
+            {
+                var product = selectedProduct.OriginalProduct;
                 TxtProductId.Text = product.Код_товара.ToString();
                 TxtProductName.Text = product.Наименование;
                 TxtPrice.Text = product.Цена_за_ед_продажа.ToString();
@@ -100,15 +141,7 @@ namespace Diplomn.Pages
             {
                 if (product?.Фото != null && product.Фото.Length > 0)
                 {
-                    using (var ms = new MemoryStream(product.Фото))
-                    {
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.StreamSource = ms;
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmap.EndInit();
-                        ProductPhoto.Source = bitmap;
-                    }
+                    ProductPhoto.Source = LoadImageFromBytes(product.Фото);
                 }
                 else
                 {
@@ -134,15 +167,7 @@ namespace Diplomn.Pages
                 if (openFileDialog.ShowDialog() == true)
                 {
                     selectedImageData = File.ReadAllBytes(openFileDialog.FileName);
-                    using (var ms = new MemoryStream(selectedImageData))
-                    {
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.StreamSource = ms;
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmap.EndInit();
-                        ProductPhoto.Source = bitmap;
-                    }
+                    ProductPhoto.Source = LoadImageFromBytes(selectedImageData);
                 }
             }
             catch (Exception ex)
@@ -219,6 +244,10 @@ namespace Diplomn.Pages
                 query = query.Where(p => p.Наименование.Contains(term));
             }
 
+            // Только в наличии
+            if (ChkInStock.IsChecked == true)
+                query = query.Where(p => p.Количество > 0);
+
             // Цена
             if (decimal.TryParse(TxtPriceMin.Text, out decimal pmin))
                 query = query.Where(p => p.Цена_за_ед_продажа >= pmin);
@@ -258,7 +287,7 @@ namespace Diplomn.Pages
         {
             try
             {
-                var result = GetFilteredQuery()
+                var products = GetFilteredQuery()
                     .Include("Категории")
                     .Include("Бренд")
                     .Include("Производитель")
@@ -266,7 +295,7 @@ namespace Diplomn.Pages
                     .Include("Фасовка")
                     .ToList();
 
-                DataGridProducts.ItemsSource = result;
+                UpdateProductsView(products);
             }
             catch (Exception ex)
             {
@@ -287,6 +316,7 @@ namespace Diplomn.Pages
             TxtPriceMax.Text = "";
             TxtQtyMin.Text = "";
             TxtQtyMax.Text = "";
+            ChkInStock.IsChecked = false;
 
             foreach (var panel in new Panel[] { PanelCategories, PanelBrands, PanelManufacturers, PanelMaterials, PanelPacking })
             {
@@ -318,23 +348,186 @@ namespace Diplomn.Pages
 
                 var saveFileDialog = new SaveFileDialog
                 {
-                    Filter = "CSV файл (*.csv)|*.csv|Текстовый файл (*.txt)|*.txt",
-                    Title = "Сохранить отчет о товарах",
-                    FileName = $"Отчет_товары_{DateTime.Now:yyyy-MM-dd_HH-mm}"
+                    Filter = "HTML файл (*.html)|*.html",
+                    Title = "Сохранить каталог товаров",
+                    FileName = $"Каталог_товаров_{DateTime.Now:yyyy-MM-dd_HH-mm}"
                 };
 
                 if (saveFileDialog.ShowDialog() == true)
                 {
-                    var sb = new StringBuilder();
+                    var html = new StringBuilder();
 
-                    // Заголовок отчета
-                    sb.AppendLine($"Отчет о товарах от {DateTime.Now:dd.MM.yyyy HH:mm}");
-                    sb.AppendLine($"Сформировал: {currentUser.Фамилия} {currentUser.Имя}");
+                    // HTML заголовок
+                    html.AppendLine("<!DOCTYPE html>");
+                    html.AppendLine("<html lang='ru'>");
+                    html.AppendLine("<head>");
+                    html.AppendLine("<meta charset='UTF-8'>");
+                    html.AppendLine("<meta name='viewport' content='width=device-width, initial-scale=1.0'>");
+                    html.AppendLine($"<title>Каталог товаров - {DateTime.Now:dd.MM.yyyy}</title>");
+                    html.AppendLine("<style>");
+                    html.AppendLine(@"
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: 'Times New Roman', serif; 
+                    background: #1a1a1a; 
+                    color: #e0e0e0; 
+                    padding: 20px; 
+                }
+                .header { 
+                    text-align: center; 
+                    margin-bottom: 30px; 
+                    padding: 20px;
+                    background: #2d2d2d;
+                    border-radius: 8px;
+                    border: 1px solid #404040;
+                }
+                .header h1 { 
+                    color: #2196F3; 
+                    margin-bottom: 10px; 
+                    font-size: 24px; 
+                }
+                .header p { 
+                    color: #999; 
+                    font-size: 14px; 
+                }
+                .filters {
+                    background: #2d2d2d;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                    border: 1px solid #404040;
+                }
+                .filters h3 { color: #2196F3; margin-bottom: 10px; font-size: 16px; }
+                .filters ul { list-style: none; }
+                .filters li { 
+                    color: #999; 
+                    padding: 3px 0; 
+                    font-size: 13px; 
+                }
+                .filters li:before { 
+                    content: '• '; 
+                    color: #2196F3; 
+                }
+                .stats {
+                    display: flex;
+                    justify-content: space-around;
+                    background: #2d2d2d;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                    border: 1px solid #404040;
+                }
+                .stat-item { text-align: center; }
+                .stat-value { 
+                    color: #2196F3; 
+                    font-size: 24px; 
+                    font-weight: bold; 
+                }
+                .stat-label { 
+                    color: #999; 
+                    font-size: 12px; 
+                    margin-top: 5px; 
+                }
+                .catalog {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                    gap: 20px;
+                }
+                .product-card {
+                    background: #2d2d2d;
+                    border: 1px solid #404040;
+                    border-radius: 8px;
+                    padding: 15px;
+                    transition: transform 0.2s, border-color 0.2s;
+                }
+                .product-card:hover {
+                    transform: translateY(-3px);
+                    border-color: #2196F3;
+                }
+                .product-photo {
+                    width: 200px;
+                    height: 200px;
+                    margin: 0 auto 15px;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    border: 2px solid #404040;
+                    background: #1a1a1a;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .product-photo img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+                .product-photo .no-photo {
+                    color: #666;
+                    font-size: 14px;
+                    text-align: center;
+                }
+                .product-name {
+                    font-size: 16px;
+                    font-weight: bold;
+                    color: #fff;
+                    margin-bottom: 10px;
+                    min-height: 40px;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                }
+                .product-price {
+                    color: #2196F3;
+                    font-size: 18px;
+                    font-weight: bold;
+                    margin-bottom: 8px;
+                }
+                .product-info {
+                    color: #999;
+                    font-size: 13px;
+                    margin-bottom: 5px;
+                }
+                .product-category {
+                    color: #666;
+                    font-size: 11px;
+                    margin-top: 10px;
+                    padding-top: 10px;
+                    border-top: 1px solid #404040;
+                }
+                .in-stock {
+                    color: #4CAF50;
+                    font-weight: bold;
+                }
+                .out-of-stock {
+                    color: #F44336;
+                    font-weight: bold;
+                }
+                .footer {
+                    text-align: center;
+                    margin-top: 30px;
+                    padding: 20px;
+                    color: #666;
+                    font-size: 12px;
+                    border-top: 1px solid #404040;
+                }
+            ");
+                    html.AppendLine("</style>");
+                    html.AppendLine("</head>");
+                    html.AppendLine("<body>");
 
-                    // Информация о фильтрах
+                    // Заголовок
+                    html.AppendLine("<div class='header'>");
+                    html.AppendLine($"<h1>📦 Каталог товаров</h1>");
+                    html.AppendLine($"<p>Сформирован: {DateTime.Now:dd.MM.yyyy HH:mm} | Сотрудник: {currentUser.Фамилия} {currentUser.Имя}</p>");
+                    html.AppendLine("</div>");
+
+                    // Фильтры
                     var filters = new List<string>();
                     if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
                         filters.Add($"Поиск: \"{TxtSearch.Text}\"");
+                    if (ChkInStock.IsChecked == true)
+                        filters.Add("Только в наличии");
                     if (decimal.TryParse(TxtPriceMin.Text, out decimal pmin))
                         filters.Add($"Цена от: {pmin:N2} ₽");
                     if (decimal.TryParse(TxtPriceMax.Text, out decimal pmax))
@@ -346,40 +539,138 @@ namespace Diplomn.Pages
 
                     if (filters.Any())
                     {
-                        sb.AppendLine("Примененные фильтры:");
-                        filters.ForEach(f => sb.AppendLine($"  • {f}"));
+                        html.AppendLine("<div class='filters'>");
+                        html.AppendLine("<h3>🔍 Примененные фильтры</h3>");
+                        html.AppendLine("<ul>");
+                        filters.ForEach(f => html.AppendLine($"<li>{f}</li>"));
+                        html.AppendLine("</ul>");
+                        html.AppendLine("</div>");
                     }
 
-                    sb.AppendLine();
-                    sb.AppendLine($"Всего товаров: {products.Count}");
-                    sb.AppendLine($"Общая сумма (цена × количество): {products.Sum(p => p.Цена_за_ед_продажа * p.Количество):N2} ₽");
-                    sb.AppendLine();
+                    // Статистика
+                    var totalSum = products.Sum(p => p.Цена_за_ед_продажа * p.Количество);
+                    var inStock = products.Count(p => p.Количество > 0);
+                    var outOfStock = products.Count - inStock;
 
-                    // Заголовки CSV
-                    sb.AppendLine("Код;Наименование;Категория;Бренд;Производитель;Материал;Фасовка;Цена;Количество;Сумма");
+                    html.AppendLine("<div class='stats'>");
+                    html.AppendLine("<div class='stat-item'>");
+                    html.AppendLine($"<div class='stat-value'>{products.Count}</div>");
+                    html.AppendLine("<div class='stat-label'>Всего товаров</div>");
+                    html.AppendLine("</div>");
+                    html.AppendLine("<div class='stat-item'>");
+                    html.AppendLine($"<div class='stat-value' style='color: #4CAF50;'>{inStock}</div>");
+                    html.AppendLine("<div class='stat-label'>В наличии</div>");
+                    html.AppendLine("</div>");
+                    html.AppendLine("<div class='stat-item'>");
+                    html.AppendLine($"<div class='stat-value' style='color: #F44336;'>{outOfStock}</div>");
+                    html.AppendLine("<div class='stat-label'>Нет в наличии</div>");
+                    html.AppendLine("</div>");
+                    html.AppendLine("<div class='stat-item'>");
+                    html.AppendLine($"<div class='stat-value'>{totalSum:N0} ₽</div>");
+                    html.AppendLine("<div class='stat-label'>Общая сумма</div>");
+                    html.AppendLine("</div>");
+                    html.AppendLine("</div>");
 
-                    // Данные
+                    // Карточки товаров
+                    html.AppendLine("<div class='catalog'>");
+
                     foreach (var product in products)
                     {
-                        var category = product.Категории?.Категория ?? "-";
-                        var brand = product.Бренд?.Наименование_бредна ?? "-";
-                        var manufacturer = product.Производитель?.Наименование_произваодителя ?? "-";
-                        var material = product.Материал?.Наименование_материала ?? "-";
-                        var packing = product.Фасовка?.Количество.ToString() ?? "-";
+                        var category = product.Категории?.Категория ?? "Без категории";
+                        var brand = product.Бренд?.Наименование_бредна ?? "";
+                        var manufacturer = product.Производитель?.Наименование_произваодителя ?? "";
+                        var stockStatus = product.Количество > 0 ?
+                            "<span class='in-stock'>✅ В наличии</span>" :
+                            "<span class='out-of-stock'>❌ Нет в наличии</span>";
                         var sum = product.Цена_за_ед_продажа * product.Количество;
 
-                        sb.AppendLine($"{product.Код_товара};{product.Наименование};{category};{brand};{manufacturer};{material};{packing};{product.Цена_за_ед_продажа:N2};{product.Количество};{sum:N2}");
+                        html.AppendLine("<div class='product-card'>");
+
+                        // Фото
+                        html.AppendLine("<div class='product-photo'>");
+                        if (product.Фото != null && product.Фото.Length > 0)
+                        {
+                            var base64Image = Convert.ToBase64String(product.Фото);
+                            var imageType = "image/jpeg"; // По умолчанию JPEG
+
+                            // Определяем тип изображения по сигнатуре
+                            if (product.Фото.Length > 4)
+                            {
+                                if (product.Фото[0] == 0x89 && product.Фото[1] == 0x50) // PNG
+                                    imageType = "image/png";
+                                else if (product.Фото[0] == 0x47 && product.Фото[1] == 0x49) // GIF
+                                    imageType = "image/gif";
+                                else if (product.Фото[0] == 0x42 && product.Фото[1] == 0x4D) // BMP
+                                    imageType = "image/bmp";
+                            }
+
+                            html.AppendLine($"<img src='data:{imageType};base64,{base64Image}' alt='{product.Наименование}'>");
+                        }
+                        else
+                        {
+                            html.AppendLine("<div class='no-photo'>📷<br>Нет фото</div>");
+                        }
+                        html.AppendLine("</div>");
+
+                        // Название
+                        html.AppendLine($"<div class='product-name' title='{product.Наименование}'>{product.Наименование}</div>");
+
+                        // Цена
+                        html.AppendLine($"<div class='product-price'>💰 {product.Цена_за_ед_продажа:N2} ₽ / шт</div>");
+
+                        // Информация
+                        html.AppendLine($"<div class='product-info'>📦 На складе: {product.Количество} шт.</div>");
+                        html.AppendLine($"<div class='product-info'>💵 Сумма: {sum:N2} ₽</div>");
+                        if (!string.IsNullOrWhiteSpace(brand))
+                            html.AppendLine($"<div class='product-info'>🏷 Бренд: {brand}</div>");
+                        if (!string.IsNullOrWhiteSpace(manufacturer))
+                            html.AppendLine($"<div class='product-info'>🏭 Производитель: {manufacturer}</div>");
+
+                        // Статус
+                        html.AppendLine($"<div class='product-info'>{stockStatus}</div>");
+
+                        // Категория
+                        html.AppendLine($"<div class='product-category'>📂 {category}</div>");
+
+                        html.AppendLine("</div>");
                     }
 
-                    File.WriteAllText(saveFileDialog.FileName, sb.ToString(), Encoding.UTF8);
+                    html.AppendLine("</div>");
 
-                    MessageBox.Show($"Отчет успешно сохранен!\n\nФайл: {saveFileDialog.FileName}\nТоваров: {products.Count}",
-                        "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    // Футер
+                    html.AppendLine("<div class='footer'>");
+                    html.AppendLine($"© Каталог товаров | Сформирован: {DateTime.Now:dd.MM.yyyy HH:mm} | Сотрудник: {currentUser.Фамилия} {currentUser.Имя}");
+                    html.AppendLine("</div>");
+
+                    html.AppendLine("</body>");
+                    html.AppendLine("</html>");
+
+                    File.WriteAllText(saveFileDialog.FileName, html.ToString(), Encoding.UTF8);
+
+                    var result = MessageBox.Show(
+                        $"Каталог товаров успешно сохранен!\n\n" +
+                        $"📁 Файл: {saveFileDialog.FileName}\n" +
+                        $"📦 Всего товаров: {products.Count}\n" +
+                        $"✅ В наличии: {inStock}\n" +
+                        $"❌ Нет в наличии: {outOfStock}\n\n" +
+                        $"Открыть каталог в браузере?",
+                        "Каталог сохранен",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Information);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = saveFileDialog.FileName,
+                            UseShellExecute = true
+                        });
+                    }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при сохранении отчета: {ex.Message}", "Ошибка",
+                MessageBox.Show($"Ошибка при сохранении каталога: {ex.Message}", "Ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -532,7 +823,60 @@ namespace Diplomn.Pages
             TxtQuantity.Text = "0";
             ProductPhoto.Source = new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute));
             selectedImageData = null;
-            DataGridProducts.SelectedItem = null;
+            ListViewProducts.SelectedItem = null;
+        }
+    }
+
+
+    /// <summary>
+    /// ViewModel для отображения товара в карточке
+    /// </summary>
+    public class ProductViewModel
+    {
+        public Товары OriginalProduct { get; set; }
+        public string Наименование { get; set; }
+        public decimal Цена_за_ед_продажа { get; set; }
+        public int Количество { get; set; }
+        public string КатегорияНазвание { get; set; }
+        public BitmapImage PhotoSource { get; set; }
+
+        // Готовые строки для отображения
+        public string PriceDisplay => $"{Цена_за_ед_продажа:N2} ₽";
+        public string QuantityDisplay => $"На складе: {Количество} шт.";
+        public string StockStatus => Количество > 0 ? "✅ В наличии" : "❌ Нет в наличии";
+
+        public ProductViewModel(Товары product)
+        {
+            OriginalProduct = product;
+            Наименование = product.Наименование;
+            Цена_за_ед_продажа = product.Цена_за_ед_продажа;
+            Количество = product.Количество;
+            КатегорияНазвание = product.Категории?.Категория ?? "";
+
+            // Загружаем фото
+            if (product.Фото != null && product.Фото.Length > 0)
+            {
+                try
+                {
+                    using (var ms = new MemoryStream(product.Фото))
+                    {
+                        var bitmap = new BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.StreamSource = ms;
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.EndInit();
+                        PhotoSource = bitmap;
+                    }
+                }
+                catch
+                {
+                    PhotoSource = new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute));
+                }
+            }
+            else
+            {
+                PhotoSource = new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute));
+            }
         }
     }
 }

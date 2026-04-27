@@ -93,9 +93,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>BD.edmx</DependentUpon>
     </Compile>
-    <Compile Include="OrderCompositionWindow.xaml.cs">
-      <DependentUpon>OrderCompositionWindow.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Pages\CurrentEmployeeEditPage.xaml.cs">
       <DependentUpon>CurrentEmployeeEditPage.xaml</DependentUpon>
     </Compile>
@@ -131,9 +128,6 @@
     </Compile>
     <Compile Include="Pages\SuppliersPage.xaml.cs">
       <DependentUpon>SuppliersPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="SaleCompositionWindow.xaml.cs">
-      <DependentUpon>SaleCompositionWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="SupplierSelectDialog.xaml.cs">
       <DependentUpon>SupplierSelectDialog.xaml</DependentUpon>
@@ -197,10 +191,6 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Page Include="OrderCompositionWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
     <Page Include="Pages\CurrentEmployeeEditPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -246,10 +236,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Pages\SuppliersPage.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="SaleCompositionWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
