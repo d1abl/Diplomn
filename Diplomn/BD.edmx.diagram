@@ -10,7 +10,7 @@
         <EntityTypeShape EntityType="BDModel.Поставка" Width="1.5" PointX="6" PointY="14.125" />
         <EntityTypeShape EntityType="BDModel.Поставщики" Width="1.5" PointX="6" PointY="9.625" />
         <EntityTypeShape EntityType="BDModel.Продажи" Width="1.5" PointX="3" PointY="0.75" />
-        <EntityTypeShape EntityType="BDModel.Состав_заказа" Width="1.5" PointX="8.25" PointY="4.375" />
+        <EntityTypeShape EntityType="BDModel.Состав_поставки" Width="1.5" PointX="8.25" PointY="4.375" />
         <EntityTypeShape EntityType="BDModel.Состав_продажи" Width="1.5" PointX="5.25" PointY="4.5" />
         <EntityTypeShape EntityType="BDModel.Сотрудники" Width="1.5" PointX="3.75" PointY="13.5" />
         <EntityTypeShape EntityType="BDModel.Товары" Width="1.5" PointX="3" PointY="4.375" />
@@ -23,6 +23,14 @@
         <AssociationConnector Association="BDModel.FK_Состав_продажи_Продажи" />
         <AssociationConnector Association="BDModel.FK_Состав_заказа_Товары" />
         <AssociationConnector Association="BDModel.FK_Состав_продажи_Товары" />
+        <EntityTypeShape EntityType="BDModel.Бренд" Width="1.5" PointX="0.75" PointY="2.25" />
+        <EntityTypeShape EntityType="BDModel.Материал" Width="1.5" PointX="0.75" PointY="9.875" />
+        <EntityTypeShape EntityType="BDModel.Производитель" Width="1.5" PointX="0.75" PointY="17.25" />
+        <EntityTypeShape EntityType="BDModel.Фасовка" Width="1.5" PointX="0.75" PointY="7.5" />
+        <AssociationConnector Association="BDModel.FK_Товары_Бренд" />
+        <AssociationConnector Association="BDModel.FK_Товары_Материал" />
+        <AssociationConnector Association="BDModel.FK_Товары_Производитель" />
+        <AssociationConnector Association="BDModel.FK_Товары_Фасовка" />
       </Diagram>
     </edmx:Diagrams>
   </edmx:Designer>

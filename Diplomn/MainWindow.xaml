@@ -70,12 +70,12 @@
                                 Click="VisiblProductsBtn_Click"/>
 
                         <!-- Секция: Управление заказами и продажами -->
-                        <Button x:Name="VisiblOrdersBtn" Content="📋 Управление заказами и продажами"  Grid.Column="2"
+                        <Button x:Name="VisiblSuppliesBtn" Content="📋 Управление заказами и продажами"  Grid.Column="2"
                                 VerticalAlignment="Top" 
                                 FontSize="22" 
                                 FontWeight="Bold" 
                                 Margin="15,15,0,0" 
-                                Click="VisiblOrdersBtn_Click"/>
+                                Click="VisiblSuppliesBtn_Click"/>
 
                         <!-- Секция: Отчеты и настройки -->
                         <Button x:Name="VisiblReportsBtn" Content="📊 Отчеты и настройки" Grid.Column="3"
@@ -146,8 +146,8 @@
                                 </StackPanel>
                             </Button>
                         </WrapPanel>
-                        <WrapPanel x:Name="VisiblOrdersWarp" Grid.Column="2" Visibility="Collapsed">
-                            <Button Width="200" Height="50" Margin="10" Click="OrdersBtn_Click">
+                        <WrapPanel x:Name="VisiblSuppliesWarp" Grid.Column="2" Visibility="Collapsed">
+                            <Button Width="200" Height="50" Margin="10" Click="SuppliesBtn_Click">
                                 <StackPanel Orientation="Horizontal" Width="200">
                                     <TextBlock Text="📋" FontSize="24" VerticalAlignment="Center"/>
                                     <StackPanel Margin="5,0,0,0">

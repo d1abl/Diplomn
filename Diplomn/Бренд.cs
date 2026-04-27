@@ -12,20 +12,18 @@ namespace Diplomn
     using System;
     using System.Collections.Generic;
     
-    public partial class Поставка
+    public partial class Бренд
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
-        public Поставка()
+        public Бренд()
         {
-            this.Состав_поставки = new HashSet<Состав_поставки>();
+            this.Товары = new HashSet<Товары>();
         }
     
-        public int Код_поставки { get; set; }
-        public int Код_сотрудника { get; set; }
-        public System.DateTime Дата_оформления_постивки { get; set; }
+        public int Код_бренда { get; set; }
+        public string Наименование_бредна { get; set; }
     
-        public virtual Сотрудники Сотрудники { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public virtual ICollection<Состав_поставки> Состав_поставки { get; set; }
+        public virtual ICollection<Товары> Товары { get; set; }
     }
 }

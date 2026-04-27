@@ -6,12 +6,12 @@ using System.Windows.Controls;
 
 namespace Diplomn.Pages
 {
-    public partial class OrdersPage : Page
+    public partial class SuppliesPage : Page
     {
         private BDEntities context;
         private Сотрудники currentUser;
 
-        public class OrderItemDisplay
+        public class SuppliesItemDisplay
         {
             public string Товар { get; set; }
             public int Количество { get; set; }
@@ -20,7 +20,7 @@ namespace Diplomn.Pages
             public string Поставщик { get; set; }
         }
 
-        public OrdersPage(Сотрудники user)
+        public SuppliesPage(Сотрудники user)
         {
             InitializeComponent();
             context = new BDEntities();
@@ -30,25 +30,25 @@ namespace Diplomn.Pages
 
         private void LoadData()
         {
-            DataGridOrders.ItemsSource = context.Поставка
+            DataGridSupplies.ItemsSource = context.Поставка
                 .Include("Сотрудники")
                 .OrderByDescending(o => o.Дата_оформления_постивки)
                 .ToList();
         }
 
-        private void DataGridOrders_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void DataGridSupplies_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (DataGridOrders.SelectedItem is Поставка order)
+            if (DataGridSupplies.SelectedItem is Поставка Supply)
             {
-                TxtOrderId.Text = order.Код_поставки.ToString();
-                TxtOrderDate.Text = order.Дата_оформления_постивки.ToString("dd.MM.yyyy HH:mm");
-                TxtEmployee.Text = order.Сотрудники != null ? $"{order.Сотрудники.Фамилия} {order.Сотрудники.Имя}" : "";
+                TxtSupplyId.Text = Supply.Код_поставки.ToString();
+                TxtSupplyDate.Text = Supply.Дата_оформления_постивки.ToString("dd.MM.yyyy HH:mm");
+                TxtEmployee.Text = Supply.Сотрудники != null ? $"{Supply.Сотрудники.Фамилия} {Supply.Сотрудники.Имя}" : "";
 
-                var items = context.Состав_заказа
+                var items = context.Состав_поставки
                     .Include("Товары")
                     .Include("Поставщики")
-                    .Where(i => i.Код_поставки == order.Код_поставки)
-                    .Select(i => new OrderItemDisplay
+                    .Where(i => i.Код_поставки == Supply.Код_поставки)
+                    .Select(i => new SuppliesItemDisplay
                     {
                         Товар = i.Товары.Наименование,
                         Количество = i.Количество,
@@ -57,25 +57,25 @@ namespace Diplomn.Pages
                     })
                     .ToList();
 
-                DataGridOrderItems.ItemsSource = new ObservableCollection<OrderItemDisplay>(items);
+                DataGridSupplyItems.ItemsSource = new ObservableCollection<SuppliesItemDisplay>(items);
                 decimal total = items.Sum(i => i.Сумма);
                 TxtTotal.Text = $"{total:N2} ₽";
             }
             else
             {
-                TxtOrderId.Text = "";
-                TxtOrderDate.Text = "";
+                TxtSupplyId.Text = "";
+                TxtSupplyDate.Text = "";
                 TxtEmployee.Text = "";
-                DataGridOrderItems.ItemsSource = null;
+                DataGridSupplyItems.ItemsSource = null;
                 TxtTotal.Text = "";
             }
         }
 
-        private void NewOrder_Click(object sender, RoutedEventArgs e)
+        private void NewSupply_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                var window = new AddOrderWindow(context, currentUser);
+                var window = new AddSupplyWindow(context, currentUser);
                 window.ShowDialog();
                 LoadData();
             }
@@ -85,21 +85,21 @@ namespace Diplomn.Pages
             }
         }
 
-        private void ViewOrderComposition_Click(object sender, RoutedEventArgs e)
+        private void ViewSupplyComposition_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                var order = DataGridOrders.SelectedItem as Поставка;
-                if (order == null)
+                var Supply = DataGridSupplies.SelectedItem as Поставка;
+                if (Supply == null)
                 {
                     MessageBox.Show("Выберите поставку для просмотра состава!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                var window = new OrderCompositionWindow(context, order);
+                var window = new OrderCompositionWindow(context, Supply);
                 window.ShowDialog();
                 LoadData();
-                DataGridOrders_SelectionChanged(null, null);
+                DataGridSupplies_SelectionChanged(null, null);
             }
             catch (Exception ex)
             {
@@ -107,18 +107,18 @@ namespace Diplomn.Pages
             }
         }
 
-        private void DeleteOrder_Click(object sender, RoutedEventArgs e)
+        private void DeleteSupply_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                var order = DataGridOrders.SelectedItem as Поставка;
-                if (order == null)
+                var Supply = DataGridSupplies.SelectedItem as Поставка;
+                if (Supply == null)
                 {
                     MessageBox.Show("Выберите поставку для удаления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                var result = MessageBox.Show($"Вы уверены, что хотите удалить поставку №{order.Код_поставки}?\nВместе с поставкой будет удален её состав!",
+                var result = MessageBox.Show($"Вы уверены, что хотите удалить поставку №{Supply.Код_поставки}?\nВместе с поставкой будет удален её состав!",
                                             "Подтверждение удаления",
                                             MessageBoxButton.YesNo,
                                             MessageBoxImage.Question);
@@ -126,7 +126,7 @@ namespace Diplomn.Pages
                 if (result == MessageBoxResult.Yes)
                 {
                     // Уменьшаем количество товаров на складе при удалении поставки
-                    var items = context.Состав_заказа.Where(i => i.Код_поставки == order.Код_поставки).ToList();
+                    var items = context.Состав_поставки.Where(i => i.Код_поставки == Supply.Код_поставки).ToList();
                     foreach (var item in items)
                     {
                         var product = context.Товары.Find(item.Код_товара);
@@ -135,15 +135,15 @@ namespace Diplomn.Pages
                             product.Количество -= item.Количество;
                             if (product.Количество < 0) product.Количество = 0;
                         }
-                        context.Состав_заказа.Remove(item);
+                        context.Состав_поставки.Remove(item);
                     }
 
-                    context.Поставка.Remove(order);
+                    context.Поставка.Remove(Supply);
                     context.SaveChanges();
 
                     MessageBox.Show("Поставка успешно удалена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                     LoadData();
-                    DataGridOrders_SelectionChanged(null, null);
+                    DataGridSupplies_SelectionChanged(null, null);
                 }
             }
             catch (Exception ex)
@@ -155,7 +155,7 @@ namespace Diplomn.Pages
         private void Refresh_Click(object sender, RoutedEventArgs e)
         {
             LoadData();
-            DataGridOrders_SelectionChanged(null, null);
+            DataGridSupplies_SelectionChanged(null, null);
         }
     }
 }

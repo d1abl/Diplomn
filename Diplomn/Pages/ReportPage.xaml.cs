@@ -66,12 +66,12 @@ namespace Diplomn.Pages
             }
         }
 
-        private void GenerateOrdersReport_Click(object sender, RoutedEventArgs e)
+        private void GenerateSuppliesReport_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                DateTime from = DateFromOrders.SelectedDate ?? DateTime.Now.AddMonths(-1);
-                DateTime to = DateToOrders.SelectedDate ?? DateTime.Now;
+                DateTime from = DateFromSupplies.SelectedDate ?? DateTime.Now.AddMonths(-1);
+                DateTime to = DateToSupplies.SelectedDate ?? DateTime.Now;
 
                 if (from > to)
                 {
@@ -79,17 +79,17 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                var orders = context.Поставка
+                var Supplies = context.Поставка
                     .Include("Сотрудники")
                     .Where(o => o.Дата_оформления_постивки >= from && o.Дата_оформления_постивки <= to)
                     .ToList();
 
-                var reportData = orders.Select(o => new
+                var reportData = Supplies.Select(o => new
                 {
                     o.Код_поставки,
                     Дата = o.Дата_оформления_постивки.ToString("dd.MM.yyyy HH:mm"),
                     Сотрудник = o.Сотрудники != null ? $"{o.Сотрудники.Фамилия} {o.Сотрудники.Имя}" : "",
-                    Сумма = context.Состав_заказа
+                    Сумма = context.Состав_поставки
                         .Where(c => c.Код_поставки == o.Код_поставки)
                         .Sum(c => c.Количество * c.Цена_за_ед_покупка)
                 }).ToList();
@@ -131,7 +131,7 @@ namespace Diplomn.Pages
                         .Where(s => s.Код_товара == p.Код_товара)
                         .Select(s => (int?)s.Количество)
                         .Sum() ?? 0,
-                    Заказано = context.Состав_заказа
+                    Заказано = context.Состав_поставки
                         .Where(o => o.Код_товара == p.Код_товара)
                         .Select(o => (int?)o.Количество)
                         .Sum() ?? 0,

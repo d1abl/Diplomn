@@ -71,8 +71,8 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Addons\PhoneNumberConverter.cs" />
-    <Compile Include="AddOrderWindow.xaml.cs">
-      <DependentUpon>AddOrderWindow.xaml</DependentUpon>
+    <Compile Include="AddSupplyWindow.xaml.cs">
+      <DependentUpon>AddSupplyWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="AddSaleWindow.xaml.cs">
       <DependentUpon>AddSaleWindow.xaml</DependentUpon>
@@ -110,8 +110,8 @@
     <Compile Include="Pages\EmployeesPage.xaml.cs">
       <DependentUpon>EmployeesPage.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Pages\OrdersPage.xaml.cs">
-      <DependentUpon>OrdersPage.xaml</DependentUpon>
+    <Compile Include="Pages\SuppliesPage.xaml.cs">
+      <DependentUpon>SuppliesPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="Pages\ProductsPage.xaml.cs">
       <DependentUpon>ProductsPage.xaml</DependentUpon>
@@ -134,10 +134,16 @@
     <Compile Include="SaleCompositionWindow.xaml.cs">
       <DependentUpon>SaleCompositionWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Бренд.cs">
+      <DependentUpon>BD.tt</DependentUpon>
+    </Compile>
     <Compile Include="Должность.cs">
       <DependentUpon>BD.tt</DependentUpon>
     </Compile>
     <Compile Include="Категории.cs">
+      <DependentUpon>BD.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Материал.cs">
       <DependentUpon>BD.tt</DependentUpon>
     </Compile>
     <Compile Include="Поставка.cs">
@@ -149,7 +155,10 @@
     <Compile Include="Продажи.cs">
       <DependentUpon>BD.tt</DependentUpon>
     </Compile>
-    <Compile Include="Состав_заказа.cs">
+    <Compile Include="Производитель.cs">
+      <DependentUpon>BD.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Состав_поставки.cs">
       <DependentUpon>BD.tt</DependentUpon>
     </Compile>
     <Compile Include="Состав_продажи.cs">
@@ -161,7 +170,10 @@
     <Compile Include="Товары.cs">
       <DependentUpon>BD.tt</DependentUpon>
     </Compile>
-    <Page Include="AddOrderWindow.xaml">
+    <Compile Include="Фасовка.cs">
+      <DependentUpon>BD.tt</DependentUpon>
+    </Compile>
+    <Page Include="AddSupplyWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -205,7 +217,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Pages\OrdersPage.xaml">
+    <Page Include="Pages\SuppliesPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -303,6 +315,9 @@
     <Resource Include="Photos\istocklogo.png" />
     <Resource Include="Photos\istockproductphoto.png" />
     <Resource Include="Photos\istockphoto.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Converters\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

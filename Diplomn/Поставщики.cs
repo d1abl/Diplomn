@@ -17,7 +17,7 @@ namespace Diplomn
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
         public Поставщики()
         {
-            this.Состав_заказа = new HashSet<Состав_заказа>();
+            this.Состав_поставки = new HashSet<Состав_поставки>();
         }
     
         public int Код_поставщика { get; set; }
@@ -32,6 +32,6 @@ namespace Diplomn
         public byte[] Логотип { get; set; }
     
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public virtual ICollection<Состав_заказа> Состав_заказа { get; set; }
+        public virtual ICollection<Состав_поставки> Состав_поставки { get; set; }
     }
 }

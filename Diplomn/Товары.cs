@@ -17,7 +17,7 @@ namespace Diplomn
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
         public Товары()
         {
-            this.Состав_заказа = new HashSet<Состав_заказа>();
+            this.Состав_поставки = new HashSet<Состав_поставки>();
             this.Состав_продажи = new HashSet<Состав_продажи>();
         }
     
@@ -27,11 +27,19 @@ namespace Diplomn
         public int Код_категория { get; set; }
         public int Количество { get; set; }
         public byte[] Фото { get; set; }
+        public int Код_бренда { get; set; }
+        public int Код_производителя { get; set; }
+        public int Код_материала { get; set; }
+        public int Код_фасовки { get; set; }
     
         public virtual Категории Категории { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public virtual ICollection<Состав_заказа> Состав_заказа { get; set; }
+        public virtual ICollection<Состав_поставки> Состав_поставки { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<Состав_продажи> Состав_продажи { get; set; }
+        public virtual Бренд Бренд { get; set; }
+        public virtual Материал Материал { get; set; }
+        public virtual Производитель Производитель { get; set; }
+        public virtual Фасовка Фасовка { get; set; }
     }
 }

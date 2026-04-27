@@ -403,8 +403,8 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                var hasOrders = context.Состав_заказа.Any(o => o.Код_поставщика == supplierId);
-                if (hasOrders)
+                var hasSupplies = context.Состав_поставки.Any(o => o.Код_поставщика == supplierId);
+                if (hasSupplies)
                 {
                     MessageBox.Show("Нельзя удалить поставщика, так как он используется в заказах!",
                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);

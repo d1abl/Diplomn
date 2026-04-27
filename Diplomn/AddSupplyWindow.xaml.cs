@@ -6,7 +6,7 @@ using System.Windows.Controls;
 
 namespace Diplomn
 {
-    public partial class AddOrderWindow : Window
+    public partial class AddSupplyWindow : Window
     {
         private BDEntities context;
         private Сотрудники currentUser;
@@ -21,7 +21,7 @@ namespace Diplomn
             public decimal Сумма => Количество * Цена;
         }
 
-        public AddOrderWindow(BDEntities context, Сотрудники user)
+        public AddSupplyWindow(BDEntities context, Сотрудники user)
         {
             InitializeComponent();
             this.context = context;
@@ -118,7 +118,7 @@ namespace Diplomn
 
                 foreach (var item in orderItems)
                 {
-                    var orderComposition = new Состав_заказа
+                    var orderComposition = new Состав_поставки
                     {
                         Код_поставки = order.Код_поставки,
                         Код_товара = item.Товары.Код_товара,
@@ -126,7 +126,7 @@ namespace Diplomn
                         Цена_за_ед_покупка = item.Цена,
                         Код_поставщика = item.Поставщики.Код_поставщика
                     };
-                    context.Состав_заказа.Add(orderComposition);
+                    context.Состав_поставки.Add(orderComposition);
 
                     // Увеличиваем количество товара на складе
                     var product = context.Товары.Find(item.Товары.Код_товара);

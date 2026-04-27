@@ -12,17 +12,18 @@ namespace Diplomn
     using System;
     using System.Collections.Generic;
     
-    public partial class Состав_заказа
+    public partial class Материал
     {
-        public int Код_записиСЗ { get; set; }
-        public int Код_поставки { get; set; }
-        public int Код_товара { get; set; }
-        public int Количество { get; set; }
-        public decimal Цена_за_ед_покупка { get; set; }
-        public int Код_поставщика { get; set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
+        public Материал()
+        {
+            this.Товары = new HashSet<Товары>();
+        }
     
-        public virtual Поставка Поставка { get; set; }
-        public virtual Поставщики Поставщики { get; set; }
-        public virtual Товары Товары { get; set; }
+        public int Код_материала { get; set; }
+        public string Наименование_материала { get; set; }
+    
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public virtual ICollection<Товары> Товары { get; set; }
     }
 }

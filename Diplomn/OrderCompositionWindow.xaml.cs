@@ -29,7 +29,7 @@ namespace Diplomn
             this.context = context;
             this.order = order;
 
-            var q = context.Состав_заказа
+            var q = context.Состав_поставки
                 .Include("Товары")
                 .Include("Поставщики")
                 .Where(i => i.Код_поставки == order.Код_поставки)
@@ -64,9 +64,9 @@ namespace Diplomn
                 if (MessageBox.Show($"Удалить позицию '{sel.Товар}'?", "Подтверждение", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
                 {
                     // remove from context if exists
-                    var entity = context.Состав_заказа.Find(sel.Id);
+                    var entity = context.Состав_поставки.Find(sel.Id);
                     if (entity != null)
-                        context.Состав_заказа.Remove(entity);
+                        context.Состав_поставки.Remove(entity);
 
                     items.Remove(sel);
                     UpdateTotal();
@@ -79,7 +79,7 @@ namespace Diplomn
             // persist changes to quantities/prices
             foreach (var it in items)
             {
-                var entity = context.Состав_заказа.Find(it.Id);
+                var entity = context.Состав_поставки.Find(it.Id);
                 if (entity != null)
                 {
                     entity.Количество = it.Количество;

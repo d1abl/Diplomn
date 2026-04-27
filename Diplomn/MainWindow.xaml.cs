@@ -161,9 +161,9 @@ namespace Diplomn
             MainFrame?.Navigate(new SuppliersPage(currentUser));
         }
 
-        private void OrdersBtn_Click(object sender, RoutedEventArgs e)
+        private void SuppliesBtn_Click(object sender, RoutedEventArgs e)
         {
-            MainFrame?.Navigate(new OrdersPage(currentUser));
+            MainFrame?.Navigate(new SuppliesPage(currentUser));
         }
 
         private void SalesBtn_Click(object sender, RoutedEventArgs e)
@@ -196,9 +196,9 @@ namespace Diplomn
                 ? Visibility.Collapsed
                 : Visibility.Visible;
             VisiblProductsWarp.Visibility = Visibility.Collapsed;
-            VisiblOrdersWarp.Visibility = Visibility.Collapsed;
+            VisiblSuppliesWarp.Visibility = Visibility.Collapsed;
             VisiblReportsWarp.Visibility = Visibility.Collapsed;
-            if (VisiblReportsWarp.Visibility == Visibility.Visible || VisiblOrdersWarp.Visibility == Visibility.Visible || VisiblProductsWarp.Visibility == Visibility.Visible || VisiblEmployeesWarp.Visibility == Visibility.Visible)
+            if (VisiblReportsWarp.Visibility == Visibility.Visible || VisiblSuppliesWarp.Visibility == Visibility.Visible || VisiblProductsWarp.Visibility == Visibility.Visible || VisiblEmployeesWarp.Visibility == Visibility.Visible)
                 VisiblBtn.Visibility = Visibility.Visible;
             else
                 VisiblBtn.Visibility = Visibility.Collapsed;
@@ -210,23 +210,23 @@ namespace Diplomn
             VisiblProductsWarp.Visibility = VisiblProductsWarp.Visibility == Visibility.Visible
                 ? Visibility.Collapsed
                 : Visibility.Visible;
-            VisiblOrdersWarp.Visibility = Visibility.Collapsed;
+            VisiblSuppliesWarp.Visibility = Visibility.Collapsed;
             VisiblReportsWarp.Visibility = Visibility.Collapsed;
-            if (VisiblReportsWarp.Visibility == Visibility.Visible || VisiblOrdersWarp.Visibility == Visibility.Visible || VisiblProductsWarp.Visibility == Visibility.Visible || VisiblEmployeesWarp.Visibility == Visibility.Visible)
+            if (VisiblReportsWarp.Visibility == Visibility.Visible || VisiblSuppliesWarp.Visibility == Visibility.Visible || VisiblProductsWarp.Visibility == Visibility.Visible || VisiblEmployeesWarp.Visibility == Visibility.Visible)
                 VisiblBtn.Visibility = Visibility.Visible;
             else
                 VisiblBtn.Visibility = Visibility.Collapsed;
         }
 
-        private void VisiblOrdersBtn_Click(object sender, RoutedEventArgs e)
+        private void VisiblSuppliesBtn_Click(object sender, RoutedEventArgs e)
         {
             VisiblEmployeesWarp.Visibility = Visibility.Collapsed;
             VisiblProductsWarp.Visibility = Visibility.Collapsed;
-            VisiblOrdersWarp.Visibility = VisiblOrdersWarp.Visibility == Visibility.Visible
+            VisiblSuppliesWarp.Visibility = VisiblSuppliesWarp.Visibility == Visibility.Visible
                 ? Visibility.Collapsed
                 : Visibility.Visible;            
             VisiblReportsWarp.Visibility = Visibility.Collapsed;
-            if (VisiblReportsWarp.Visibility == Visibility.Visible || VisiblOrdersWarp.Visibility == Visibility.Visible || VisiblProductsWarp.Visibility == Visibility.Visible || VisiblEmployeesWarp.Visibility == Visibility.Visible)
+            if (VisiblReportsWarp.Visibility == Visibility.Visible || VisiblSuppliesWarp.Visibility == Visibility.Visible || VisiblProductsWarp.Visibility == Visibility.Visible || VisiblEmployeesWarp.Visibility == Visibility.Visible)
                 VisiblBtn.Visibility = Visibility.Visible;
             else
                 VisiblBtn.Visibility = Visibility.Collapsed;
@@ -236,12 +236,12 @@ namespace Diplomn
         {
             VisiblEmployeesWarp.Visibility = Visibility.Collapsed;
             VisiblProductsWarp.Visibility = Visibility.Collapsed;
-            VisiblOrdersWarp.Visibility = Visibility.Collapsed;
+            VisiblSuppliesWarp.Visibility = Visibility.Collapsed;
             VisiblReportsWarp.Visibility = VisiblReportsWarp.Visibility == Visibility.Visible
                 ? Visibility.Collapsed
                 : Visibility.Visible;
 
-            if (VisiblReportsWarp.Visibility == Visibility.Visible || VisiblOrdersWarp.Visibility == Visibility.Visible || VisiblProductsWarp.Visibility == Visibility.Visible || VisiblEmployeesWarp.Visibility == Visibility.Visible)
+            if (VisiblReportsWarp.Visibility == Visibility.Visible || VisiblSuppliesWarp.Visibility == Visibility.Visible || VisiblProductsWarp.Visibility == Visibility.Visible || VisiblEmployeesWarp.Visibility == Visibility.Visible)
                 VisiblBtn.Visibility = Visibility.Visible;
             else
                 VisiblBtn.Visibility = Visibility.Collapsed;
@@ -253,7 +253,7 @@ namespace Diplomn
         {
             VisiblEmployeesWarp.Visibility = Visibility.Collapsed;
             VisiblProductsWarp.Visibility = Visibility.Collapsed;
-            VisiblOrdersWarp.Visibility = Visibility.Collapsed;
+            VisiblSuppliesWarp.Visibility = Visibility.Collapsed;
             VisiblReportsWarp.Visibility = Visibility.Collapsed;
             VisiblBtn.Visibility = Visibility.Collapsed;
         }
