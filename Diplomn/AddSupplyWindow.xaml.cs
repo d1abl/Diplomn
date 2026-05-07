@@ -131,7 +131,8 @@ namespace Diplomn
                 var order = new Поставка
                 {
                     Код_сотрудника = currentUser.Код_сотрудника,
-                    Дата_оформления_постивки = DateTime.Now
+                    Дата_оформления_постивки = DateTime.Now,
+                    Код_поставщика = selectedSupplier.Код_поставщика
                 };
 
                 context.Поставка.Add(order);
@@ -145,7 +146,6 @@ namespace Diplomn
                         Код_товара = item.Товары.Код_товара,
                         Количество = item.Количество,
                         Цена_за_ед_покупка = item.Цена,
-                        Код_поставщика = selectedSupplier.Код_поставщика
                     };
                     context.Состав_поставки.Add(orderComposition);
 

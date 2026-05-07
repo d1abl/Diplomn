@@ -25,18 +25,18 @@ namespace Diplomn
             throw new UnintentionalCodeFirstException();
         }
     
+        public virtual DbSet<Бренд> Бренд { get; set; }
         public virtual DbSet<Должность> Должность { get; set; }
         public virtual DbSet<Категории> Категории { get; set; }
+        public virtual DbSet<Материал> Материал { get; set; }
         public virtual DbSet<Поставка> Поставка { get; set; }
         public virtual DbSet<Поставщики> Поставщики { get; set; }
         public virtual DbSet<Продажи> Продажи { get; set; }
+        public virtual DbSet<Производитель> Производитель { get; set; }
         public virtual DbSet<Состав_поставки> Состав_поставки { get; set; }
         public virtual DbSet<Состав_продажи> Состав_продажи { get; set; }
         public virtual DbSet<Сотрудники> Сотрудники { get; set; }
         public virtual DbSet<Товары> Товары { get; set; }
-        public virtual DbSet<Бренд> Бренд { get; set; }
-        public virtual DbSet<Материал> Материал { get; set; }
-        public virtual DbSet<Производитель> Производитель { get; set; }
         public virtual DbSet<Фасовка> Фасовка { get; set; }
     }
 }

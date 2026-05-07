@@ -3,6 +3,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:addons="clr-namespace:Diplomn.Addons"
       mc:Ignorable="d" 
       Title="ReportPage">
 
@@ -53,7 +54,9 @@
                 <StackPanel>
                     <TextBlock Text="Отчет по товарам" FontSize="14" FontWeight="Bold" Margin="0,0,0,10"/>
                     <TextBlock Text="Категория:" Margin="0,5,0,0"/>
-                    <ComboBox x:Name="CmbCategory" DisplayMemberPath="Категория" Height="35" Margin="0,0,0,10"/>
+                    <ComboBox x:Name="CmbCategory" DisplayMemberPath="Категория" Height="35" Margin="0,0,0,10"
+                              Style="{DynamicResource PlaceholderComboBox}"
+                              Tag="Выберите категорию"/>
                     <Button Content="📊 Сформировать отчет" Click="GenerateProductsReport_Click" Height="35"/>
                 </StackPanel>
             </Border>

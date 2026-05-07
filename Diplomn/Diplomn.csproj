@@ -72,6 +72,7 @@
     </ApplicationDefinition>
     <Compile Include="Addons\FrameExtensions.cs" />
     <Compile Include="Addons\PhoneNumberConverter.cs" />
+    <Compile Include="Addons\PlaceholderBehavior.cs" />
     <Compile Include="AddSupplyWindow.xaml.cs">
       <DependentUpon>AddSupplyWindow.xaml</DependentUpon>
     </Compile>
@@ -295,6 +296,12 @@
     <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="Photos\istockavatar.png" />
+    <Resource Include="Photos\istocklogo.png" />
+    <Resource Include="Photos\istockproductphoto.png" />
+    <Resource Include="Photos\istockphoto.jpg" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="BD.Context.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <DependentUpon>BD.edmx</DependentUpon>
@@ -305,13 +312,6 @@
       <DependentUpon>BD.edmx</DependentUpon>
       <LastGenOutput>BD.cs</LastGenOutput>
     </Content>
-    <Resource Include="Photos\istockavatar.png" />
-    <Resource Include="Photos\istocklogo.png" />
-    <Resource Include="Photos\istockproductphoto.png" />
-    <Resource Include="Photos\istockphoto.jpg" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Converters\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

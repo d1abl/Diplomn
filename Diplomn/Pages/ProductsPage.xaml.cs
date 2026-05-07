@@ -80,6 +80,7 @@ namespace Diplomn.Pages
                 .Include("Фасовка")
                 .ToList();
 
+
             UpdateProductsView(products);
         }
 
@@ -838,12 +839,17 @@ namespace Diplomn.Pages
         public decimal Цена_за_ед_продажа { get; set; }
         public int Количество { get; set; }
         public string КатегорияНазвание { get; set; }
+        public string БрендНазвание { get; set; }
+        public string ПроизводительНазвание { get; set; }
+        public string МатериалНазвание { get; set; }
+        public string ФасовкаНазвание { get; set; }
         public BitmapImage PhotoSource { get; set; }
 
         // Готовые строки для отображения
         public string PriceDisplay => $"{Цена_за_ед_продажа:N2} ₽";
-        public string QuantityDisplay => $"На складе: {Количество} шт.";
+        public string QuantityDisplay => $"📦 На складе: {Количество} шт.";
         public string StockStatus => Количество > 0 ? "✅ В наличии" : "❌ Нет в наличии";
+        
 
         public ProductViewModel(Товары product)
         {
@@ -851,7 +857,11 @@ namespace Diplomn.Pages
             Наименование = product.Наименование;
             Цена_за_ед_продажа = product.Цена_за_ед_продажа;
             Количество = product.Количество;
-            КатегорияНазвание = product.Категории?.Категория ?? "";
+            КатегорияНазвание = product.Категории?.Категория != null ? $"📂 {product.Категории.Категория}" : "📂 Без категории";
+            БрендНазвание = product.Бренд?.Наименование_бредна != null ? $"🏷 {product.Бренд.Наименование_бредна}" : "";
+            ПроизводительНазвание = product.Производитель?.Наименование_произваодителя != null ? $"🏭 {product.Производитель.Наименование_произваодителя}" : "";
+            МатериалНазвание = product.Материал?.Наименование_материала != null ? $"🔧 {product.Материал.Наименование_материала}" : "";
+            ФасовкаНазвание = product.Фасовка?.Количество != null ? $"📏 {product.Фасовка.Количество}" : "";
 
             // Загружаем фото
             if (product.Фото != null && product.Фото.Length > 0)

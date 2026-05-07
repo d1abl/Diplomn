@@ -18,7 +18,7 @@
         <Border Grid.Row="0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" 
                 Padding="0,0,0,10" Margin="0,0,0,10">
             <StackPanel>
-                <TextBlock Text="Поставщики" FontSize="18" FontWeight="Bold"/>
+                <TextBlock x:Name="WelcomeText" Text="Поставщики" FontSize="18" FontWeight="Bold"/>
                 <TextBlock Text="Управление поставщиками" FontSize="13" Opacity="0.7"/>
             </StackPanel>
         </Border>
@@ -30,7 +30,7 @@
                 <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Левая часть -->
+            <!-- Левая часть: карточки поставщиков -->
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -46,7 +46,8 @@
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="TxtSearch" Height="32" 
                                  ToolTip="Поиск по наименованию или ИНН (Enter для поиска)"
-                                 KeyDown="TxtSearch_KeyDown"/>
+                                 KeyDown="TxtSearch_KeyDown"
+                                 addons:PlaceholderBehavior.PlaceholderText="Поиск по наименованию или ИНН"/>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="5,0,0,0">
                             <Button Content="🔍" Width="40" Height="32"
                                     Click="ApplyFilters_Click" ToolTip="Применить фильтры"/>
@@ -58,21 +59,88 @@
                     </Grid>
                 </Border>
 
-                <!-- Таблица -->
-                <DataGrid Grid.Row="1" x:Name="DataGridSuppliers" 
-                          SelectionChanged="DataGridSuppliers_SelectionChanged">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Код" Binding="{Binding Код_поставщика}" Width="60"/>
-                        <DataGridTextColumn Header="Наименование" Binding="{Binding Наименование_поставщика}" Width="160"/>
-                        <DataGridTextColumn Header="ИНН" Binding="{Binding ИНН}" Width="100"/>
-                        <DataGridTextColumn Header="Контактное лицо" Binding="{Binding Фамилия_контактного_лица}" Width="120"/>
-                        <DataGridTextColumn Header="Телефон" Width="120">
-                            <DataGridTextColumn.Binding>
-                                <Binding Path="Телефон_контактного_лица" Converter="{StaticResource PhoneNumberConverter}"/>
-                            </DataGridTextColumn.Binding>
-                        </DataGridTextColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <!-- Карточки поставщиков -->
+                <ListView Grid.Row="1" x:Name="ListViewSuppliers"
+                          SelectionMode="Single"
+                          SelectionChanged="ListViewSuppliers_SelectionChanged"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}"
+                          BorderThickness="1">
+                    <ListView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" Margin="5"/>
+                        </ItemsPanelTemplate>
+                    </ListView.ItemsPanel>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="5" 
+                                    Width="250"
+                                    Height="180"
+                                    Background="{DynamicResource BackgroundBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" 
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="10"
+                                    Cursor="Hand">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource FindAncestor, AncestorType=ListViewItem}}" Value="True">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                                <Setter Property="BorderThickness" Value="2"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Логотип -->
+                                    <Border Grid.Column="0" Width="70" Height="70" 
+                                            CornerRadius="4"
+                                            BorderBrush="{DynamicResource BorderBrush}" 
+                                            BorderThickness="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Top"
+                                            Margin="0,0,10,0">
+                                        <Image Source="{Binding LogoSource}" 
+                                               Stretch="Uniform"/>
+                                    </Border>
+
+                                    <!-- Информация -->
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding Наименование_поставщика}" 
+                                                   FontWeight="Bold"
+                                                   FontSize="14"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding Наименование_поставщика}"
+                                                   TextWrapping="NoWrap"/>
+
+                                        <TextBlock Text="{Binding ИНН}" 
+                                                   Margin="0,5,0,0"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource BorderBrush}"/>
+
+                                        <TextBlock Text="{Binding ContactPersonDisplay}" 
+                                                   Margin="0,5,0,0"
+                                                   FontSize="11"
+                                                   TextTrimming="CharacterEllipsis"/>
+
+                                        <TextBlock Text="{Binding PhoneDisplay}" 
+                                                   Margin="0,3,0,0"
+                                                   FontSize="11"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
             </Grid>
 
             <Border Grid.Column="1" Width="2" Background="{DynamicResource BorderBrush}" Opacity="0.3" Margin="10,0"/>
@@ -92,31 +160,40 @@
                               HorizontalAlignment="Center" Opacity="0.6" Margin="0,0,0,15"/>
 
                     <TextBlock Text="Код" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtSupplierId" IsReadOnly="True" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtSupplierId" IsReadOnly="True" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="Код поставщика"/>
 
                     <TextBlock Text="Наименование *" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtSupplierName" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtSupplierName" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите наименование"/>
 
                     <TextBlock Text="ИНН *" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtInn" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtInn" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите ИНН"/>
 
                     <TextBlock Text="Адрес *" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtAddress" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtAddress" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите адрес"/>
 
                     <TextBlock Text="Email *" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtEmail" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtEmail" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="email@example.com"/>
 
                     <TextBlock Text="Фамилия контактного лица *" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtContactLastName" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtContactLastName" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите фамилию"/>
 
                     <TextBlock Text="Имя контактного лица *" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtContactFirstName" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtContactFirstName" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите имя"/>
 
                     <TextBlock Text="Отчество контактного лица" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtContactMiddleName" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtContactMiddleName" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите отчество"/>
 
                     <TextBlock Text="Телефон" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtPhone" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtPhone" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="+7 (___) ___-__-__"/>
 
                     <WrapPanel HorizontalAlignment="Center" Margin="0,10,0,0">
                         <Button Content="Добавить" Click="Add_Click" Width="90" Height="35" Margin="3"/>

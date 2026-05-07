@@ -1,6 +1,7 @@
 ﻿<Page x:Class="Diplomn.Pages.ProductsPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:addons="clr-namespace:Diplomn.Addons"
       Title="ProductsPage">
 
     <Grid Margin="15">
@@ -44,7 +45,8 @@
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="TxtSearch" Height="32" 
                                  ToolTip="Поиск по наименованию (Enter для применения)"
-                                 KeyDown="TxtSearch_KeyDown"/>
+                                 KeyDown="TxtSearch_KeyDown"
+                                 addons:PlaceholderBehavior.PlaceholderText="Поиск по наименованию товара"/>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="5,0,0,0">
                             <Button x:Name="BtnApplyFilters" Content="🔍" Width="40" Height="32"
                                     Click="ApplyFilters_Click" ToolTip="Применить фильтры"/>
@@ -72,17 +74,21 @@
                                 <StackPanel Grid.Column="0" Margin="0,0,5,0">
                                     <TextBlock Text="Цена (от - до)" FontSize="11" Margin="0,0,0,3"/>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBox x:Name="TxtPriceMin" Width="70" Height="28" ToolTip="Цена от"/>
+                                        <TextBox x:Name="TxtPriceMin" Width="70" Height="28" ToolTip="Цена от"
+                                                 addons:PlaceholderBehavior.PlaceholderText="От"/>
                                         <TextBlock Text="—" VerticalAlignment="Center" Margin="5,0"/>
-                                        <TextBox x:Name="TxtPriceMax" Width="70" Height="28" ToolTip="Цена до"/>
+                                        <TextBox x:Name="TxtPriceMax" Width="70" Height="28" ToolTip="Цена до"
+                                                 addons:PlaceholderBehavior.PlaceholderText="До"/>
                                     </StackPanel>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Margin="5,0,0,0">
                                     <TextBlock Text="Количество (от - до)" FontSize="11" Margin="0,0,0,3"/>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBox x:Name="TxtQtyMin" Width="70" Height="28" ToolTip="Кол-во от"/>
+                                        <TextBox x:Name="TxtQtyMin" Width="70" Height="28" ToolTip="Кол-во от"
+                                                 addons:PlaceholderBehavior.PlaceholderText="От"/>
                                         <TextBlock Text="—" VerticalAlignment="Center" Margin="5,0"/>
-                                        <TextBox x:Name="TxtQtyMax" Width="70" Height="28" ToolTip="Кол-во до"/>
+                                        <TextBox x:Name="TxtQtyMax" Width="70" Height="28" ToolTip="Кол-во до"
+                                                 addons:PlaceholderBehavior.PlaceholderText="До"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Grid>
@@ -129,7 +135,7 @@
                         <DataTemplate>
                             <Border Margin="5" 
                                     Width="200"
-                                    Height="320"
+                                    Height="300"
                                     Background="{DynamicResource BackgroundBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" 
                                     BorderThickness="1"
@@ -161,12 +167,15 @@
                                     <!-- Наименование -->
                                     <TextBlock Text="{Binding Наименование}" 
                                                FontWeight="Bold"
-                                               FontSize="13"
+                                               FontSize="18"
                                                TextTrimming="CharacterEllipsis"
                                                ToolTip="{Binding Наименование}"
+                                               TextWrapping="NoWrap"/>
+
+                                    <!-- Категория -->
+                                    <TextBlock Text="{Binding КатегорияНазвание}" 
                                                Margin="0,0,0,8"
-                                               TextWrapping="NoWrap"
-                                               Height="40"/>
+                                               TextTrimming="CharacterEllipsis"/>
 
                                     <!-- Цена -->
                                     <TextBlock Text="{Binding PriceDisplay}" 
@@ -185,11 +194,35 @@
                                                FontSize="11"
                                                Margin="0,0,0,5"/>
 
-                                    <!-- Категория -->
-                                    <TextBlock Text="{Binding КатегорияНазвание}" 
-                                               FontSize="9" 
-                                               Foreground="#99FFFFFF"
-                                               TextTrimming="CharacterEllipsis"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- Бренд -->
+                                        <TextBlock Text="{Binding БрендНазвание}" 
+                                               FontSize="10"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="0,0,5,0"
+                                               ToolTip="{Binding БрендНазвание}"/>
+
+                                        <!-- Производитель -->
+                                        <TextBlock Text="{Binding ПроизводительНазвание}" 
+                                               FontSize="10"
+                                               TextTrimming="CharacterEllipsis"   
+                                               Margin="0,0,5,0"                                               
+                                               ToolTip="{Binding ПроизводительНазвание}"/>
+
+                                        <!-- Материал -->
+                                        <TextBlock Text="{Binding МатериалНазвание}" 
+                                               FontSize="10"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="0,0,5,0"
+                                               ToolTip="{Binding МатериалНазвание}"/>
+
+                                        <!-- Фасовка -->
+                                        <TextBlock Text="{Binding ФасовкаНазвание}" 
+                                               FontSize="10"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="0,0,5,0"
+                                               ToolTip="{Binding ФасовкаНазвание}"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
@@ -220,36 +253,50 @@
 
                     <!-- Поля формы -->
                     <TextBlock Text="Код товара" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtProductId" IsReadOnly="True" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtProductId" IsReadOnly="True" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="Код товара"/>
 
                     <TextBlock Text="Наименование *" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtProductName" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtProductName" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите наименование товара"/>
 
                     <TextBlock Text="Цена продажи *" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtPrice" Height="30" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtPrice" Height="30" Margin="0,0,0,10"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите цену"/>
 
                     <TextBlock Text="Категория *" FontSize="11" Margin="0,0,0,3"/>
                     <ComboBox x:Name="CmbCategory" Height="32" Margin="0,0,0,10"
+                              Style="{DynamicResource PlaceholderComboBox}"
+                              Tag="Выберите категорию"
                               DisplayMemberPath="Категория" SelectedValuePath="Код_категория"/>
 
                     <TextBlock Text="Бренд" FontSize="11" Margin="0,0,0,3"/>
                     <ComboBox x:Name="CmbBrand" Height="32" Margin="0,0,0,10"
+                              Style="{DynamicResource PlaceholderComboBox}"
+                              Tag="Выберите бренд"
                               DisplayMemberPath="Наименование_бредна" SelectedValuePath="Код_бренда"/>
 
                     <TextBlock Text="Производитель" FontSize="11" Margin="0,0,0,3"/>
                     <ComboBox x:Name="CmbManufacturer" Height="32" Margin="0,0,0,10"
+                              Style="{DynamicResource PlaceholderComboBox}"
+                              Tag="Выберите производителя"
                               DisplayMemberPath="Наименование_произваодителя" SelectedValuePath="Код_производителя"/>
 
                     <TextBlock Text="Материал" FontSize="11" Margin="0,0,0,3"/>
                     <ComboBox x:Name="CmbMaterial" Height="32" Margin="0,0,0,10"
+                              Style="{DynamicResource PlaceholderComboBox}"
+                              Tag="Выберите материал"
                               DisplayMemberPath="Наименование_материала" SelectedValuePath="Код_материала"/>
 
                     <TextBlock Text="Фасовка" FontSize="11" Margin="0,0,0,3"/>
                     <ComboBox x:Name="CmbPacking" Height="32" Margin="0,0,0,10"
+                              Style="{DynamicResource PlaceholderComboBox}"
+                              Tag="Выберите фасовку"
                               DisplayMemberPath="Количество" SelectedValuePath="Код_фасовки"/>
 
                     <TextBlock Text="Количество на складе" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtQuantity" Height="30" IsReadOnly="True" Text="0" Margin="0,0,0,15"/>
+                    <TextBox x:Name="TxtQuantity" Height="30" IsReadOnly="True" Text="0" Margin="0,0,0,15"
+                             addons:PlaceholderBehavior.PlaceholderText="Количество на складе"/>
 
                     <!-- Кнопки действий -->
                     <WrapPanel HorizontalAlignment="Center" Margin="0,10,0,0">

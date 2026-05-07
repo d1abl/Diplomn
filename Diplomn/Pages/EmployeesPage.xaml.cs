@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data.Entity;
 using System.IO;
 using System.Linq;
@@ -18,6 +19,7 @@ namespace Diplomn.Pages
         private BDEntities context;
         private Сотрудники currentUser;
         private byte[] selectedImageData;
+        private ObservableCollection<EmployeeViewModel> employeesView;
 
         public EmployeesPage(Сотрудники user)
         {
@@ -25,6 +27,7 @@ namespace Diplomn.Pages
             context = new BDEntities();
             currentUser = user;
             WelcomeText.Text = $"Сотрудники — {user.Фамилия} {user.Имя}";
+            employeesView = new ObservableCollection<EmployeeViewModel>();
             LoadPositions();
             LoadData();
         }
@@ -57,16 +60,51 @@ namespace Diplomn.Pages
 
         private void LoadData()
         {
-            DataGridEmployees.ItemsSource = context.Сотрудники
+            var employees = context.Сотрудники
                 .Include("Должность")
                 .ToList();
+            UpdateEmployeesView(employees);
+        }
+
+        private void UpdateEmployeesView(List<Сотрудники> employees)
+        {
+            employeesView.Clear();
+            foreach (var employee in employees)
+            {
+                employeesView.Add(new EmployeeViewModel(employee));
+            }
+            ListViewEmployees.ItemsSource = employeesView;
+        }
+
+        private BitmapImage LoadImageFromBytes(byte[] imageData)
+        {
+            if (imageData == null || imageData.Length == 0)
+                return null;
+
+            try
+            {
+                using (var ms = new MemoryStream(imageData))
+                {
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.StreamSource = ms;
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    return bitmap;
+                }
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private void ApplyFilters()
         {
-            DataGridEmployees.ItemsSource = GetFilteredQuery()
+            var employees = GetFilteredQuery()
                 .Include("Должность")
                 .ToList();
+            UpdateEmployeesView(employees);
         }
 
         private void ApplyFilters_Click(object sender, RoutedEventArgs e) => ApplyFilters();
@@ -132,10 +170,11 @@ namespace Diplomn.Pages
             }
         }
 
-        private void DataGridEmployees_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void ListViewEmployees_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (DataGridEmployees.SelectedItem is Сотрудники employee)
+            if (ListViewEmployees.SelectedItem is EmployeeViewModel selectedEmployee)
             {
+                var employee = selectedEmployee.OriginalEmployee;
                 TxtEmployeeId.Text = employee.Код_сотрудника.ToString();
                 TxtLastName.Text = employee.Фамилия;
                 TxtFirstName.Text = employee.Имя;
@@ -155,15 +194,7 @@ namespace Diplomn.Pages
             {
                 if (employee?.Аватарка != null && employee.Аватарка.Length > 0)
                 {
-                    using (var ms = new MemoryStream(employee.Аватарка))
-                    {
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.StreamSource = ms;
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmap.EndInit();
-                        EmployeePhoto.Source = bitmap;
-                    }
+                    EmployeePhoto.Source = LoadImageFromBytes(employee.Аватарка);
                 }
                 else
                 {
@@ -189,15 +220,7 @@ namespace Diplomn.Pages
                 if (openFileDialog.ShowDialog() == true)
                 {
                     selectedImageData = File.ReadAllBytes(openFileDialog.FileName);
-                    using (var ms = new MemoryStream(selectedImageData))
-                    {
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.StreamSource = ms;
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmap.EndInit();
-                        EmployeePhoto.Source = bitmap;
-                    }
+                    EmployeePhoto.Source = LoadImageFromBytes(selectedImageData);
                 }
             }
             catch (Exception ex)
@@ -395,6 +418,7 @@ namespace Diplomn.Pages
 
                 MessageBox.Show("Сотрудник обновлен!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 LoadData();
+                ClearForm();
             }
             catch (Exception ex)
             {
@@ -459,7 +483,79 @@ namespace Diplomn.Pages
             PassBox.Password = "";
             EmployeePhoto.Source = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.RelativeOrAbsolute));
             selectedImageData = null;
-            DataGridEmployees.SelectedItem = null;
+            ListViewEmployees.SelectedItem = null;
+        }
+    }
+
+    /// <summary>
+    /// ViewModel для отображения сотрудника в карточке
+    /// </summary>
+    public class EmployeeViewModel
+    {
+        public Сотрудники OriginalEmployee { get; set; }
+        public string Фамилия { get; set; }
+        public string Имя { get; set; }
+        public string Отчество { get; set; }
+        public string Телефон { get; set; }
+        public string Логин { get; set; }
+        public BitmapImage AvatarSource { get; set; }
+
+        public string FullName
+        {
+            get
+            {
+                var parts = new[] { Фамилия, Имя, Отчество };
+                return string.Join(" ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
+            }
+        }
+
+        public string Position => OriginalEmployee.Должность?.Название ?? "Без должности";
+
+        public string LoginDisplay => $"🔑 {Логин}";
+
+        public string AccessLevelDisplay
+        {
+            get
+            {
+                var level = OriginalEmployee.Должность?.Уровень_доступа;
+                if (!level.HasValue) return "🔒 Уровень доступа: не определен";
+                return level.Value >= 4 ? "👑 Администратор" : $"🔒 Уровень доступа: {level}";
+            }
+        }
+
+        public EmployeeViewModel(Сотрудники employee)
+        {
+            OriginalEmployee = employee;
+            Фамилия = employee.Фамилия;
+            Имя = employee.Имя;
+            Отчество = employee.Отчество;
+            Телефон = employee.Телефон;
+            Логин = employee.Логин;
+
+            // Загружаем аватар
+            if (employee.Аватарка != null && employee.Аватарка.Length > 0)
+            {
+                try
+                {
+                    using (var ms = new MemoryStream(employee.Аватарка))
+                    {
+                        var bitmap = new BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.StreamSource = ms;
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.EndInit();
+                        AvatarSource = bitmap;
+                    }
+                }
+                catch
+                {
+                    AvatarSource = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.RelativeOrAbsolute));
+                }
+            }
+            else
+            {
+                AvatarSource = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.RelativeOrAbsolute));
+            }
         }
     }
 }

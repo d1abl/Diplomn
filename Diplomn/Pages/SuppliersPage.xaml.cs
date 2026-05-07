@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -17,12 +18,15 @@ namespace Diplomn.Pages
         private BDEntities context;
         private Сотрудники currentUser;
         private byte[] selectedImageData;
+        private ObservableCollection<SupplierViewModel> suppliersView;
 
         public SuppliersPage(Сотрудники user)
         {
             InitializeComponent();
             context = new BDEntities();
             currentUser = user;
+            WelcomeText.Text = $"Поставщики — {user.Фамилия} {user.Имя}";
+            suppliersView = new ObservableCollection<SupplierViewModel>();
             LoadData();
         }
 
@@ -49,12 +53,47 @@ namespace Diplomn.Pages
 
         private void LoadData()
         {
-            DataGridSuppliers.ItemsSource = context.Поставщики.ToList();
+            var suppliers = context.Поставщики.ToList();
+            UpdateSuppliersView(suppliers);
+        }
+
+        private void UpdateSuppliersView(List<Поставщики> suppliers)
+        {
+            suppliersView.Clear();
+            foreach (var supplier in suppliers)
+            {
+                suppliersView.Add(new SupplierViewModel(supplier));
+            }
+            ListViewSuppliers.ItemsSource = suppliersView;
+        }
+
+        private BitmapImage LoadImageFromBytes(byte[] imageData)
+        {
+            if (imageData == null || imageData.Length == 0)
+                return null;
+
+            try
+            {
+                using (var ms = new MemoryStream(imageData))
+                {
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.StreamSource = ms;
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    return bitmap;
+                }
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private void ApplyFilters()
         {
-            DataGridSuppliers.ItemsSource = GetFilteredQuery().ToList();
+            var suppliers = GetFilteredQuery().ToList();
+            UpdateSuppliersView(suppliers);
         }
 
         private void ApplyFilters_Click(object sender, RoutedEventArgs e) => ApplyFilters();
@@ -117,10 +156,11 @@ namespace Diplomn.Pages
             }
         }
 
-        private void DataGridSuppliers_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void ListViewSuppliers_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (DataGridSuppliers.SelectedItem is Поставщики supplier)
+            if (ListViewSuppliers.SelectedItem is SupplierViewModel selectedSupplier)
             {
+                var supplier = selectedSupplier.OriginalSupplier;
                 TxtSupplierId.Text = supplier.Код_поставщика.ToString();
                 TxtSupplierName.Text = supplier.Наименование_поставщика;
                 TxtInn.Text = supplier.ИНН;
@@ -142,15 +182,7 @@ namespace Diplomn.Pages
             {
                 if (supplier?.Логотип != null && supplier.Логотип.Length > 0)
                 {
-                    using (var ms = new MemoryStream(supplier.Логотип))
-                    {
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.StreamSource = ms;
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmap.EndInit();
-                        SupplierLogo.Source = bitmap;
-                    }
+                    SupplierLogo.Source = LoadImageFromBytes(supplier.Логотип);
                 }
                 else
                 {
@@ -175,48 +207,14 @@ namespace Diplomn.Pages
 
                 if (openFileDialog.ShowDialog() == true)
                 {
-                    selectedImageData = LoadAndResizeImage(openFileDialog.FileName, 200, 200);
-
-                    using (var ms = new MemoryStream(selectedImageData))
-                    {
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.StreamSource = ms;
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmap.EndInit();
-                        SupplierLogo.Source = bitmap;
-                    }
+                    selectedImageData = File.ReadAllBytes(openFileDialog.FileName);
+                    SupplierLogo.Source = LoadImageFromBytes(selectedImageData);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка при выборе логотипа: {ex.Message}", "Ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private byte[] LoadAndResizeImage(string filePath, int maxWidth, int maxHeight)
-        {
-            var bitmap = new BitmapImage();
-            bitmap.BeginInit();
-            bitmap.UriSource = new Uri(filePath);
-            bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.EndInit();
-
-            var resizedBitmap = new BitmapImage();
-            resizedBitmap.BeginInit();
-            resizedBitmap.UriSource = new Uri(filePath);
-            resizedBitmap.DecodePixelWidth = maxWidth;
-            resizedBitmap.DecodePixelHeight = maxHeight;
-            resizedBitmap.CacheOption = BitmapCacheOption.OnLoad;
-            resizedBitmap.EndInit();
-
-            using (var ms = new MemoryStream())
-            {
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(resizedBitmap));
-                encoder.Save(ms);
-                return ms.ToArray();
             }
         }
 
@@ -401,7 +399,7 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                var hasSupplies = context.Состав_поставки.Any(o => o.Код_поставщика == supplierId);
+                var hasSupplies = context.Поставка.Any(o => o.Код_поставщика == supplierId);
                 if (hasSupplies)
                 {
                     MessageBox.Show("Нельзя удалить поставщика — он используется в поставках!",
@@ -442,7 +440,69 @@ namespace Diplomn.Pages
             TxtPhone.Text = "";
             SupplierLogo.Source = new BitmapImage(new Uri("/Photos/istocklogo.png", UriKind.RelativeOrAbsolute));
             selectedImageData = null;
-            DataGridSuppliers.SelectedItem = null;
+            ListViewSuppliers.SelectedItem = null;
+        }
+    }
+
+    /// <summary>
+    /// ViewModel для отображения поставщика в карточке
+    /// </summary>
+    public class SupplierViewModel
+    {
+        public Поставщики OriginalSupplier { get; set; }
+        public string Наименование_поставщика { get; set; }
+        public string ИНН { get; set; }
+        public string Фамилия_контактного_лица { get; set; }
+        public string Имя_контактного_лица { get; set; }
+        public string Отчество_контактного_лица { get; set; }
+        public string Телефон_контактного_лица { get; set; }
+        public BitmapImage LogoSource { get; set; }
+
+        public string ContactPersonDisplay
+        {
+            get
+            {
+                var parts = new[] { Фамилия_контактного_лица, Имя_контактного_лица, Отчество_контактного_лица };
+                return string.Join(" ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
+            }
+        }
+
+        public string PhoneDisplay => string.IsNullOrWhiteSpace(Телефон_контактного_лица) ? "☎ Телефон не указан" : $"☎ {Телефон_контактного_лица}";
+
+        public SupplierViewModel(Поставщики supplier)
+        {
+            OriginalSupplier = supplier;
+            Наименование_поставщика = supplier.Наименование_поставщика;
+            ИНН = $"ИНН: {supplier.ИНН}";
+            Фамилия_контактного_лица = supplier.Фамилия_контактного_лица;
+            Имя_контактного_лица = supplier.Имя_контактного_лица;
+            Отчество_контактного_лица = supplier.Отчество_контактного_лица;
+            Телефон_контактного_лица = supplier.Телефон_контактного_лица;
+
+            // Загружаем логотип
+            if (supplier.Логотип != null && supplier.Логотип.Length > 0)
+            {
+                try
+                {
+                    using (var ms = new MemoryStream(supplier.Логотип))
+                    {
+                        var bitmap = new BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.StreamSource = ms;
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.EndInit();
+                        LogoSource = bitmap;
+                    }
+                }
+                catch
+                {
+                    LogoSource = new BitmapImage(new Uri("/Photos/istocklogo.png", UriKind.RelativeOrAbsolute));
+                }
+            }
+            else
+            {
+                LogoSource = new BitmapImage(new Uri("/Photos/istocklogo.png", UriKind.RelativeOrAbsolute));
+            }
         }
     }
 }

@@ -277,14 +277,13 @@ namespace Diplomn.Pages
 
                     // Получаем всех поставщиков для поставок заранее
                     var supplyIds = supplies.Select(s => s.Код_поставки).ToList();
-                    var suppliersDict = context.Состав_поставки
-                        .Where(c => supplyIds.Contains(c.Код_поставки))
+                    var suppliersDict = context.Поставка
+                        .Where(p => supplyIds.Contains(p.Код_поставки))
                         .Include("Поставщики")
                         .ToList()
-                        .GroupBy(c => c.Код_поставки)
                         .ToDictionary(
-                            g => g.Key,
-                            g => g.FirstOrDefault()?.Поставщики?.Наименование_поставщика ?? "-"
+                        p => p.Код_поставки,
+                        p => p.Поставщики.Наименование_поставщика
                         );
 
                     decimal totalSum = 0;
@@ -329,10 +328,10 @@ namespace Diplomn.Pages
                     ? supply.Сотрудники.Фамилия + " " + supply.Сотрудники.Имя
                     : "";
 
-                var supplier = context.Состав_поставки
+                var supplier = context.Поставка
                     .Include("Поставщики")
-                    .Where(i => i.Код_поставки == supply.Код_поставки)
-                    .Select(i => i.Поставщики.Наименование_поставщика)
+                    .Where(p => p.Код_поставки == supply.Код_поставки)
+                    .Select(p => p.Поставщики.Наименование_поставщика)
                     .FirstOrDefault();
                 TxtSupplier.Text = supplier ?? "Не указан";
 

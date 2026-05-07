@@ -1,6 +1,7 @@
 ﻿<Page x:Class="Diplomn.Pages.AuthPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:addons="clr-namespace:Diplomn.Addons"
       Title="AuthPage">
 
     <Grid>
@@ -24,11 +25,17 @@
 
                 <!-- Поле для логина -->
                 <TextBlock Text="Логин" FontSize="12" Margin="0,0,0,5" FontWeight="SemiBold"/>
-                <TextBox x:Name="LoginBox" Height="35" Margin="0,0,0,15" Text="admin"/>
+                <TextBox x:Name="LoginBox" Height="35" Margin="0,0,0,15" Text="admin" 
+                         addons:PlaceholderBehavior.PlaceholderText="Введите логин"/>
 
-                <!-- Поле для пароля -->
+                <!-- Поле для пароля с глазиком и placeholder -->
                 <TextBlock Text="Пароль" FontSize="12" Margin="0,0,0,5" FontWeight="SemiBold"/>
-                <PasswordBox x:Name="PassBox" Height="35" Margin="0,0,0,25" Password="admin123"/>
+                <PasswordBox x:Name="PassBox" 
+                             Height="35" 
+                             Margin="0,0,0,25" 
+                             Password="admin123" 
+                             addons:PlaceholderBehavior.HasEye="True"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите пароль"/>
 
                 <!-- Кнопки -->
                 <Grid Margin="0,0,0,15">

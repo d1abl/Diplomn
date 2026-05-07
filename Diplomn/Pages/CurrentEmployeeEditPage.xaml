@@ -53,13 +53,16 @@
 
                 <StackPanel Grid.Row="1" Margin="10,0">
                     <TextBlock Text="Фамилия *" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtLastName" Height="30" Margin="0,0,0,15"/>
+                    <TextBox x:Name="TxtLastName" Height="30" Margin="0,0,0,15"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите фамилию"/>
 
                     <TextBlock Text="Имя *" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtFirstName" Height="30" Margin="0,0,0,15"/>
+                    <TextBox x:Name="TxtFirstName" Height="30" Margin="0,0,0,15"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите имя"/>
 
                     <TextBlock Text="Отчество" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtMiddleName" Height="30" Margin="0,0,0,15"/>
+                    <TextBox x:Name="TxtMiddleName" Height="30" Margin="0,0,0,15"
+                             addons:PlaceholderBehavior.PlaceholderText="Введите отчество"/>
                 </StackPanel>
             </Grid>
 
@@ -71,18 +74,23 @@
                     <TextBlock Text="Дополнительная информация" FontWeight="Bold" FontSize="14" Margin="0,0,0,20"/>
 
                     <TextBlock Text="Телефон" FontSize="11" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtPhone" Height="30" Margin="0,0,0,15"/>
+                    <TextBox x:Name="TxtPhone" Height="30" Margin="0,0,0,15"
+                             addons:PlaceholderBehavior.PlaceholderText="+7 (___) ___-__-__"/>
 
                     <TextBlock Text="Должность" FontSize="11" Margin="0,0,0,3"/>
                     <TextBox x:Name="TxtEmployeePosition" Height="30" Margin="0,0,0,15"
-                             IsReadOnly="True" Background="{DynamicResource BorderBrush}" Opacity="0.3"/>
+                             IsReadOnly="True" Background="{DynamicResource BorderBrush}" Opacity="0.3"
+                             addons:PlaceholderBehavior.PlaceholderText="Должность"/>
 
                     <TextBlock Text="Логин" FontSize="11" Margin="0,0,0,3"/>
                     <TextBox x:Name="TxtLogin" Height="30" Margin="0,0,0,15"
-                             IsReadOnly="True" Background="{DynamicResource BorderBrush}" Opacity="0.3"/>
+                             IsReadOnly="True" Background="{DynamicResource BorderBrush}" Opacity="0.3"
+                             addons:PlaceholderBehavior.PlaceholderText="Логин"/>
 
                     <TextBlock Text="Пароль" FontSize="11" Margin="0,0,0,3"/>
-                    <PasswordBox x:Name="PassBox" Height="30" Margin="0,0,0,15"/>
+                    <PasswordBox x:Name="PassBox" Height="30" Margin="0,0,0,15"
+                                addons:PlaceholderBehavior.HasEye="True"
+                                addons:PlaceholderBehavior.PlaceholderText="Введите новый пароль"/>
 
                     <Border Padding="10" CornerRadius="4" Margin="0,15,0,0">
                         <Button Content="💾 Сохранить изменения" Click="Update_Click" 

@@ -4,13 +4,16 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:Diplomn.Pages"
+      xmlns:addons="clr-namespace:Diplomn.Addons"
       mc:Ignorable="d" 
       Title="SettingsPage">
 
     <Grid Margin="20">
         <StackPanel Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Top" Width="300">
             <TextBlock Text="Выберите тему:" FontWeight="Bold" Margin="0,0,0,4" />
-            <ComboBox x:Name="ThemeSelector" SelectionChanged="ThemeSelector_SelectionChanged">
+            <ComboBox x:Name="ThemeSelector" SelectionChanged="ThemeSelector_SelectionChanged"
+                      Style="{DynamicResource PlaceholderComboBox}"
+                      Tag="Выберите тему оформления">
                 <ComboBoxItem Content="Theme 1" Tag="Theme1" />
                 <ComboBoxItem Content="Theme 2" Tag="Theme2" />
                 <ComboBoxItem Content="Theme 3" Tag="Theme3" />

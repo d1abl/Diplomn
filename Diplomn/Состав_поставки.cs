@@ -19,10 +19,8 @@ namespace Diplomn
         public int Код_товара { get; set; }
         public int Количество { get; set; }
         public decimal Цена_за_ед_покупка { get; set; }
-        public int Код_поставщика { get; set; }
     
         public virtual Поставка Поставка { get; set; }
-        public virtual Поставщики Поставщики { get; set; }
         public virtual Товары Товары { get; set; }
     }
 }

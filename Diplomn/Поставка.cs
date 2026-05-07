@@ -23,8 +23,10 @@ namespace Diplomn
         public int Код_поставки { get; set; }
         public int Код_сотрудника { get; set; }
         public System.DateTime Дата_оформления_постивки { get; set; }
+        public int Код_поставщика { get; set; }
     
         public virtual Сотрудники Сотрудники { get; set; }
+        public virtual Поставщики Поставщики { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<Состав_поставки> Состав_поставки { get; set; }
     }
