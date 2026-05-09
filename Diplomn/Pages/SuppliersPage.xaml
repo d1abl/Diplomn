@@ -131,9 +131,9 @@
                                                    FontSize="11"
                                                    TextTrimming="CharacterEllipsis"/>
 
-                                        <TextBlock Text="{Binding PhoneDisplay}" 
-                                                   Margin="0,3,0,0"
+                                        <TextBlock Text="{Binding PhoneDisplay, Converter={StaticResource PhoneNumberConverter}}" 
                                                    FontSize="11"
+                                                   Margin="0,2,0,0"
                                                    TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                 </Grid>

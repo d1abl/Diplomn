@@ -1,7 +1,8 @@
-﻿<Page x:Class="Diplomn.Pages.ProductsPage"
+﻿<Page
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:addons="clr-namespace:Diplomn.Addons"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d" x:Class="Diplomn.Pages.ProductsPage"
       Title="ProductsPage">
 
     <Grid Margin="15">
@@ -124,7 +125,7 @@
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           Background="Transparent"
                           BorderBrush="{DynamicResource BorderBrush}"
-                          BorderThickness="1">
+                          BorderThickness="1" d:ItemsSource="{d:SampleData ItemCount=5}">
                     <ListView.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel Orientation="Horizontal" 
@@ -133,7 +134,7 @@
                     </ListView.ItemsPanel>
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <Border Margin="5" 
+                            <Border Margin="3.98" 
                                     Width="200"
                                     Height="300"
                                     Background="{DynamicResource BackgroundBrush}"
@@ -143,9 +144,9 @@
                                     Padding="10"
                                     Cursor="Hand">
                                 <Border.Style>
-                                    <Style TargetType="Border">
+                                    <Style TargetType="{x:Type Border}">
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource FindAncestor, AncestorType=ListViewItem}}" Value="True">
+                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListViewItem}, Mode=FindAncestor}}" Value="True">
                                                 <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                                                 <Setter Property="BorderThickness" Value="2"/>
                                             </DataTrigger>

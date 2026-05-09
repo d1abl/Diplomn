@@ -80,7 +80,7 @@
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           Background="Transparent"
                           BorderBrush="{DynamicResource BorderBrush}"
-                          BorderThickness="1">
+                          BorderThickness="1" d:ItemsSource="{d:SampleData ItemCount=5}">
                     <ListView.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel Orientation="Horizontal" Margin="5"/>
@@ -162,7 +162,7 @@
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           Background="Transparent"
                           BorderBrush="{DynamicResource BorderBrush}"
-                          BorderThickness="1">
+                          BorderThickness="1" d:ItemsSource="{d:SampleData ItemCount=5}">
                     <ListView.ItemTemplate>
                         <DataTemplate>
                             <Border Padding="8,5" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
@@ -184,7 +184,7 @@
                     </ListView.ItemTemplate>
                 </ListView>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                     <TextBlock Text="Общая сумма:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <TextBlock x:Name="TxtTotal" FontWeight="Bold" FontSize="16" 
                                Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
@@ -192,10 +192,11 @@
             </StackPanel>
         </Grid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-            <Button Content="➕ Новая продажа" Click="NewSale_Click" Width="130" Margin="5" Height="35"/>
-            <Button Content="🗑 Удалить" Click="DeleteSale_Click" Width="100" Margin="5" Height="35"/>
-            <Button Content="🔄 Обновить" Click="Refresh_Click" Width="100" Margin="5" Height="35"/>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0" Cursor="Hand">
+            <Button Content="➕ Новая продажа" Click="NewSale_Click" Width="130" Margin="5" Height="35" Cursor="Hand"/>
+            <Button Content="🗑 Удалить" Click="DeleteSale_Click" Width="100" Margin="5" Height="35" IsEnabled="False"/> <!-- Удаление станет доступным при выбранном элементе -->
+            <Button Content="🔄 Обновить" Click="Refresh_Click" Width="100" Margin="5" Height="35" Visibility="Collapsed"/> <!-- Возможна замена, на данный момент не требуется поэтому Collapsed -->
+            <Button Content="Очистить"  Width="90" Height="35" Margin="3" IsEnabled="False"/> <!-- Отчистка станет доступным при выбранном элементе -->
         </StackPanel>
     </Grid>
 </Page>
