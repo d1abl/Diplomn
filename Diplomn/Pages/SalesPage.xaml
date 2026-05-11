@@ -48,9 +48,9 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="TxtSearch" Height="32" 
-                                     ToolTip="Поиск по коду чека или сотруднику (Enter для поиска)"
+                                     ToolTip="Поиск по товару в чеке (Enter для поиска)"
                                      KeyDown="TxtSearch_KeyDown"
-                                     addons:PlaceholderBehavior.PlaceholderText="Поиск по коду чека или сотруднику"/>
+                                     addons:PlaceholderBehavior.PlaceholderText="Поиск по товару в чеке"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="5,0,0,0">
                                 <Button Content="🔍" Width="40" Height="32"
                                         Click="ApplyFilters_Click" ToolTip="Применить фильтры"/>
@@ -62,14 +62,55 @@
                         </Grid>
                     </Border>
 
-                    <!-- Фильтр по дате -->
-                    <Expander Grid.Row="1" Header="📅 Фильтр по дате" IsExpanded="False" Margin="0,0,0,8">
+                    <!-- Фильтры -->
+                    <Expander Grid.Row="1" Header="⚙ Фильтры и сортировка" IsExpanded="False" Margin="0,0,0,8">
                         <Border Padding="8">
                             <StackPanel>
-                                <TextBlock Text="Дата от" FontSize="11" Margin="0,0,0,3"/>
-                                <DatePicker x:Name="DateFrom" Height="30" Margin="0,0,0,10"/>
-                                <TextBlock Text="Дата до" FontSize="11" Margin="0,0,0,3"/>
-                                <DatePicker x:Name="DateTo" Height="30"/>
+                                <!-- Фильтр по дате -->
+                                <TextBlock Text="Дата продажи" FontSize="11" FontWeight="Bold" Margin="0,0,0,5"/>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                                        <TextBlock Text="От" FontSize="10" Margin="0,0,0,2"/>
+                                        <DatePicker x:Name="DateFrom" Height="28"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                                        <TextBlock Text="До" FontSize="10" Margin="0,0,0,2"/>
+                                        <DatePicker x:Name="DateTo" Height="28"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Фильтр по сотруднику -->
+                                <TextBlock Text="Сотрудник" FontSize="11" FontWeight="Bold" Margin="0,0,0,5"/>
+                                <ComboBox x:Name="CmbEmployee" Height="28" Margin="0,0,0,10"
+                                          DisplayMemberPath="FullName"
+                                          SelectedValuePath="Код_сотрудника"/>
+
+                                <!-- Сортировка -->
+                                <TextBlock Text="Сортировка" FontSize="11" FontWeight="Bold" Margin="0,0,0,5"/>
+                                <StackPanel Margin="0,0,0,5">
+                                    <RadioButton x:Name="RbSortByDate" Content="По дате (новые сначала)" 
+                                                 IsChecked="True" Margin="0,2,0,2" FontSize="11"
+                                                 Checked="SortChanged"/>
+                                    <RadioButton x:Name="RbSortByDateAsc" Content="По дате (старые сначала)" 
+                                                 Margin="0,2,0,2" FontSize="11"
+                                                 Checked="SortChanged"/>
+                                    <RadioButton x:Name="RbSortByAmount" Content="По сумме (по убыванию)" 
+                                                 Margin="0,2,0,2" FontSize="11"
+                                                 Checked="SortChanged"/>
+                                    <RadioButton x:Name="RbSortByAmountAsc" Content="По сумме (по возрастанию)" 
+                                                 Margin="0,2,0,2" FontSize="11"
+                                                 Checked="SortChanged"/>
+                                    <RadioButton x:Name="RbSortByCode" Content="По коду чека (по убыванию)" 
+                                                 Margin="0,2,0,2" FontSize="11"
+                                                 Checked="SortChanged"/>
+                                    <RadioButton x:Name="RbSortByCodeAsc" Content="По коду чека (по возрастанию)" 
+                                                 Margin="0,2,0,2" FontSize="11"
+                                                 Checked="SortChanged"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </Expander>
@@ -139,67 +180,69 @@
                 <Border Grid.Column="1" Width="2" Background="{DynamicResource BorderBrush}" Opacity="0.3" Margin="10,0"/>
 
                 <!-- Правая панель: информация о продаже -->
-                <StackPanel Grid.Column="2" Margin="10,0,0,0">
-                    <TextBlock Text="Информация о продаже" FontWeight="Bold" FontSize="14" Margin="0,0,0,15"/>
+                <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10,0,0,0">
+                        <TextBlock Text="Информация о продаже" FontWeight="Bold" FontSize="14" Margin="0,0,0,15"/>
 
-                    <TextBlock Text="Код чека:" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtSaleId" IsReadOnly="True" Height="30" Margin="0,0,0,10"
-                             addons:PlaceholderBehavior.PlaceholderText="Код чека"/>
+                        <TextBlock Text="Код чека:" Margin="0,0,0,3"/>
+                        <TextBox x:Name="TxtSaleId" IsReadOnly="True" Height="30" Margin="0,0,0,10"
+                                 addons:PlaceholderBehavior.PlaceholderText="Код чека"/>
 
-                    <TextBlock Text="Дата продажи:" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtSaleDate" IsReadOnly="True" Height="30" Margin="0,0,0,10"
-                             addons:PlaceholderBehavior.PlaceholderText="Дата продажи"/>
+                        <TextBlock Text="Дата продажи:" Margin="0,0,0,3"/>
+                        <TextBox x:Name="TxtSaleDate" IsReadOnly="True" Height="30" Margin="0,0,0,10"
+                                 addons:PlaceholderBehavior.PlaceholderText="Дата продажи"/>
 
-                    <TextBlock Text="Сотрудник:" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtEmployee" IsReadOnly="True" Height="30" Margin="0,0,0,15"
-                             addons:PlaceholderBehavior.PlaceholderText="Сотрудник"/>
+                        <TextBlock Text="Сотрудник:" Margin="0,0,0,3"/>
+                        <TextBox x:Name="TxtEmployee" IsReadOnly="True" Height="30" Margin="0,0,0,15"
+                                 addons:PlaceholderBehavior.PlaceholderText="Сотрудник"/>
 
-                    <TextBlock Text="Состав чека:" FontWeight="Bold" Margin="0,0,0,8"/>
+                        <TextBlock Text="Состав чека:" FontWeight="Bold" Margin="0,0,0,8"/>
 
-                    <!-- Список товаров в чеке -->
-                    <ListView x:Name="ListViewSaleItems"
-                              SelectionMode="Single"
-                              Height="200"
-                              Margin="0,0,0,15"
-                              ScrollViewer.VerticalScrollBarVisibility="Auto"
-                              Background="Transparent"
-                              BorderBrush="{DynamicResource BorderBrush}"
-                              BorderThickness="1" d:ItemsSource="{d:SampleData ItemCount=5}">
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <Border Padding="8,5" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <!-- Фото товара -->
-                                        <Border Grid.Column="0" Width="40" Height="40" 
-                                                CornerRadius="3"
-                                                BorderBrush="{DynamicResource BorderBrush}" 
-                                                BorderThickness="1"
-                                                Margin="0,0,10,0">
-                                            <Image Source="{Binding PhotoSource}" Stretch="UniformToFill"/>
-                                        </Border>
-                                        <StackPanel Grid.Column="1">
-                                            <TextBlock Text="{Binding Товар}" FontWeight="Bold" FontSize="12"/>
-                                            <TextBlock Text="{Binding PriceQuantityDisplay}" FontSize="11" Opacity="0.7"/>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="2" Text="{Binding Сумма, StringFormat={}{0:N2} ₽}" 
-                                                   FontWeight="Bold" VerticalAlignment="Center" Margin="10,0"/>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+                        <!-- Список товаров в чеке -->
+                        <ListView x:Name="ListViewSaleItems"
+                                  SelectionMode="Single"
+                                  Height="200"
+                                  Margin="0,0,0,15"
+                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                  Background="Transparent"
+                                  BorderBrush="{DynamicResource BorderBrush}"
+                                  BorderThickness="1" d:ItemsSource="{d:SampleData ItemCount=5}">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="8,5" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- Фото товара -->
+                                            <Border Grid.Column="0" Width="40" Height="40" 
+                                                    CornerRadius="3"
+                                                    BorderBrush="{DynamicResource BorderBrush}" 
+                                                    BorderThickness="1"
+                                                    Margin="0,0,10,0">
+                                                <Image Source="{Binding PhotoSource}" Stretch="UniformToFill"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding Товар}" FontWeight="Bold" FontSize="12"/>
+                                                <TextBlock Text="{Binding PriceQuantityDisplay}" FontSize="11" Opacity="0.7"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding Сумма, StringFormat={}{0:N2} ₽}" 
+                                                       FontWeight="Bold" VerticalAlignment="Center" Margin="10,0"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
 
-                    <StackPanel x:Name="TotalPanel" Orientation="Horizontal" HorizontalAlignment="Left" Visibility="Collapsed">
-                        <TextBlock Text="Общая сумма:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBlock x:Name="TxtTotal" FontWeight="Bold" FontSize="16" 
-                                   Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+                        <StackPanel x:Name="TotalPanel" Orientation="Horizontal" HorizontalAlignment="Left" Visibility="Collapsed">
+                            <TextBlock Text="Общая сумма:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock x:Name="TxtTotal" FontWeight="Bold" FontSize="16" 
+                                       Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
+                </ScrollViewer>
             </Grid>
 
             <!-- Режим создания новой продажи -->
@@ -438,9 +481,9 @@
             <!-- Кнопки для режима просмотра -->
             <StackPanel x:Name="ViewModeButtons" Orientation="Horizontal">
                 <Button Content="➕ Новая продажа" Click="NewSale_Click" Width="130" Margin="5" Height="35" Cursor="Hand"/>
+                <Button Content="✏ Редактировать" Click="EditSale_Click" Width="120" Margin="5" Height="35" IsEnabled="False"/>
                 <Button Content="🗑 Удалить" Click="DeleteSale_Click" Width="100" Margin="5" Height="35" IsEnabled="False"/>
-                <Button Content="🔄 Обновить" Click="Refresh_Click" Width="100" Margin="5" Height="35" Visibility="Collapsed"/>
-                <Button Content="Очистить" Click="ClearForm_Click" Width="90" Height="35" Margin="3" IsEnabled="False"/>
+                <Button Content="Очистить" Click="ClearForm_Click" Width="90" Height="35" Margin="3"/>
             </StackPanel>
 
             <!-- Кнопки для режима создания -->
@@ -455,12 +498,23 @@
 
         <!-- Панель итого для режима создания -->
         <Border x:Name="NewSaleTotalPanel" Grid.Row="2" Margin="0,15,170,0" Padding="10" 
-                CornerRadius="4" HorizontalAlignment="Left" Visibility="Collapsed"
-                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+        CornerRadius="4" HorizontalAlignment="Left" Visibility="Collapsed"
+        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Итого: " FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
                 <TextBlock x:Name="TxtNewSaleTotal" FontSize="18" FontWeight="Bold" 
-                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                   Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" Margin="5,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Панель общей суммы продаж -->
+        <Border x:Name="GrandTotalPanel" Grid.Row="2" Margin="0,15,0,0" Padding="10" 
+        CornerRadius="4" HorizontalAlignment="Left"
+        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="💰 Общая выручка: " FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                <TextBlock x:Name="TxtGrandTotal" FontSize="18" FontWeight="Bold" 
+                   Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" Margin="5,0,0,0"/>
             </StackPanel>
         </Border>
     </Grid>

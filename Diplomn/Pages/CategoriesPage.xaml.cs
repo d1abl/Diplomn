@@ -31,9 +31,9 @@ namespace Diplomn.Pages
         {
             var query = context.Категории.AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
+            if (!string.IsNullOrWhiteSpace(GetActualText(TxtSearch)))
             {
-                var term = TxtSearch.Text.Trim();
+                var term = GetActualText(TxtSearch);
                 query = query.Where(c => c.Категория.Contains(term) ||
                                         c.Описание_категории.Contains(term));
             }
@@ -72,7 +72,7 @@ namespace Diplomn.Pages
         private bool ValidateCategory(out string errorMessage, int? excludeId = null)
         {
             var errors = new StringBuilder();
-            string name = TxtCategoryName.Text?.Trim();
+            string name = GetActualText(TxtCategoryName);
 
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -115,8 +115,8 @@ namespace Diplomn.Pages
 
                 var category = new Категории
                 {
-                    Категория = TxtCategoryName.Text?.Trim(),
-                    Описание_категории = TxtDescription.Text
+                    Категория = GetActualText(TxtCategoryName),
+                    Описание_категории = GetActualText(TxtDescription)
                 };
 
                 context.Категории.Add(category);
@@ -157,8 +157,8 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                category.Категория = TxtCategoryName.Text?.Trim();
-                category.Описание_категории = TxtDescription.Text;
+                category.Категория = GetActualText(TxtCategoryName);
+                category.Описание_категории = GetActualText(TxtDescription);
 
                 context.SaveChanges();
 
@@ -226,6 +226,22 @@ namespace Diplomn.Pages
             TxtCategoryName.Text = "";
             TxtDescription.Text = "";
             DataGridCategories.SelectedItem = null;
+        }
+
+        /// <summary>
+        /// Получает реальный текст из TextBox, игнорируя плейсхолдер
+        /// </summary>
+        private string GetActualText(TextBox textBox)
+        {
+            if (textBox == null) return string.Empty;
+
+            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
+            var text = textBox.Text?.Trim() ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(placeholderText) && text == placeholderText)
+                return string.Empty;
+
+            return text;
         }
     }
 }

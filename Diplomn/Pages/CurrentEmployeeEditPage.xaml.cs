@@ -115,11 +115,11 @@ namespace Diplomn.Pages
         {
             var errors = new StringBuilder();
 
-            string lastName = TxtLastName.Text?.Trim();
-            string firstName = TxtFirstName.Text?.Trim();
-            string middleName = TxtMiddleName.Text?.Trim();
-            string phone = TxtPhone.Text?.Trim();
-            string password = PassBox.Password;
+            string lastName = GetActualText(TxtLastName);
+            string firstName = GetActualText(TxtFirstName);
+            string middleName = GetActualText(TxtMiddleName);
+            string phone = GetActualText(TxtPhone);
+            string password = GetActualPassword();
 
             // Фамилия
             if (string.IsNullOrWhiteSpace(lastName))
@@ -219,7 +219,8 @@ namespace Diplomn.Pages
             try
             {
                 // При обновлении пароль может оставаться пустым (не изменяется)
-                bool skipPasswordValidation = string.IsNullOrEmpty(PassBox.Password);
+                string password = GetActualPassword();
+                bool skipPasswordValidation = string.IsNullOrEmpty(password);
 
                 if (!ValidateEmployee(out string errorMessage, skipPasswordValidation))
                 {
@@ -227,7 +228,7 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                string phone = TxtPhone.Text?.Trim();
+                string phone = GetActualText(TxtPhone);
 
                 // Находим сотрудника в базе данных
                 var employee = context.Сотрудники.Find(currentUser.Код_сотрудника);
@@ -250,15 +251,15 @@ namespace Diplomn.Pages
                 }
 
                 // Обновление данных
-                employee.Фамилия = TxtLastName.Text?.Trim();
-                employee.Имя = TxtFirstName.Text?.Trim();
-                employee.Отчество = TxtMiddleName.Text?.Trim();
+                employee.Фамилия = GetActualText(TxtLastName);
+                employee.Имя = GetActualText(TxtFirstName);
+                employee.Отчество = GetActualText(TxtMiddleName);
                 employee.Телефон = phone;
 
                 // Обновляем пароль только если он был введен
-                if (!string.IsNullOrEmpty(PassBox.Password))
+                if (!string.IsNullOrEmpty(password))
                 {
-                    employee.Пароль = PassBox.Password;
+                    employee.Пароль = password;
                 }
 
                 // Обновляем аватар если был выбран новый
@@ -274,7 +275,7 @@ namespace Diplomn.Pages
                 currentUser.Имя = employee.Имя;
                 currentUser.Отчество = employee.Отчество;
                 currentUser.Телефон = employee.Телефон;
-                if (!string.IsNullOrEmpty(PassBox.Password))
+                if (!string.IsNullOrEmpty(password))
                 {
                     currentUser.Пароль = employee.Пароль;
                 }
@@ -302,6 +303,38 @@ namespace Diplomn.Pages
             {
                 MessageBox.Show($"Ошибка при обновлении данных: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// Получает реальный текст из TextBox, игнорируя плейсхолдер
+        /// </summary>
+        private string GetActualText(TextBox textBox)
+        {
+            if (textBox == null) return string.Empty;
+
+            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
+            var text = textBox.Text?.Trim() ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(placeholderText) && text == placeholderText)
+                return string.Empty;
+
+            return text;
+        }
+
+        /// <summary>
+        /// Получает реальный пароль из PasswordBox, игнорируя плейсхолдер
+        /// </summary>
+        private string GetActualPassword()
+        {
+            if (PassBox == null) return string.Empty;
+
+            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(PassBox);
+            var password = PassBox.Password ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(placeholderText) && password == placeholderText)
+                return string.Empty;
+
+            return password;
         }
     }
 }

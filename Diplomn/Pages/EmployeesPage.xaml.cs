@@ -11,6 +11,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
 
 namespace Diplomn.Pages
 {
@@ -233,12 +235,12 @@ namespace Diplomn.Pages
         private bool ValidateEmployee(out string errorMessage, bool skipPasswordValidation = false)
         {
             var errors = new StringBuilder();
-            string lastName = TxtLastName.Text?.Trim();
-            string firstName = TxtFirstName.Text?.Trim();
-            string middleName = TxtMiddleName.Text?.Trim();
-            string phone = TxtPhone.Text?.Trim();
-            string login = TxtLogin.Text?.Trim();
-            string password = PassBox.Password;
+            string lastName = GetActualText(TxtLastName);
+            string firstName = GetActualText(TxtFirstName);
+            string middleName = GetActualText(TxtMiddleName);
+            string phone = GetActualText(TxtPhone);
+            string login = GetActualText(TxtLogin);
+            string password = GetActualPassword();
 
             // Фамилия
             if (string.IsNullOrWhiteSpace(lastName))
@@ -303,8 +305,12 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                string login = TxtLogin.Text?.Trim();
-                string phone = TxtPhone.Text?.Trim();
+                string lastName = GetActualText(TxtLastName);
+                string firstName = GetActualText(TxtFirstName);
+                string middleName = GetActualText(TxtMiddleName);
+                string phone = GetActualText(TxtPhone);
+                string login = GetActualText(TxtLogin);
+                string password = GetActualPassword();
 
                 if (context.Сотрудники.Any(s => s.Логин == login))
                 {
@@ -320,13 +326,13 @@ namespace Diplomn.Pages
 
                 var employee = new Сотрудники
                 {
-                    Фамилия = TxtLastName.Text?.Trim(),
-                    Имя = TxtFirstName.Text?.Trim(),
-                    Отчество = TxtMiddleName.Text?.Trim(),
+                    Фамилия = lastName,
+                    Имя = firstName,
+                    Отчество = middleName,
                     Телефон = phone,
                     Код_должности = (int)CmbPosition.SelectedValue,
                     Логин = login,
-                    Пароль = PassBox.Password,
+                    Пароль = password,
                     Аватарка = selectedImageData
                 };
 
@@ -353,7 +359,8 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                bool skipPasswordValidation = string.IsNullOrEmpty(PassBox.Password);
+                string password = GetActualPassword();
+                bool skipPasswordValidation = string.IsNullOrEmpty(password);
 
                 if (!ValidateEmployee(out string errorMessage, skipPasswordValidation))
                 {
@@ -370,8 +377,11 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                string login = TxtLogin.Text?.Trim();
-                string phone = TxtPhone.Text?.Trim();
+                string lastName = GetActualText(TxtLastName);
+                string firstName = GetActualText(TxtFirstName);
+                string middleName = GetActualText(TxtMiddleName);
+                string phone = GetActualText(TxtPhone);
+                string login = GetActualText(TxtLogin);
 
                 if (context.Сотрудники.Any(s => s.Логин == login && s.Код_сотрудника != employeeId))
                 {
@@ -385,15 +395,15 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                employee.Фамилия = TxtLastName.Text?.Trim();
-                employee.Имя = TxtFirstName.Text?.Trim();
-                employee.Отчество = TxtMiddleName.Text?.Trim();
+                employee.Фамилия = lastName;
+                employee.Имя = firstName;
+                employee.Отчество = middleName;
                 employee.Телефон = phone;
                 employee.Код_должности = (int)CmbPosition.SelectedValue;
                 employee.Логин = login;
 
-                if (!string.IsNullOrEmpty(PassBox.Password))
-                    employee.Пароль = PassBox.Password;
+                if (!string.IsNullOrEmpty(password))
+                    employee.Пароль = password;
 
                 if (selectedImageData != null)
                     employee.Аватарка = selectedImageData;
@@ -405,8 +415,8 @@ namespace Diplomn.Pages
                     currentUser.Имя = employee.Имя;
                     currentUser.Отчество = employee.Отчество;
                     currentUser.Телефон = employee.Телефон;
-                    if (!string.IsNullOrEmpty(PassBox.Password))
-                        currentUser.Пароль = employee.Пароль;
+                    if (!string.IsNullOrEmpty(password))
+                        currentUser.Пароль = password;
                     if (selectedImageData != null)
                         currentUser.Аватарка = selectedImageData;
 
@@ -426,6 +436,39 @@ namespace Diplomn.Pages
             }
         }
 
+        /// <summary>
+        /// Получает реальный текст из TextBox, игнорируя плейсхолдер
+        /// </summary>
+        private string GetActualText(TextBox textBox)
+        {
+            if (textBox == null) return string.Empty;
+
+            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
+            var text = textBox.Text?.Trim() ?? string.Empty;
+
+            // Если текст совпадает с плейсхолдером, значит реальных данных нет
+            if (!string.IsNullOrEmpty(placeholderText) && text == placeholderText)
+                return string.Empty;
+
+            return text;
+        }
+
+        /// <summary>
+        /// Получает реальный пароль из PasswordBox, игнорируя плейсхолдер
+        /// </summary>
+        private string GetActualPassword()
+        {
+            if (PassBox == null) return string.Empty;
+
+            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(PassBox);
+            var password = PassBox.Password ?? string.Empty;
+
+            // Если пароль совпадает с плейсхолдером, значит реальных данных нет
+            if (!string.IsNullOrEmpty(placeholderText) && password == placeholderText)
+                return string.Empty;
+
+            return password;
+        }
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
             try

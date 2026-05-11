@@ -35,9 +35,10 @@ namespace Diplomn.Pages
         {
             var query = context.Должность.AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
+            string searchText = GetActualText(TxtSearch);
+            if (!string.IsNullOrWhiteSpace(searchText))
             {
-                var term = TxtSearch.Text.Trim();
+                var term = searchText;
                 query = query.Where(r => r.Название.Contains(term));
             }
 
@@ -65,12 +66,13 @@ namespace Diplomn.Pages
         private bool ValidateRole(out string errorMessage, int? excludeId = null)
         {
             var errors = new StringBuilder();
-            string roleName = TxtRoleName.Text?.Trim();
+            string roleName = GetActualText(TxtRoleName);
+            string accessLevelText = GetActualText(TxtAccessLevel);
 
             if (string.IsNullOrWhiteSpace(roleName))
                 errors.AppendLine("• Введите название должности");
 
-            if (!int.TryParse(TxtAccessLevel.Text, out int accessLevel))
+            if (!int.TryParse(accessLevelText, out int accessLevel))
                 errors.AppendLine("• Уровень доступа должен быть числом");
             else if (accessLevel < 1 || accessLevel > 10)
                 errors.AppendLine("• Уровень доступа должен быть от 1 до 10");
@@ -101,8 +103,8 @@ namespace Diplomn.Pages
 
                 var role = new Должность
                 {
-                    Название = TxtRoleName.Text.Trim(),
-                    Уровень_доступа = int.Parse(TxtAccessLevel.Text)
+                    Название = GetActualText(TxtRoleName),
+                    Уровень_доступа = int.Parse(GetActualText(TxtAccessLevel))
                 };
 
                 context.Должность.Add(role);
@@ -143,8 +145,8 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                role.Название = TxtRoleName.Text.Trim();
-                role.Уровень_доступа = int.Parse(TxtAccessLevel.Text);
+                role.Название = GetActualText(TxtRoleName);
+                role.Уровень_доступа = int.Parse(GetActualText(TxtAccessLevel));
 
                 context.SaveChanges();
 
@@ -212,6 +214,22 @@ namespace Diplomn.Pages
             TxtRoleName.Text = "";
             TxtAccessLevel.Text = "";
             DataGridRoles.SelectedItem = null;
+        }
+
+        /// <summary>
+        /// Получает реальный текст из TextBox, игнорируя плейсхолдер
+        /// </summary>
+        private string GetActualText(TextBox textBox)
+        {
+            if (textBox == null) return string.Empty;
+
+            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
+            var text = textBox.Text?.Trim() ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(placeholderText) && text == placeholderText)
+                return string.Empty;
+
+            return text;
         }
     }
 }

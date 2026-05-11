@@ -37,8 +37,8 @@ namespace Diplomn.Pages
 
         private void TryLogin()
         {
-            string login = LoginBox.Text.Trim();
-            string password = PassBox.Password;
+            string login = GetActualText(LoginBox);
+            string password = GetActualPassword();
 
             if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
             {
@@ -86,6 +86,38 @@ namespace Diplomn.Pages
                 _errorTimer.Stop();
             };
             _errorTimer.Start();
+        }
+
+        /// <summary>
+        /// Получает реальный текст из TextBox, игнорируя плейсхолдер
+        /// </summary>
+        private string GetActualText(TextBox textBox)
+        {
+            if (textBox == null) return string.Empty;
+
+            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
+            var text = textBox.Text?.Trim() ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(placeholderText) && text == placeholderText)
+                return string.Empty;
+
+            return text;
+        }
+
+        /// <summary>
+        /// Получает реальный пароль из PasswordBox, игнорируя плейсхолдер
+        /// </summary>
+        private string GetActualPassword()
+        {
+            if (PassBox == null) return string.Empty;
+
+            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(PassBox);
+            var password = PassBox.Password ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(placeholderText) && password == placeholderText)
+                return string.Empty;
+
+            return password;
         }
     }
 }

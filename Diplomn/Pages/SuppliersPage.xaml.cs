@@ -40,9 +40,10 @@ namespace Diplomn.Pages
         {
             var query = context.Поставщики.AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
+            string searchText = GetActualText(TxtSearch);
+            if (!string.IsNullOrWhiteSpace(searchText))
             {
-                var term = TxtSearch.Text.Trim();
+                var term = searchText;
                 query = query.Where(s => s.Наименование_поставщика.Contains(term) ||
                                         s.ИНН.Contains(term) ||
                                         s.Фамилия_контактного_лица.Contains(term));
@@ -119,43 +120,193 @@ namespace Diplomn.Pages
 
                 var saveFileDialog = new SaveFileDialog
                 {
-                    Filter = "CSV файл (*.csv)|*.csv|Текстовый файл (*.txt)|*.txt",
+                    Filter = "PDF файл (*.pdf)|*.pdf",
                     Title = "Сохранить отчет о поставщиках",
                     FileName = $"Отчет_поставщики_{DateTime.Now:yyyy-MM-dd_HH-mm}"
                 };
 
-                if (saveFileDialog.ShowDialog() == true)
+                if (saveFileDialog.ShowDialog() != true)
+                    return;
+
+                // Данные магазина
+                const string shopName = "Oculus+";
+                const string shopPhone = "+7 (461) 345 12-34";
+                const string shopEmail = "Oculus@глаза.ру";
+                const string shopWebsite = "Oculus.ру";
+                const string shopHours = "9:00 – 17:00 ежедневно";
+
+                // Формируем ФИО с инициалами
+                string initials = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.";
+                if (!string.IsNullOrWhiteSpace(currentUser.Отчество))
+                    initials += $"{currentUser.Отчество?.Substring(0, 1)}.";
+                else
+                    initials += ".";
+
+                // Создаём PDF
+                using (var document = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 40, 40, 40, 40))
                 {
-                    var sb = new StringBuilder();
-                    sb.AppendLine($"Отчет о поставщиках от {DateTime.Now:dd.MM.yyyy HH:mm}");
-                    sb.AppendLine($"Сформировал: {currentUser.Фамилия} {currentUser.Имя}");
-
-                    if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
-                        sb.AppendLine($"Поиск: \"{TxtSearch.Text}\"");
-
-                    sb.AppendLine();
-                    sb.AppendLine($"Всего поставщиков: {suppliers.Count}");
-                    sb.AppendLine();
-                    sb.AppendLine("Код;Наименование;ИНН;Контактное лицо;Телефон;Email;Адрес");
-
-                    foreach (var supplier in suppliers)
+                    using (var writer = iTextSharp.text.pdf.PdfWriter.GetInstance(document, new FileStream(saveFileDialog.FileName, FileMode.Create)))
                     {
-                        var contactPerson = $"{supplier.Фамилия_контактного_лица} {supplier.Имя_контактного_лица} {supplier.Отчество_контактного_лица ?? ""}".Trim();
-                        sb.AppendLine($"{supplier.Код_поставщика};{supplier.Наименование_поставщика};{supplier.ИНН};{contactPerson};{supplier.Телефон_контактного_лица ?? "-"};{supplier.Email_поставщика};{supplier.Адрес_поставщика}");
-                    }
+                        document.Open();
 
-                    File.WriteAllText(saveFileDialog.FileName, sb.ToString(), Encoding.UTF8);
-                    MessageBox.Show($"Отчет сохранен!\n{saveFileDialog.FileName}", "Успех",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                        // Шрифты
+                        string fontPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
+                        var baseFont = iTextSharp.text.pdf.BaseFont.CreateFont(fontPath, iTextSharp.text.pdf.BaseFont.IDENTITY_H, iTextSharp.text.pdf.BaseFont.EMBEDDED);
+
+                        var fontTitle = new iTextSharp.text.Font(baseFont, 16, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
+                        var fontSubtitle = new iTextSharp.text.Font(baseFont, 11, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.DARK_GRAY);
+                        var fontTableHeader = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.BOLD, iTextSharp.text.BaseColor.WHITE);
+                        var fontTableCell = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.BLACK);
+                        var fontFooter = new iTextSharp.text.Font(baseFont, 8, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.GRAY);
+                        var fontSmall = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.DARK_GRAY);
+                        var fontSign = new iTextSharp.text.Font(baseFont, 10, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.BLACK);
+
+                        // === ЗАГОЛОВОК ===
+                        var reportTitle = new iTextSharp.text.Paragraph("ОТЧЁТ О ПОСТАВЩИКАХ", fontTitle);
+                        reportTitle.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                        reportTitle.SpacingAfter = 20;
+                        document.Add(reportTitle);
+
+                        // === ТАБЛИЦА ===
+                        var table = new iTextSharp.text.pdf.PdfPTable(6);
+                        table.WidthPercentage = 100;
+                        table.SetWidths(new float[] { 8, 25, 15, 22, 15, 15 });
+                        table.SpacingBefore = 10;
+                        table.SpacingAfter = 20;
+
+                        // Заголовки таблицы
+                        var headers = new[] { "Код", "Наименование", "ИНН", "Контактное лицо", "Телефон", "Email" };
+                        foreach (var header in headers)
+                        {
+                            var headerCell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(header, fontTableHeader));
+                            headerCell.BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102);
+                            headerCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
+                            headerCell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
+                            headerCell.Padding = 5;
+                            table.AddCell(headerCell);
+                        }
+
+                        // Данные
+                        bool alternate = false;
+                        foreach (var supplier in suppliers)
+                        {
+                            var contactPerson = new StringBuilder();
+                            contactPerson.Append(supplier.Фамилия_контактного_лица);
+                            contactPerson.Append($" {supplier.Имя_контактного_лица}");
+                            if (!string.IsNullOrWhiteSpace(supplier.Отчество_контактного_лица))
+                                contactPerson.Append($" {supplier.Отчество_контактного_лица}");
+
+                            var phone = supplier.Телефон_контактного_лица ?? "-";
+                            var email = supplier.Email_поставщика;
+
+                            var cells = new[]
+                            {
+                        supplier.Код_поставщика.ToString(),
+                        supplier.Наименование_поставщика,
+                        supplier.ИНН,
+                        contactPerson.ToString(),
+                        phone,
+                        email
+                    };
+
+                            foreach (var cellText in cells)
+                            {
+                                var cell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cellText, fontTableCell));
+                                cell.Padding = 5;
+                                cell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
+
+                                if (alternate)
+                                {
+                                    cell.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250);
+                                }
+
+                                // Выравнивание для числовых колонок
+                                if (cellText == cells[0] || cellText == cells[2])
+                                {
+                                    cell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
+                                }
+
+                                table.AddCell(cell);
+                            }
+
+                            alternate = !alternate;
+                        }
+
+                        document.Add(table);
+
+                        // === ИТОГО ===
+                        var countParagraph = new iTextSharp.text.Paragraph($"Всего поставщиков: {suppliers.Count}", fontSubtitle);
+                        countParagraph.Alignment = iTextSharp.text.Element.ALIGN_RIGHT;
+                        countParagraph.SpacingBefore = 5;
+                        countParagraph.SpacingAfter = 30;
+                        document.Add(countParagraph);
+
+                        // === ПОДПИСЬ ===
+                        var signParagraph = new iTextSharp.text.Paragraph();
+                        signParagraph.Alignment = iTextSharp.text.Element.ALIGN_RIGHT;
+                        signParagraph.SpacingAfter = 5;
+
+                        var signTable = new iTextSharp.text.pdf.PdfPTable(1);
+                        signTable.WidthPercentage = 50;
+                        signTable.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
+
+                        // Строка с должностью и ФИО
+                        var signCell1 = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(
+                            $"{currentUser.Должность?.Название ?? "Сотрудник"} {initials} _______________", fontSign));
+                        signCell1.Border = iTextSharp.text.Rectangle.NO_BORDER;
+                        signCell1.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        signCell1.PaddingBottom = 15;
+                        signTable.AddCell(signCell1);
+
+                        // Строка с датой
+                        var signCell2 = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(
+                            $"Дата: {DateTime.Now:dd.MM.yyyy}", fontSmall));
+                        signCell2.Border = iTextSharp.text.Rectangle.NO_BORDER;
+                        signCell2.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        signTable.AddCell(signCell2);
+
+                        document.Add(signTable);
+
+                        // === ФУТЕР ===
+                        var footerLine = new iTextSharp.text.pdf.draw.LineSeparator(1f, 100f, iTextSharp.text.BaseColor.LIGHT_GRAY, iTextSharp.text.Element.ALIGN_CENTER, 0);
+                        var footerLineParagraph = new iTextSharp.text.Paragraph();
+                        footerLineParagraph.SpacingBefore = 20;
+                        footerLineParagraph.Add(footerLine);
+                        document.Add(footerLineParagraph);
+
+                        var footer = new iTextSharp.text.Paragraph();
+                        footer.Add(new iTextSharp.text.Chunk($"{shopName} | {shopPhone} | {shopEmail} | {shopWebsite}", fontFooter));
+                        footer.Add(new iTextSharp.text.Chunk($"\nЧасы работы: {shopHours} | Сформировано: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter));
+                        footer.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                        footer.SpacingBefore = 5;
+                        document.Add(footer);
+
+                        document.Close();
+                    }
+                }
+
+                // Открываем файл
+                var result = MessageBox.Show(
+                    $"Отчёт о поставщиках сохранён!\n\nФайл: {saveFileDialog.FileName}\nПоставщиков: {suppliers.Count}\n\nОткрыть PDF?",
+                    "Отчёт сохранён",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = saveFileDialog.FileName,
+                        UseShellExecute = true
+                    });
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при сохранении отчета: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при сохранении отчета: {ex.Message}\n\nУбедитесь, что библиотека iTextSharp установлена.",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
         private void ListViewSuppliers_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (ListViewSuppliers.SelectedItem is SupplierViewModel selectedSupplier)
@@ -222,14 +373,14 @@ namespace Diplomn.Pages
         {
             var errors = new StringBuilder();
 
-            string name = TxtSupplierName.Text?.Trim();
-            string inn = TxtInn.Text?.Trim();
-            string email = TxtEmail.Text?.Trim();
-            string address = TxtAddress.Text?.Trim();
-            string contactLastName = TxtContactLastName.Text?.Trim();
-            string contactFirstName = TxtContactFirstName.Text?.Trim();
-            string contactMiddleName = TxtContactMiddleName.Text?.Trim();
-            string phone = TxtPhone.Text?.Trim();
+            string name = GetActualText(TxtSupplierName);
+            string inn = GetActualText(TxtInn);
+            string email = GetActualText(TxtEmail);
+            string address = GetActualText(TxtAddress);
+            string contactLastName = GetActualText(TxtContactLastName);
+            string contactFirstName = GetActualText(TxtContactFirstName);
+            string contactMiddleName = GetActualText(TxtContactMiddleName);
+            string phone = GetActualText(TxtPhone);
 
             // Наименование
             if (string.IsNullOrWhiteSpace(name))
@@ -307,14 +458,14 @@ namespace Diplomn.Pages
 
                 var supplier = new Поставщики
                 {
-                    Наименование_поставщика = TxtSupplierName.Text?.Trim(),
-                    ИНН = TxtInn.Text?.Trim(),
-                    Адрес_поставщика = TxtAddress.Text?.Trim(),
-                    Email_поставщика = TxtEmail.Text?.Trim(),
-                    Фамилия_контактного_лица = TxtContactLastName.Text?.Trim(),
-                    Имя_контактного_лица = TxtContactFirstName.Text?.Trim(),
-                    Отчество_контактного_лица = TxtContactMiddleName.Text?.Trim(),
-                    Телефон_контактного_лица = TxtPhone.Text?.Trim(),
+                    Наименование_поставщика = GetActualText(TxtSupplierName),
+                    ИНН = GetActualText(TxtInn),
+                    Адрес_поставщика = GetActualText(TxtAddress),
+                    Email_поставщика = GetActualText(TxtEmail),
+                    Фамилия_контактного_лица = GetActualText(TxtContactLastName),
+                    Имя_контактного_лица = GetActualText(TxtContactFirstName),
+                    Отчество_контактного_лица = GetActualText(TxtContactMiddleName),
+                    Телефон_контактного_лица = GetActualText(TxtPhone),
                     Логотип = selectedImageData
                 };
 
@@ -356,14 +507,14 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                supplier.Наименование_поставщика = TxtSupplierName.Text?.Trim();
-                supplier.ИНН = TxtInn.Text?.Trim();
-                supplier.Адрес_поставщика = TxtAddress.Text?.Trim();
-                supplier.Email_поставщика = TxtEmail.Text?.Trim();
-                supplier.Фамилия_контактного_лица = TxtContactLastName.Text?.Trim();
-                supplier.Имя_контактного_лица = TxtContactFirstName.Text?.Trim();
-                supplier.Отчество_контактного_лица = TxtContactMiddleName.Text?.Trim();
-                supplier.Телефон_контактного_лица = TxtPhone.Text?.Trim();
+                supplier.Наименование_поставщика = GetActualText(TxtSupplierName);
+                supplier.ИНН = GetActualText(TxtInn);
+                supplier.Адрес_поставщика = GetActualText(TxtAddress);
+                supplier.Email_поставщика = GetActualText(TxtEmail);
+                supplier.Фамилия_контактного_лица = GetActualText(TxtContactLastName);
+                supplier.Имя_контактного_лица = GetActualText(TxtContactFirstName);
+                supplier.Отчество_контактного_лица = GetActualText(TxtContactMiddleName);
+                supplier.Телефон_контактного_лица = GetActualText(TxtPhone);
 
                 if (selectedImageData != null)
                     supplier.Логотип = selectedImageData;
@@ -441,6 +592,22 @@ namespace Diplomn.Pages
             SupplierLogo.Source = new BitmapImage(new Uri("/Photos/istocklogo.png", UriKind.RelativeOrAbsolute));
             selectedImageData = null;
             ListViewSuppliers.SelectedItem = null;
+        }
+
+        /// <summary>
+        /// Получает реальный текст из TextBox, игнорируя плейсхолдер
+        /// </summary>
+        private string GetActualText(TextBox textBox)
+        {
+            if (textBox == null) return string.Empty;
+
+            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
+            var text = textBox.Text?.Trim() ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(placeholderText) && text == placeholderText)
+                return string.Empty;
+
+            return text;
         }
     }
 
