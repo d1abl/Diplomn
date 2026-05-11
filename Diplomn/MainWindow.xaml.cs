@@ -158,18 +158,18 @@ namespace Diplomn
             MainFrame?.NavigateIfDifferent(new SalesPage(currentUser));
         
 
-        private void ReportsBtn_Click(object sender, RoutedEventArgs e) =>        
-            MainFrame?.NavigateIfDifferent(new ReportPage(currentUser));
+        //private void ReportsBtn_Click(object sender, RoutedEventArgs e) =>        
+        //    MainFrame?.NavigateIfDifferent(new ReportPage(currentUser));
         
 
         private void SettingsBtn_Click(object sender, RoutedEventArgs e) =>        
             MainFrame?.NavigateIfDifferent(new SettingsPage(currentUser));
         
 
-        private void CalendarBtn_Click(object sender, RoutedEventArgs e)
-        {
-            //MainFrame?.NavigateIfDifferent(new CalendarPage(currentUser));
-        }
+        //private void CalendarBtn_Click(object sender, RoutedEventArgs e)
+        //{
+        //    MainFrame?.NavigateIfDifferent(new CalendarPage(currentUser));
+        //}
 
         #endregion
 

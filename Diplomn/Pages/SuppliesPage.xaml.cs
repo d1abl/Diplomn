@@ -26,11 +26,12 @@ namespace Diplomn.Pages
         private bool isLoading = false;
         private int? editingSupplyCode = null;
         private FilterState savedFilterState = null;
-
+        private const int MaxEditMonths = 1;
         public class SupplyItemDisplay
         {
             public string Товар { get; set; }
             public int Количество { get; set; }
+            public int OriginalQuantity { get; set; }
             public decimal Цена { get; set; }
             public decimal Сумма => Количество * Цена;
             public string PriceQuantityDisplay => $"{Цена:N2} ₽ × {Количество} шт.";
@@ -655,6 +656,7 @@ namespace Diplomn.Pages
                     {
                         Товар = i.Товары.Наименование,
                         Количество = i.Количество,
+                        OriginalQuantity = i.Количество,
                         Цена = i.Цена_за_ед_покупка,
                         PhotoSource = LoadImageFromBytes(i.Товары?.Фото)
                     }).ToList();
@@ -663,6 +665,9 @@ namespace Diplomn.Pages
                 decimal total = items.Sum(i => i.Сумма);
                 TxtTotal.Text = $"{total:N2} ₽";
                 TotalPanel.Visibility = Visibility.Visible;
+
+                // Проверяем возможность удаления
+                UpdateDeleteEditButtonsState(supply.Код_поставки);
             }
             else
             {
@@ -670,7 +675,76 @@ namespace Diplomn.Pages
                 ClearSupplyDetails();
             }
         }
+        private void UpdateDeleteEditButtonsState(int supplyCode)
+        {
+            foreach (var child in ViewModeButtons.Children)
+            {
+                if (child is Grid grid)
+                {
+                    // Ищем кнопку и оверлей внутри Grid
+                    Button button = null;
+                    Border overlay = null;
 
+                    foreach (var gridChild in grid.Children)
+                    {
+                        if (gridChild is Button btn)
+                            button = btn;
+                        else if (gridChild is Border brd)
+                            overlay = brd;
+                    }
+
+                    if (button == null || overlay == null) continue;
+
+                    var content = button.Content?.ToString();
+
+                    if (content == "🗑 Удалить")
+                    {
+                        string errorMsg;
+                        if (CanDeleteSupply(supplyCode, out errorMsg))
+                        {
+                            button.IsEnabled = true;
+                            overlay.Visibility = Visibility.Collapsed;
+                            overlay.ToolTip = null;
+                        }
+                        else
+                        {
+                            button.IsEnabled = false;
+                            overlay.Visibility = Visibility.Visible;
+                            overlay.ToolTip = errorMsg;
+                        }
+                    }
+                    else if (content == "✏ Редактировать")
+                    {
+                        string errorMsg;
+                        if (CanEditSupply(supplyCode, out errorMsg))
+                        {
+                            button.IsEnabled = true;
+                            overlay.Visibility = Visibility.Collapsed;
+                            overlay.ToolTip = null;
+                        }
+                        else
+                        {
+                            button.IsEnabled = false;
+                            overlay.Visibility = Visibility.Visible;
+                            overlay.ToolTip = errorMsg;
+                        }
+                    }
+                }
+            }
+        }
+        private void Button_ToolTipOpening(object sender, ToolTipEventArgs e)
+        {
+            // Разрешаем показ tooltip даже на неактивной кнопке
+            if (sender is Button button && !button.IsEnabled)
+            {
+                var toolTip = button.ToolTip as ToolTip;
+                if (toolTip != null)
+                {
+                    toolTip.IsOpen = true;
+                    e.Handled = true;
+                }
+            }
+        }
         private void EnableEditDeleteButtons(bool enable)
         {
             foreach (var child in ViewModeButtons.Children)
@@ -707,6 +781,14 @@ namespace Diplomn.Pages
                 }
 
                 var supplyCode = selectedItem.OriginalSupply.Код_поставки;
+
+                // Проверяем возможность удаления
+                string errorMsg;
+                if (!CanDeleteSupply(supplyCode, out errorMsg))
+                {
+                    MessageBox.Show(errorMsg, "Удаление невозможно", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
 
                 var result = MessageBox.Show($"Вы уверены, что хотите удалить поставку №{supplyCode}?\nКоличество товаров будет уменьшено!",
                     "Подтверждение удаления", MessageBoxButton.YesNo, MessageBoxImage.Question);
@@ -746,7 +828,6 @@ namespace Diplomn.Pages
                 MessageBox.Show($"Ошибка при удалении поставки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearSupplyDetails();
 
         #endregion
@@ -786,8 +867,18 @@ namespace Diplomn.Pages
                 return;
             }
 
+            var supplyCode = selectedItem.OriginalSupply.Код_поставки;
+
+            // Проверяем возможность редактирования
+            string errorMsg;
+            if (!CanEditSupply(supplyCode, out errorMsg))
+            {
+                MessageBox.Show(errorMsg, "Редактирование невозможно", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             SaveFilterState();
-            editingSupplyCode = selectedItem.OriginalSupply.Код_поставки;
+            editingSupplyCode = supplyCode;
 
             SuppliesViewGrid.Visibility = Visibility.Collapsed;
             NewSupplyGrid.Visibility = Visibility.Visible;
@@ -810,6 +901,7 @@ namespace Diplomn.Pages
                 {
                     Товар = item.Товары.Наименование,
                     Количество = item.Количество,
+                    OriginalQuantity = item.Количество,
                     Цена = item.Цена_за_ед_покупка,
                     PhotoSource = LoadImageFromBytes(item.Товары?.Фото)
                 });
@@ -840,7 +932,6 @@ namespace Diplomn.Pages
             RefreshContext();
             LoadAllProducts();
         }
-
         private void LoadNewSupplySuppliers()
         {
             var suppliers = context.Поставщики.ToList();
@@ -949,6 +1040,89 @@ namespace Diplomn.Pages
             }
         }
 
+        private bool CanDeleteSupply(int supplyCode, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+            var errors = new List<string>();
+
+            var supply = context.Поставка.Find(supplyCode);
+            if (supply == null)
+            {
+                errorMessage = "Поставка не найдена.";
+                return false;
+            }
+
+            // Проверка по дате (не старше 1 месяца)
+            if (supply.Дата_оформления_постивки < DateTime.Now.AddMonths(-MaxEditMonths))
+            {
+                errorMessage = $"Невозможно удалить поставку — прошло более {MaxEditMonths} мес. с даты оформления.";
+                return false;
+            }
+
+            var items = context.Состав_поставки
+                .Include("Товары")
+                .Where(i => i.Код_поставки == supplyCode)
+                .ToList();
+
+            foreach (var item in items)
+            {
+                var product = item.Товары;
+                if (product != null && product.Количество < item.Количество)
+                {
+                    errors.Add($"• {product.Наименование}: на складе {product.Количество} шт., в поставке {item.Количество} шт.");
+                }
+            }
+
+            if (errors.Any())
+            {
+                errorMessage = "Невозможно удалить поставку — на складе недостаточно товаров:\n" + string.Join("\n", errors);
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool CanEditSupply(int supplyCode, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+            var errors = new List<string>();
+
+            var supply = context.Поставка.Find(supplyCode);
+            if (supply == null)
+            {
+                errorMessage = "Поставка не найдена.";
+                return false;
+            }
+
+            // Проверка по дате (не старше 1 месяца)
+            if (supply.Дата_оформления_постивки < DateTime.Now.AddMonths(-MaxEditMonths))
+            {
+                errorMessage = $"Невозможно редактировать поставку — прошло более {MaxEditMonths} мес. с даты оформления.";
+                return false;
+            }
+
+            var items = context.Состав_поставки
+                .Include("Товары")
+                .Where(i => i.Код_поставки == supplyCode)
+                .ToList();
+
+            foreach (var item in items)
+            {
+                var product = item.Товары;
+                if (product != null && product.Количество < item.Количество)
+                {
+                    errors.Add($"• {product.Наименование}: на складе {product.Количество} шт., в поставке {item.Количество} шт.");
+                }
+            }
+
+            if (errors.Any())
+            {
+                errorMessage = "Невозможно редактировать поставку — на складе недостаточно товаров:\n" + string.Join("\n", errors);
+                return false;
+            }
+
+            return true;
+        }
         private void QuantitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (sender is Slider slider)

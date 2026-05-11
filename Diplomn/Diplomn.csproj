@@ -79,12 +79,6 @@
     <Compile Include="Addons\FrameExtensions.cs" />
     <Compile Include="Addons\PhoneNumberConverter.cs" />
     <Compile Include="Addons\PlaceholderBehavior.cs" />
-    <Compile Include="AddSupplyWindow.xaml.cs">
-      <DependentUpon>AddSupplyWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="AddSaleWindow.xaml.cs">
-      <DependentUpon>AddSaleWindow.xaml</DependentUpon>
-    </Compile>
     <Compile Include="BD.Context.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -120,9 +114,6 @@
     </Compile>
     <Compile Include="Pages\ProductsPage.xaml.cs">
       <DependentUpon>ProductsPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Pages\ReportPage.xaml.cs">
-      <DependentUpon>ReportPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="Pages\RolePage.xaml.cs">
       <DependentUpon>RolePage.xaml</DependentUpon>
@@ -178,14 +169,6 @@
     <Compile Include="Фасовка.cs">
       <DependentUpon>BD.tt</DependentUpon>
     </Compile>
-    <Page Include="AddSupplyWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="AddSaleWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -223,10 +206,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Pages\ProductsPage.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Pages\ReportPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

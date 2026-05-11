@@ -465,8 +465,18 @@
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0" Cursor="Hand">
             <StackPanel x:Name="ViewModeButtons" Orientation="Horizontal">
                 <Button Content="➕ Новая поставка" Click="NewSupply_Click" Width="130" Margin="5" Height="35" Cursor="Hand"/>
-                <Button Content="✏ Редактировать" Click="EditSupply_Click" Width="120" Margin="5" Height="35" IsEnabled="False"/>
-                <Button Content="🗑 Удалить" Click="DeleteSupply_Click" Width="100" Margin="5" Height="35" IsEnabled="False"/>
+                <Grid Margin="5" Width="120" >
+                    <Button x:Name="BtnEditSupply" Content="✏ Редактировать" 
+            Click="EditSupply_Click" Height="35" IsEnabled="False"/>
+                    <Border x:Name="BtnEditSupplyOverlay" Background="Transparent" 
+            Visibility="Collapsed" ToolTip=""/>
+                </Grid>
+                <Grid Margin="5" Width="100">
+                    <Button x:Name="BtnDeleteSupply" Content="🗑 Удалить" 
+            Click="DeleteSupply_Click" Height="35" IsEnabled="False"/>
+                    <Border x:Name="BtnDeleteSupplyOverlay" Background="Transparent" 
+            Visibility="Collapsed" ToolTip=""/>
+                </Grid>
                 <Button Content="Очистить" Click="ClearForm_Click" Width="90" Height="35" Margin="3"/>
             </StackPanel>
 

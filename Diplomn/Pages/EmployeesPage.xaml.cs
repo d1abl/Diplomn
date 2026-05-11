@@ -1,8 +1,11 @@
-﻿using Microsoft.Win32;
+﻿using iTextSharp.text;
+using iTextSharp.text.pdf;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.Entity;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -11,8 +14,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
-using iTextSharp.text;
-using iTextSharp.text.pdf;
 
 namespace Diplomn.Pages
 {
@@ -121,54 +122,271 @@ namespace Diplomn.Pages
         {
             try
             {
-                var employees = GetFilteredQuery()
-                    .Include("Должность")
-                    .ToList();
+                // Проверяем все записи в базе
+                var allEmployees = context.Сотрудники.Include("Должность").ToList();
+                Debug.WriteLine($"Всего сотрудников в БД: {allEmployees.Count}");
+
+                // Получаем отфильтрованные данные
+                var query = context.Сотрудники.Include("Должность").AsQueryable();
+
+                string searchText = GetActualText(TxtSearch);
+                if (!string.IsNullOrWhiteSpace(searchText))
+                {
+                    var term = searchText.Trim();
+                    query = query.Where(emp => emp.Фамилия.Contains(term) ||
+                                            emp.Имя.Contains(term) ||
+                                            emp.Логин.Contains(term));
+                }
+
+                var employees = query.ToList();
+                Debug.WriteLine($"Сотрудников после фильтрации: {employees.Count}");
 
                 if (!employees.Any())
                 {
-                    MessageBox.Show("Нет данных для сохранения отчета.", "Информация",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    // Если фильтр пустой, показываем всех
+                    if (string.IsNullOrWhiteSpace(searchText))
+                    {
+                        MessageBox.Show("В базе данных нет сотрудников.", "Информация",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"По запросу \"{searchText}\" сотрудников не найдено.", "Информация",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
                     return;
                 }
 
                 var saveFileDialog = new SaveFileDialog
                 {
-                    Filter = "CSV файл (*.csv)|*.csv|Текстовый файл (*.txt)|*.txt",
+                    Filter = "PDF файл (*.pdf)|*.pdf",
                     Title = "Сохранить отчет о сотрудниках",
                     FileName = $"Отчет_сотрудники_{DateTime.Now:yyyy-MM-dd_HH-mm}"
                 };
 
-                if (saveFileDialog.ShowDialog() == true)
+                if (saveFileDialog.ShowDialog() != true)
+                    return;
+
+                // Данные магазина
+                const string shopName = "Oculus+";
+                const string shopPhone = "+7 (461) 345 12-34";
+                const string shopEmail = "Oculus@глаза.ру";
+                const string shopWebsite = "Oculus.ру";
+                const string shopHours = "9:00 – 17:00 ежедневно";
+
+                // Формируем ФИО с инициалами
+                string initials = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.";
+                if (!string.IsNullOrWhiteSpace(currentUser.Отчество))
+                    initials += $"{currentUser.Отчество?.Substring(0, 1)}.";
+                else
+                    initials += ".";
+
+                // Статистика
+                var totalEmployees = employees.Count;
+                var adminCount = employees.Count(emp => emp.Должность?.Уровень_доступа == 1);
+                var managerCount = employees.Count(emp => emp.Должность?.Уровень_доступа > 1 && emp.Должность?.Уровень_доступа <= 3);
+                var staffCount = employees.Count(emp => emp.Должность?.Уровень_доступа > 3 || emp.Должность == null);
+
+                // Создаём PDF
+                using (var document = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 40, 40, 50, 50))
                 {
-                    var sb = new StringBuilder();
-                    sb.AppendLine($"Отчет о сотрудниках от {DateTime.Now:dd.MM.yyyy HH:mm}");
-                    sb.AppendLine($"Сформировал: {currentUser.Фамилия} {currentUser.Имя}");
-
-                    if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
-                        sb.AppendLine($"Поиск: \"{TxtSearch.Text}\"");
-
-                    sb.AppendLine();
-                    sb.AppendLine($"Всего сотрудников: {employees.Count}");
-                    sb.AppendLine();
-                    sb.AppendLine("Код;Фамилия;Имя;Отчество;Телефон;Должность;Логин;Уровень доступа");
-
-                    foreach (var employee in employees)
+                    using (var writer = iTextSharp.text.pdf.PdfWriter.GetInstance(document, new FileStream(saveFileDialog.FileName, FileMode.Create)))
                     {
-                        var position = employee.Должность?.Название ?? "-";
-                        var accessLevel = employee.Должность?.Уровень_доступа.ToString() ?? "-";
-                        sb.AppendLine($"{employee.Код_сотрудника};{employee.Фамилия};{employee.Имя};{employee.Отчество ?? "-"};{employee.Телефон ?? "-"};{position};{employee.Логин};{accessLevel}");
-                    }
+                        document.Open();
 
-                    File.WriteAllText(saveFileDialog.FileName, sb.ToString(), Encoding.UTF8);
-                    MessageBox.Show($"Отчет сохранен!\n{saveFileDialog.FileName}", "Успех",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                        // Шрифты
+                        string fontPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
+                        var baseFont = iTextSharp.text.pdf.BaseFont.CreateFont(fontPath, iTextSharp.text.pdf.BaseFont.IDENTITY_H, iTextSharp.text.pdf.BaseFont.EMBEDDED);
+
+                        var fontTitle = new iTextSharp.text.Font(baseFont, 16, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
+                        var fontSubtitle = new iTextSharp.text.Font(baseFont, 11, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.DARK_GRAY);
+                        var fontTableHeader = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.BOLD, iTextSharp.text.BaseColor.WHITE);
+                        var fontTableCell = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.BLACK);
+                        var fontFooter = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.GRAY);
+                        var fontSmall = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.DARK_GRAY);
+                        var fontSign = new iTextSharp.text.Font(baseFont, 10, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.BLACK);
+
+                        // === ЗАГОЛОВОК ===
+                        var reportTitle = new iTextSharp.text.Paragraph("ОТЧЁТ О СОТРУДНИКАХ", fontTitle);
+                        reportTitle.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                        reportTitle.SpacingAfter = 25;
+                        document.Add(reportTitle);
+
+                        // === ИНФОРМАЦИЯ О ПОИСКЕ ===
+                        if (!string.IsNullOrWhiteSpace(searchText))
+                        {
+                            var searchInfo = new iTextSharp.text.Paragraph($"Поиск: \"{searchText}\"", fontSmall);
+                            searchInfo.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
+                            searchInfo.SpacingAfter = 15;
+                            document.Add(searchInfo);
+                        }
+
+                        // === ТАБЛИЦА ===
+                        var table = new iTextSharp.text.pdf.PdfPTable(7);
+                        table.WidthPercentage = 100;
+                        table.SetWidths(new float[] { 8, 18, 14, 14, 16, 14, 16 });
+                        table.SpacingBefore = 10;
+                        table.SpacingAfter = 25;
+
+                        // Заголовки таблицы
+                        var headers = new[] { "Код", "Фамилия", "Имя", "Отчество", "Должность", "Телефон", "Логин" };
+                        foreach (var header in headers)
+                        {
+                            var headerCell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(header, fontTableHeader));
+                            headerCell.BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102);
+                            headerCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
+                            headerCell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
+                            headerCell.Padding = 5;
+                            table.AddCell(headerCell);
+                        }
+
+                        // Данные
+                        bool alternate = false;
+                        foreach (var employee in employees)
+                        {
+                            var position = employee.Должность?.Название ?? "-";
+                            var phone = employee.Телефон ?? "-";
+                            var middleName = employee.Отчество ?? "-";
+
+                            var cells = new[]
+                            {
+                        employee.Код_сотрудника.ToString(),
+                        employee.Фамилия,
+                        employee.Имя,
+                        middleName,
+                        position,
+                        phone,
+                        employee.Логин
+                    };
+
+                            var centerColumns = new HashSet<int> { 0, 5 }; // Код и Телефон по центру
+
+                            for (int i = 0; i < cells.Length; i++)
+                            {
+                                var cell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cells[i], fontTableCell));
+                                cell.Padding = 5;
+                                cell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
+
+                                if (alternate)
+                                {
+                                    cell.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250);
+                                }
+
+                                if (centerColumns.Contains(i))
+                                {
+                                    cell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
+                                }
+
+                                table.AddCell(cell);
+                            }
+
+                            alternate = !alternate;
+                        }
+
+                        document.Add(table);
+
+                        // === ИТОГО (по левому краю) ===
+                        var totalParagraph = new iTextSharp.text.Paragraph();
+                        totalParagraph.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        totalParagraph.SpacingBefore = 5;
+                        totalParagraph.SpacingAfter = 3;
+                        totalParagraph.Add(new iTextSharp.text.Chunk($"Всего сотрудников: {totalEmployees}", fontSubtitle));
+                        document.Add(totalParagraph);
+
+                        var adminParagraph = new iTextSharp.text.Paragraph();
+                        adminParagraph.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        adminParagraph.SpacingAfter = 3;
+                        adminParagraph.Add(new iTextSharp.text.Chunk($"Администраторы (ур. 1-3): {adminCount}", fontSmall));
+                        document.Add(adminParagraph);
+
+                        var managerParagraph = new iTextSharp.text.Paragraph();
+                        managerParagraph.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        managerParagraph.SpacingAfter = 3;
+                        managerParagraph.Add(new iTextSharp.text.Chunk($"Менеджеры (ур. 4-6): {managerCount}", fontSmall));
+                        document.Add(managerParagraph);
+
+                        var staffParagraph = new iTextSharp.text.Paragraph();
+                        staffParagraph.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        staffParagraph.SpacingAfter = 35;
+                        staffParagraph.Add(new iTextSharp.text.Chunk($"Младший персонал (ур. 7-10): {staffCount}", fontSmall));
+                        document.Add(staffParagraph);
+
+                        // === ПОДПИСЬ (по правому краю) ===
+                        var signTable = new iTextSharp.text.pdf.PdfPTable(1);
+                        signTable.WidthPercentage = 55;
+                        signTable.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
+
+                        // Строка с должностью, ФИО, линией и датой
+                        var signCell1 = new iTextSharp.text.pdf.PdfPCell();
+                        signCell1.Border = iTextSharp.text.Rectangle.NO_BORDER;
+                        signCell1.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        signCell1.PaddingBottom = 3;
+
+                        var signParagraph = new iTextSharp.text.Paragraph();
+                        signParagraph.Add(new iTextSharp.text.Chunk(
+                            $"{currentUser.Должность?.Название ?? "Сотрудник"} {initials} _______________  {DateTime.Now:dd.MM.yyyy}",
+                            fontSign));
+                        signCell1.AddElement(signParagraph);
+                        signTable.AddCell(signCell1);
+
+                        // Строка с надписью "(Подпись)" — выровнена под линией
+                        var signCell2 = new iTextSharp.text.pdf.PdfPCell();
+                        signCell2.Border = iTextSharp.text.Rectangle.NO_BORDER;
+                        signCell2.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        signCell2.PaddingLeft = 145;
+
+                        var signLine = new iTextSharp.text.Paragraph();
+                        signLine.Add(new iTextSharp.text.Chunk("(Подпись)", fontSmall));
+                        signCell2.AddElement(signLine);
+
+                        signTable.AddCell(signCell2);
+
+                        document.Add(signTable);
+
+                        // === ФУТЕР ===
+                        var footerLine = new iTextSharp.text.pdf.draw.LineSeparator(1f, 100f, iTextSharp.text.BaseColor.LIGHT_GRAY, iTextSharp.text.Element.ALIGN_CENTER, 0);
+                        var footerLineParagraph = new iTextSharp.text.Paragraph();
+                        footerLineParagraph.SpacingBefore = 40;
+                        footerLineParagraph.Add(footerLine);
+                        document.Add(footerLineParagraph);
+
+                        var footerLine1 = new iTextSharp.text.Paragraph();
+                        footerLine1.Add(new iTextSharp.text.Chunk($"{shopName}  |  Часы работы: {shopHours}", fontFooter));
+                        footerLine1.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                        footerLine1.SpacingBefore = 8;
+                        footerLine1.SpacingAfter = 2;
+                        document.Add(footerLine1);
+
+                        var footerLine2 = new iTextSharp.text.Paragraph();
+                        footerLine2.Add(new iTextSharp.text.Chunk($"{shopPhone}  |  {shopEmail}  |  {shopWebsite}", fontFooter));
+                        footerLine2.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                        footerLine2.SpacingBefore = 2;
+                        document.Add(footerLine2);
+
+                        document.Close();
+                    }
+                }
+
+                // Открываем файл
+                var result = MessageBox.Show(
+                    $"Отчёт о сотрудниках сохранён!\n\nФайл: {saveFileDialog.FileName}\nВсего сотрудников: {totalEmployees}\nАдминистраторы: {adminCount}\nМенеджеры: {managerCount}\nМладший персонал: {staffCount}\n\nОткрыть PDF?",
+                    "Отчёт сохранён",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = saveFileDialog.FileName,
+                        UseShellExecute = true
+                    });
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при сохранении отчета: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при сохранении отчета: {ex.Message}\n\nУбедитесь, что библиотека iTextSharp установлена.",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
