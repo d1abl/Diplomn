@@ -8,43 +8,50 @@ using System.Windows.Input;
 
 namespace Diplomn.Pages
 {
+    /// <summary>
+    /// Страница управления категориями товаров
+    /// </summary>
     public partial class CategoriesPage : Page
     {
-        private BDEntities context;
-        private Сотрудники currentUser;
+        #region Поля
 
-        public CategoriesPage(Сотрудники user)
+        private BDEntities context;
+
+        #endregion
+
+        #region Конструктор
+
+        public CategoriesPage()
         {
             InitializeComponent();
             context = new BDEntities();
-            currentUser = user;
             LoadData();
         }
 
-        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-                ApplyFilters();
-        }
+        #endregion
 
-        private IQueryable<Категории> GetFilteredQuery()
-        {
-            var query = context.Категории.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
-            {
-                var term = TxtSearch.Text.Trim();
-                query = query.Where(c => c.Категория.Contains(term) ||
-                                        c.Описание_категории.Contains(term));
-            }
-
-            return query;
-        }
+        #region Загрузка данных
 
         private void LoadData()
         {
             DataGridCategories.ItemsSource = context.Категории.ToList();
         }
+
+        private IQueryable<Категории> GetFilteredQuery()
+        {
+            var query = context.Категории.AsQueryable();
+            var searchText = GetActualText(TxtSearch);
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+                query = query.Where(c => c.Категория.Contains(searchText) ||
+                                        c.Описание_категории.Contains(searchText));
+
+            return query;
+        }
+
+        #endregion
+
+        #region Фильтрация
 
         private void ApplyFilters()
         {
@@ -59,6 +66,15 @@ namespace Diplomn.Pages
             LoadData();
         }
 
+        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) ApplyFilters();
+        }
+
+        #endregion
+
+        #region Выбор в таблице
+
         private void DataGridCategories_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (DataGridCategories.SelectedItem is Категории category)
@@ -69,29 +85,26 @@ namespace Diplomn.Pages
             }
         }
 
+        #endregion
+
+        #region Валидация
+
         private bool ValidateCategory(out string errorMessage, int? excludeId = null)
         {
             var errors = new StringBuilder();
-            string name = TxtCategoryName.Text?.Trim();
+            var name = GetActualText(TxtCategoryName);
 
             if (string.IsNullOrWhiteSpace(name))
-            {
                 errors.AppendLine("• Введите название категории");
-            }
+            else if (name.Length < 2)
+                errors.AppendLine("• Название должно быть не короче 2 символов");
+            else if (name.Length > 40)
+                errors.AppendLine("• Название не должно превышать 40 символов");
+            else if (!Regex.IsMatch(name, @"^[A-Za-zА-Яа-яЁё\-\s]+$"))
+                errors.AppendLine("• Название содержит недопустимые символы");
             else
             {
-                if (name.Length < 2)
-                    errors.AppendLine("• Название должно содержать минимум 2 символа");
-
-                if (name.Length > 40)
-                    errors.AppendLine("• Название не должно превышать 40 символов");
-
-                var allowed = new Regex(@"^[A-Za-zА-Яа-яЁё\-\s]+$");
-                if (!allowed.IsMatch(name))
-                    errors.AppendLine("• Название содержит недопустимые символы");
-
-                // Проверка уникальности
-                bool exists = excludeId.HasValue
+                var exists = excludeId.HasValue
                     ? context.Категории.Any(c => c.Категория == name && c.Код_категория != excludeId.Value)
                     : context.Категории.Any(c => c.Категория == name);
 
@@ -103,32 +116,36 @@ namespace Diplomn.Pages
             return errors.Length == 0;
         }
 
+        #endregion
+
+        #region CRUD операции
+
         private void Add_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (!ValidateCategory(out string errorMessage))
+                if (!ValidateCategory(out var error))
                 {
-                    MessageBox.Show(errorMessage, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
                 var category = new Категории
                 {
-                    Категория = TxtCategoryName.Text?.Trim(),
-                    Описание_категории = TxtDescription.Text
+                    Категория = GetActualText(TxtCategoryName),
+                    Описание_категории = GetActualText(TxtDescription)
                 };
 
                 context.Категории.Add(category);
                 context.SaveChanges();
 
-                MessageBox.Show("Категория успешно добавлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Категория добавлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при добавлении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -138,11 +155,11 @@ namespace Diplomn.Pages
             {
                 if (string.IsNullOrWhiteSpace(TxtCategoryId.Text))
                 {
-                    MessageBox.Show("Выберите категорию для обновления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Выберите категорию!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                int categoryId = int.Parse(TxtCategoryId.Text);
+                var categoryId = int.Parse(TxtCategoryId.Text);
                 var category = context.Категории.Find(categoryId);
 
                 if (category == null)
@@ -151,24 +168,23 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                if (!ValidateCategory(out string errorMessage, categoryId))
+                if (!ValidateCategory(out var error, categoryId))
                 {
-                    MessageBox.Show(errorMessage, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                category.Категория = TxtCategoryName.Text?.Trim();
-                category.Описание_категории = TxtDescription.Text;
-
+                category.Категория = GetActualText(TxtCategoryName);
+                category.Описание_категории = GetActualText(TxtDescription);
                 context.SaveChanges();
 
-                MessageBox.Show("Категория успешно обновлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Категория обновлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при обновлении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -178,11 +194,11 @@ namespace Diplomn.Pages
             {
                 if (string.IsNullOrWhiteSpace(TxtCategoryId.Text))
                 {
-                    MessageBox.Show("Выберите категорию для удаления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Выберите категорию!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                int categoryId = int.Parse(TxtCategoryId.Text);
+                var categoryId = int.Parse(TxtCategoryId.Text);
                 var category = context.Категории.Find(categoryId);
 
                 if (category == null)
@@ -191,16 +207,15 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                var productsWithCategory = context.Товары.Any(p => p.Код_категория == categoryId);
-                if (productsWithCategory)
+                // Проверка связанных товаров
+                if (context.Товары.Any(p => p.Код_категория == categoryId))
                 {
-                    MessageBox.Show("Нельзя удалить категорию — есть товары в этой категории!\n" +
-                                   "Сначала переназначьте или удалите эти товары.",
-                                   "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Нельзя удалить категорию — есть связанные товары!\nСначала переназначьте или удалите их.",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                var result = MessageBox.Show($"Удалить категорию '{category.Категория}'?",
+                var result = MessageBox.Show($"Удалить категорию «{category.Категория}»?",
                     "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
@@ -214,11 +229,13 @@ namespace Diplomn.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при удалении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+        #endregion
+
+        #region Очистка формы
 
         private void ClearForm()
         {
@@ -227,5 +244,21 @@ namespace Diplomn.Pages
             TxtDescription.Text = "";
             DataGridCategories.SelectedItem = null;
         }
+
+        private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+
+        #endregion
+
+        #region Вспомогательные методы
+
+        private string GetActualText(TextBox textBox)
+        {
+            if (textBox == null) return string.Empty;
+            var placeholder = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
+            var text = textBox.Text?.Trim() ?? string.Empty;
+            return (!string.IsNullOrEmpty(placeholder) && text == placeholder) ? string.Empty : text;
+        }
+
+        #endregion
     }
 }

@@ -1,8 +1,8 @@
-﻿<Page x:Class="Diplomn.Pages.CategoriesPage"
+﻿<Page x:Class="Diplomn.Pages.BrandsPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:addons="clr-namespace:Diplomn.Addons"
-      Title="Категории"
+      Title="Бренды"
       Background="{DynamicResource BackgroundBrush}">
 
     <Grid Margin="15">
@@ -11,18 +11,20 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Заголовок -->
+        <!-- Заголовок страницы -->
         <Border Grid.Row="0" 
                 BorderBrush="{DynamicResource BorderBrush}" 
                 BorderThickness="0,0,0,1" 
                 Padding="0,0,0,10" 
                 Margin="0,0,0,10">
             <StackPanel>
-                <TextBlock Text="Категории" 
-                           FontSize="18" FontWeight="Bold"
+                <TextBlock Text="Бренды" 
+                           FontSize="18" 
+                           FontWeight="Bold"
                            Foreground="{DynamicResource ForegroundBrush}"/>
-                <TextBlock Text="Управление категориями товаров" 
-                           FontSize="13" Opacity="0.7"
+                <TextBlock Text="Управление брендами товаров" 
+                           FontSize="13" 
+                           Opacity="0.7"
                            Foreground="{DynamicResource ForegroundBrush}"/>
             </StackPanel>
         </Border>
@@ -34,21 +36,22 @@
                 <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Левая панель -->
+            <!-- Левая панель: таблица -->
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Поиск -->
+                <!-- Строка поиска -->
                 <Border Grid.Row="0" Padding="0,0,0,8">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="TxtSearch" Height="32"
+                        <TextBox x:Name="TxtSearch" 
+                                 Height="32"
                                  addons:PlaceholderBehavior.PlaceholderText="Поиск по названию..."
                                  KeyDown="TxtSearch_KeyDown"/>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
@@ -58,39 +61,50 @@
                     </Grid>
                 </Border>
 
-                <!-- Таблица -->
-                <DataGrid Grid.Row="1" x:Name="DataGridCategories"
-                          SelectionChanged="DataGridCategories_SelectionChanged">
+                <!-- Таблица брендов -->
+                <DataGrid Grid.Row="1" 
+                          x:Name="DataGridBrands"
+                          SelectionChanged="DataGridBrands_SelectionChanged">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Код" Binding="{Binding Код_категория}" Width="60"/>
-                        <DataGridTextColumn Header="Категория" Binding="{Binding Категория}" Width="150"/>
-                        <DataGridTextColumn Header="Описание" Binding="{Binding Описание_категории}" Width="*"/>
+                        <DataGridTextColumn Header="Код" 
+                                           Binding="{Binding Код_бренда}" 
+                                           Width="60"/>
+                        <DataGridTextColumn Header="Наименование" 
+                                           Binding="{Binding Наименование_бредна}" 
+                                           Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
 
-            <Border Grid.Column="1" Width="1" Background="{DynamicResource BorderBrush}" 
-                    Opacity="0.2" Margin="15,0"/>
+            <!-- Разделитель -->
+            <Border Grid.Column="1" 
+                    Width="1" 
+                    Background="{DynamicResource BorderBrush}" 
+                    Opacity="0.2" 
+                    Margin="15,0"/>
 
-            <!-- Правая панель -->
+            <!-- Правая панель: форма редактирования -->
             <StackPanel Grid.Column="2">
-                <TextBlock Text="Редактирование категории" 
-                           FontWeight="Bold" FontSize="14" Margin="0,0,0,15"
+                <TextBlock Text="Редактирование бренда" 
+                           FontWeight="Bold" 
+                           FontSize="14" 
+                           Margin="0,0,0,15"
                            Foreground="{DynamicResource ForegroundBrush}"/>
 
                 <TextBlock Text="Код" FontSize="12" Margin="0,0,0,4"/>
-                <TextBox x:Name="TxtCategoryId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
-                         addons:PlaceholderBehavior.PlaceholderText="Код категории"/>
+                <TextBox x:Name="TxtBrandId" 
+                         IsReadOnly="True" 
+                         Height="32" 
+                         Margin="0,0,0,12"
+                         addons:PlaceholderBehavior.PlaceholderText="Код бренда"/>
 
-                <TextBlock Text="Название *" FontSize="12" Margin="0,0,0,4"/>
-                <TextBox x:Name="TxtCategoryName" Height="32" Margin="0,0,0,12"
-                         addons:PlaceholderBehavior.PlaceholderText="Введите название"/>
+                <TextBlock Text="Наименование *" FontSize="12" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtBrandName" 
+                         Height="32" 
+                         Margin="0,0,0,15"
+                         addons:PlaceholderBehavior.PlaceholderText="Введите название бренда"/>
 
-                <TextBlock Text="Описание" FontSize="12" Margin="0,0,0,4"/>
-                <TextBox x:Name="TxtDescription" Height="80" Margin="0,0,0,15"
-                         TextWrapping="Wrap" AcceptsReturn="True"
-                         addons:PlaceholderBehavior.PlaceholderText="Введите описание (необязательно)"/>
-
+                <!-- Кнопки действий -->
                 <WrapPanel HorizontalAlignment="Center" Margin="0,10,0,0">
                     <Button Content="Добавить" Click="Add_Click" Width="90" Height="34" Margin="3"/>
                     <Button Content="Обновить" Click="Update_Click" Width="90" Height="34" Margin="3"/>

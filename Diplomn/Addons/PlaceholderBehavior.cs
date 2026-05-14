@@ -90,12 +90,10 @@ namespace Diplomn.Addons
                 }
                 else if (control is PasswordBox passwordBox)
                 {
-                    if (!GetHasEye(passwordBox))
-                    {
-                        passwordBox.PasswordChanged += (s, args) => UpdatePlaceholder(control);
-                        passwordBox.GotFocus += (s, args) => RemovePlaceholder(control);
-                        passwordBox.LostFocus += (s, args) => ShowPlaceholderIfNeeded(control);
-                    }
+                    // Всегда подписываемся на события, независимо от наличия глаза
+                    passwordBox.PasswordChanged += (s, args) => UpdatePlaceholder(control);
+                    passwordBox.GotFocus += (s, args) => RemovePlaceholder(control);
+                    passwordBox.LostFocus += (s, args) => ShowPlaceholderIfNeeded(control);
                 }
                 else if (control is ComboBox comboBox)
                 {
@@ -134,11 +132,6 @@ namespace Diplomn.Addons
             }
             else if (control is PasswordBox passwordBox)
             {
-                var placeholderText = GetPlaceholderText(control);
-                if (passwordBox.Password == placeholderText)
-                {
-                    passwordBox.Password = string.Empty;
-                }
                 RestoreForeground(control);
             }
             else if (control is ComboBox comboBox)
@@ -198,10 +191,6 @@ namespace Diplomn.Addons
             }
             else if (control is PasswordBox passwordBox)
             {
-                if (passwordBox.Password != placeholderText)
-                {
-                    passwordBox.Password = placeholderText;
-                }
                 passwordBox.Foreground = Brushes.Gray;
                 passwordBox.FontStyle = FontStyles.Italic;
             }
@@ -212,7 +201,6 @@ namespace Diplomn.Addons
                 comboBox.FontStyle = FontStyles.Italic;
             }
         }
-
         private static void RestoreForeground(Control control)
         {
             var originalForeground = control.GetValue(OriginalForegroundProperty) as Brush;

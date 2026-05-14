@@ -2,7 +2,8 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:addons="clr-namespace:Diplomn.Addons"
-      Title="AuthPage">
+      Title="Авторизация"
+      Background="{DynamicResource BackgroundBrush}">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -11,53 +12,97 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="1" Padding="40" CornerRadius="10"
-                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                HorizontalAlignment="Center" VerticalAlignment="Center"
+        <!-- Карточка авторизации -->
+        <Border Grid.Row="1" 
+                Padding="40" 
+                CornerRadius="8"
+                Background="{DynamicResource BackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" 
+                BorderThickness="1"
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
                 Width="380">
+
             <StackPanel>
-                <!-- Заголовок -->
-                <TextBlock Text="Вход в систему" 
-                           FontSize="22" FontWeight="Bold" 
+                <!-- Логотип / Название -->
+                <TextBlock Text="Oculus+" 
+                           FontSize="28" 
+                           FontWeight="Bold" 
                            Foreground="{DynamicResource AccentBrush}"
                            HorizontalAlignment="Center"
-                           Margin="0,0,0,30"/>
+                           Margin="0,0,0,5"/>
 
-                <!-- Поле для логина -->
-                <TextBlock Text="Логин" FontSize="12" Margin="0,0,0,5" FontWeight="SemiBold"/>
-                <TextBox x:Name="LoginBox" Height="35" Margin="0,0,0,15" Text="admin" 
+                <!-- Подзаголовок -->
+                <TextBlock Text="Вход в систему" 
+                           FontSize="16"
+                           Foreground="{DynamicResource ForegroundBrush}"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,30"
+                           Opacity="0.8"/>
+
+                <!-- Поле: Логин -->
+                <TextBlock Text="Логин" 
+                           FontSize="12" 
+                           Margin="0,0,0,5" 
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource ForegroundBrush}"/>
+                <TextBox x:Name="LoginBox" 
+                         Height="38" 
+                         Margin="0,0,0,15"
+                         FontSize="14"
                          addons:PlaceholderBehavior.PlaceholderText="Введите логин"/>
 
-                <!-- Поле для пароля с глазиком и placeholder -->
-                <TextBlock Text="Пароль" FontSize="12" Margin="0,0,0,5" FontWeight="SemiBold"/>
+                <!-- Поле: Пароль -->
+                <TextBlock Text="Пароль" 
+                           FontSize="12" 
+                           Margin="0,0,0,5" 
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource ForegroundBrush}"/>
                 <PasswordBox x:Name="PassBox" 
-                             Height="35" 
-                             Margin="0,0,0,25" 
-                             Password="admin123" 
+                             Height="38" 
+                             Margin="0,0,0,25"
+                             FontSize="14"
                              addons:PlaceholderBehavior.HasEye="True"
                              addons:PlaceholderBehavior.PlaceholderText="Введите пароль"/>
 
-                <!-- Кнопки -->
+                <!-- Кнопки действий -->
                 <Grid Margin="0,0,0,15">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="0" x:Name="LoginBtn" Content="Войти" 
-                            Click="LoginBtn_Click" Height="38" Margin="0,0,5,0"
+                    <Button Grid.Column="0" 
+                            x:Name="LoginBtn" 
+                            Content="Войти" 
+                            Click="LoginBtn_Click" 
+                            Height="40" 
+                            Margin="0,0,5,0"
                             Background="{DynamicResource AccentBrush}" 
-                            Foreground="White" FontWeight="Bold"/>
+                            Foreground="White" 
+                            FontWeight="Bold"
+                            FontSize="14"/>
 
-                    <Button Grid.Column="1" x:Name="ExitBtn" Content="Выход" 
-                            Click="ExitBtn_Click" Height="38" Margin="5,0,0,0"/>
+                    <Button Grid.Column="1" 
+                            x:Name="ExitBtn" 
+                            Content="Выход" 
+                            Click="ExitBtn_Click" 
+                            Height="40" 
+                            Margin="5,0,0,0"
+                            FontSize="14"/>
                 </Grid>
 
                 <!-- Сообщение об ошибке -->
-                <Border x:Name="ErrorBorder" Background="#FFF44336" CornerRadius="4" 
-                        Padding="10" Visibility="Collapsed">
-                    <TextBlock x:Name="ErrorText" Foreground="White" 
-                               HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                <Border x:Name="ErrorBorder" 
+                        Background="{DynamicResource DangerBrush}" 
+                        CornerRadius="4" 
+                        Padding="12,10" 
+                        Visibility="Collapsed">
+                    <TextBlock x:Name="ErrorText" 
+                               Foreground="White" 
+                               HorizontalAlignment="Center" 
+                               TextWrapping="Wrap"
+                               FontSize="13"/>
                 </Border>
             </StackPanel>
         </Border>

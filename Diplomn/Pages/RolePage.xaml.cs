@@ -7,50 +7,67 @@ using System.Windows.Input;
 
 namespace Diplomn.Pages
 {
+    /// <summary>
+    /// Страница управления должностями и уровнями доступа
+    /// </summary>
     public partial class RolePage : Page
     {
-        private BDEntities context;
-        private Сотрудники currentUser;
+        #region Поля
 
-        public RolePage(Сотрудники user)
+        private BDEntities context;
+
+        #endregion
+
+        #region Конструктор
+
+        public RolePage()
         {
             InitializeComponent();
             context = new BDEntities();
-            currentUser = user;
-            LoadRoles();
+            LoadData();
         }
 
-        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-                ApplyFilters();
-        }
+        #endregion
 
-        private void LoadRoles()
+        #region Загрузка данных
+
+        private void LoadData()
         {
             DataGridRoles.ItemsSource = context.Должность.ToList();
         }
 
-        private void ApplyFilters()
+        private IQueryable<Должность> GetFilteredQuery()
         {
             var query = context.Должность.AsQueryable();
+            var searchText = GetActualText(TxtSearch);
 
-            if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
-            {
-                var term = TxtSearch.Text.Trim();
-                query = query.Where(r => r.Название.Contains(term));
-            }
+            if (!string.IsNullOrWhiteSpace(searchText))
+                query = query.Where(r => r.Название.Contains(searchText));
 
-            DataGridRoles.ItemsSource = query.ToList();
+            return query;
         }
 
+        #endregion
+
+        #region Фильтрация
+
+        private void ApplyFilters() => DataGridRoles.ItemsSource = GetFilteredQuery().ToList();
         private void ApplyFilters_Click(object sender, RoutedEventArgs e) => ApplyFilters();
 
         private void ClearFilters_Click(object sender, RoutedEventArgs e)
         {
             TxtSearch.Text = "";
-            LoadRoles();
+            LoadData();
         }
+
+        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) ApplyFilters();
+        }
+
+        #endregion
+
+        #region Выбор в таблице
 
         private void DataGridRoles_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -62,24 +79,29 @@ namespace Diplomn.Pages
             }
         }
 
-        private bool ValidateRole(out string errorMessage, int? excludeId = null)
+        #endregion
+
+        #region Валидация
+
+        private bool Validate(out string errorMessage, int? excludeId = null)
         {
             var errors = new StringBuilder();
-            string roleName = TxtRoleName.Text?.Trim();
+            var name = GetActualText(TxtRoleName);
+            var levelText = GetActualText(TxtAccessLevel);
 
-            if (string.IsNullOrWhiteSpace(roleName))
+            if (string.IsNullOrWhiteSpace(name))
                 errors.AppendLine("• Введите название должности");
 
-            if (!int.TryParse(TxtAccessLevel.Text, out int accessLevel))
+            if (!int.TryParse(levelText, out int level))
                 errors.AppendLine("• Уровень доступа должен быть числом");
-            else if (accessLevel < 1 || accessLevel > 10)
+            else if (level < 1 || level > 10)
                 errors.AppendLine("• Уровень доступа должен быть от 1 до 10");
 
-            if (!string.IsNullOrWhiteSpace(roleName))
+            if (!string.IsNullOrWhiteSpace(name))
             {
-                bool exists = excludeId.HasValue
-                    ? context.Должность.Any(r => r.Название == roleName && r.Код_должности != excludeId.Value)
-                    : context.Должность.Any(r => r.Название == roleName);
+                var exists = excludeId.HasValue
+                    ? context.Должность.Any(r => r.Название == name && r.Код_должности != excludeId.Value)
+                    : context.Должность.Any(r => r.Название == name);
 
                 if (exists)
                     errors.AppendLine("• Должность с таким названием уже существует");
@@ -89,32 +111,36 @@ namespace Diplomn.Pages
             return errors.Length == 0;
         }
 
+        #endregion
+
+        #region CRUD операции
+
         private void AddRole_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (!ValidateRole(out string errorMessage))
+                if (!Validate(out var error))
                 {
-                    MessageBox.Show(errorMessage, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
                 var role = new Должность
                 {
-                    Название = TxtRoleName.Text.Trim(),
-                    Уровень_доступа = int.Parse(TxtAccessLevel.Text)
+                    Название = GetActualText(TxtRoleName),
+                    Уровень_доступа = int.Parse(GetActualText(TxtAccessLevel))
                 };
 
                 context.Должность.Add(role);
                 context.SaveChanges();
 
-                MessageBox.Show("Должность успешно добавлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-                LoadRoles();
+                MessageBox.Show("Должность добавлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при добавлении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -124,12 +150,12 @@ namespace Diplomn.Pages
             {
                 if (string.IsNullOrWhiteSpace(TxtRoleId.Text))
                 {
-                    MessageBox.Show("Выберите должность для обновления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Выберите должность!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                int roleId = int.Parse(TxtRoleId.Text);
-                var role = context.Должность.Find(roleId);
+                var id = int.Parse(TxtRoleId.Text);
+                var role = context.Должность.Find(id);
 
                 if (role == null)
                 {
@@ -137,24 +163,23 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                if (!ValidateRole(out string errorMessage, roleId))
+                if (!Validate(out var error, id))
                 {
-                    MessageBox.Show(errorMessage, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                role.Название = TxtRoleName.Text.Trim();
-                role.Уровень_доступа = int.Parse(TxtAccessLevel.Text);
-
+                role.Название = GetActualText(TxtRoleName);
+                role.Уровень_доступа = int.Parse(GetActualText(TxtAccessLevel));
                 context.SaveChanges();
 
-                MessageBox.Show("Должность успешно обновлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-                LoadRoles();
+                MessageBox.Show("Должность обновлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при обновлении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -164,12 +189,12 @@ namespace Diplomn.Pages
             {
                 if (string.IsNullOrWhiteSpace(TxtRoleId.Text))
                 {
-                    MessageBox.Show("Выберите должность для удаления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Выберите должность!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                int roleId = int.Parse(TxtRoleId.Text);
-                var role = context.Должность.Find(roleId);
+                var id = int.Parse(TxtRoleId.Text);
+                var role = context.Должность.Find(id);
 
                 if (role == null)
                 {
@@ -177,34 +202,34 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                var employeesWithRole = context.Сотрудники.Where(s => s.Код_должности == roleId).Any();
-                if (employeesWithRole)
+                if (context.Сотрудники.Any(s => s.Код_должности == id))
                 {
-                    MessageBox.Show("Нельзя удалить должность - есть сотрудники с этой должностью!\n" +
-                                   "Сначала переназначьте или удалите этих сотрудников.",
-                                   "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Нельзя удалить — есть сотрудники с этой должностью!\nСначала переназначьте их.",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                var result = MessageBox.Show($"Удалить должность '{role.Название}'?",
+                var result = MessageBox.Show($"Удалить должность «{role.Название}»?",
                     "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
                     context.Должность.Remove(role);
                     context.SaveChanges();
-                    MessageBox.Show("Должность удалена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-                    LoadRoles();
+                    MessageBox.Show("Удалена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    LoadData();
                     ClearForm();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при удалении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+        #endregion
+
+        #region Очистка формы
 
         private void ClearForm()
         {
@@ -213,5 +238,21 @@ namespace Diplomn.Pages
             TxtAccessLevel.Text = "";
             DataGridRoles.SelectedItem = null;
         }
+
+        private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+
+        #endregion
+
+        #region Вспомогательные методы
+
+        private string GetActualText(TextBox textBox)
+        {
+            if (textBox == null) return string.Empty;
+            var placeholder = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
+            var text = textBox.Text?.Trim() ?? string.Empty;
+            return (!string.IsNullOrEmpty(placeholder) && text == placeholder) ? string.Empty : text;
+        }
+
+        #endregion
     }
 }
