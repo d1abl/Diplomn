@@ -85,13 +85,13 @@
 
                                 <!-- Фильтр по сотруднику -->
                                 <TextBlock Text="Сотрудник" FontSize="11" FontWeight="Bold" Margin="0,0,0,5"/>
-                                <ComboBox x:Name="CmbEmployee" Height="28" Margin="0,0,0,10"
+                                <ComboBox x:Name="CmbEmployee" Height="28" Margin="0,0,0,10" Style="{DynamicResource PlaceholderComboBox}"
                                           DisplayMemberPath="FullName"
                                           SelectedValuePath="Код_сотрудника"/>
 
                                 <!-- Фильтр по поставщику -->
                                 <TextBlock Text="Поставщик" FontSize="11" FontWeight="Bold" Margin="0,0,0,5"/>
-                                <ComboBox x:Name="CmbSupplier" Height="28" Margin="0,0,0,10"
+                                <ComboBox x:Name="CmbSupplier" Height="28" Margin="0,0,0,10" Style="{DynamicResource PlaceholderComboBox}"
                                           DisplayMemberPath="Наименование_поставщика"
                                           SelectedValuePath="Код_поставщика"/>
 
@@ -137,9 +137,9 @@
                         </ListView.ItemsPanel>
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="5" 
-                                        Width="220"
-                                        Height="160"
+                                <Border Margin="3" 
+                                        Width="160"
+                                        Height="130"
                                         Background="{DynamicResource BackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}" 
                                         BorderThickness="1"
@@ -300,7 +300,7 @@
                     <Border Grid.Row="2" Padding="5" Margin="0,0,0,8">
                         <StackPanel>
                             <TextBlock Text="Поставщик:" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
-                            <ComboBox x:Name="CmbNewSupplySupplier" Height="30"
+                            <ComboBox x:Name="CmbNewSupplySupplier" Height="30" Style="{DynamicResource PlaceholderComboBox}"
                                       DisplayMemberPath="Наименование_поставщика"
                                       SelectedValuePath="Код_поставщика"/>
                         </StackPanel>
@@ -323,8 +323,8 @@
                         <ListView.ItemTemplate>
                             <DataTemplate>
                                 <Border Margin="5" 
-                                        Width="220"
-                                        Height="300"
+                                        Width="200"
+                                        Height="275"
                                         Background="{DynamicResource BackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}" 
                                         BorderThickness="1"
@@ -465,21 +465,21 @@
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0" Cursor="Hand">
             <StackPanel x:Name="ViewModeButtons" Orientation="Horizontal">
                 <Button Content="➕ Новая поставка" Click="NewSupply_Click" Width="130" Margin="5" Height="35" Cursor="Hand"/>
-                <Grid Margin="5" Width="120" >
+                <Grid Margin="5" Width="120">
                     <Button x:Name="BtnEditSupply" Content="✏ Редактировать" 
-            Click="EditSupply_Click" Height="35" IsEnabled="False"/>
+                Click="EditSupply_Click" Height="35" IsEnabled="False"/>
                     <Border x:Name="BtnEditSupplyOverlay" Background="Transparent" 
-            Visibility="Collapsed" ToolTip=""/>
+                Visibility="Collapsed" ToolTip=""/>
                 </Grid>
                 <Grid Margin="5" Width="100">
                     <Button x:Name="BtnDeleteSupply" Content="🗑 Удалить" 
-            Click="DeleteSupply_Click" Height="35" IsEnabled="False"/>
+                Click="DeleteSupply_Click" Height="35" IsEnabled="False"/>
                     <Border x:Name="BtnDeleteSupplyOverlay" Background="Transparent" 
-            Visibility="Collapsed" ToolTip=""/>
+                Visibility="Collapsed" ToolTip=""/>
                 </Grid>
+                <Button Content="🖨 Печать поставки" Click="PrintSupply_Click" Width="130" Margin="5" Height="35" IsEnabled="False"/>
                 <Button Content="Очистить" Click="ClearForm_Click" Width="90" Height="35" Margin="3"/>
             </StackPanel>
-
             <StackPanel x:Name="NewSupplyModeButtons" Orientation="Horizontal" Visibility="Collapsed">
                 <Button x:Name="BtnSaveNewSupply" Content="💾 Оформить поставку" Click="SaveNewSupply_Click" 
                         Width="150" Margin="5" Height="35" Cursor="Hand"

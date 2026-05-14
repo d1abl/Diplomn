@@ -69,15 +69,19 @@ namespace Diplomn
         {
             currentUser = user;
 
+            if (currentUser?.Отчество != null)
+                CurrentUser.Content = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.{currentUser.Отчество?.Substring(0, 1)}.";
+            else
+                CurrentUser.Content = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.";
 
-            if (currentUser?.Отчество != null) CurrentUser.Content = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.{currentUser.Отчество?.Substring(0, 1)}.";
-            else CurrentUser.Content = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.";
             LoadUserPhoto(user);
+
             if (user.Должность?.Уровень_доступа == 1) // Администратор
             {
                 VisiblEmployeesBtn.Visibility = Visibility.Visible;
                 RolesBtn.Visibility = Visibility.Visible;
                 CategoriesBtn.Visibility = Visibility.Visible;
+                // Новые страницы видны только админу
             }
             else if (user.Должность?.Уровень_доступа == 2) // Менеджер
             {
@@ -135,7 +139,7 @@ namespace Diplomn
         
 
         private void RolesBtn_Click(object sender, RoutedEventArgs e) =>       
-            MainFrame?.NavigateIfDifferent(new RolePage(currentUser));
+            MainFrame?.NavigateIfDifferent(new RolePage());
         
 
         private void ProductsBtn_Click(object sender, RoutedEventArgs e) =>        
@@ -143,7 +147,7 @@ namespace Diplomn
         
 
         private void CategoriesBtn_Click(object sender, RoutedEventArgs e) =>        
-            MainFrame?.NavigateIfDifferent(new CategoriesPage(currentUser));
+            MainFrame?.NavigateIfDifferent(new CategoriesPage());
         
 
         private void SuppliersBtn_Click(object sender, RoutedEventArgs e) =>        
@@ -164,13 +168,23 @@ namespace Diplomn
 
         private void SettingsBtn_Click(object sender, RoutedEventArgs e) =>        
             MainFrame?.NavigateIfDifferent(new SettingsPage(currentUser));
-        
+
 
         //private void CalendarBtn_Click(object sender, RoutedEventArgs e)
         //{
         //    MainFrame?.NavigateIfDifferent(new CalendarPage(currentUser));
         //}
+        private void BrandsBtn_Click(object sender, RoutedEventArgs e) =>
+            MainFrame?.NavigateIfDifferent(new BrandsPage());
 
+        private void ManufacturersBtn_Click(object sender, RoutedEventArgs e) =>
+            MainFrame?.NavigateIfDifferent(new ManufacturersPage());
+
+        private void MaterialsBtn_Click(object sender, RoutedEventArgs e) =>
+            MainFrame?.NavigateIfDifferent(new MaterialsPage());
+
+        private void PackingsBtn_Click(object sender, RoutedEventArgs e) =>
+            MainFrame?.NavigateIfDifferent(new PackingsPage());
         #endregion
 
         #region Сворачивание/разворачивание секций меню

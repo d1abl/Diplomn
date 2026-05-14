@@ -505,7 +505,17 @@ namespace Diplomn.Pages
         {
             LoadFilteredSales();
         }
+        private void PrintReceipt_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedItem = ListViewSales.SelectedItem as SaleViewModel;
+            if (selectedItem == null)
+            {
+                MessageBox.Show("Выберите продажу для печати чека!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
+            PrintReceipt(selectedItem.OriginalSale.Код_чека);
+        }
         private void ApplyFilters_Click(object sender, RoutedEventArgs e) => ApplyFilters();
 
         private void ClearFilters_Click(object sender, RoutedEventArgs e)
@@ -737,55 +747,121 @@ namespace Diplomn.Pages
 
         private void ListViewSales_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ListViewSales.SelectedItem is SaleViewModel selectedSale)
+            if (ListViewSales.SelectedItem is SaleViewModel sv)
             {
-                EnableEditDeleteButtons(true);
+                EnableButtons(true);
+                var s = sv.OriginalSale;
+                TxtSaleId.Text = s.Код_чека.ToString();
+                TxtSaleDate.Text = s.Дата_продажи.ToString("dd.MM.yyyy HH:mm");
+                TxtEmployee.Text = s.Сотрудники != null ? $"{s.Сотрудники.Фамилия} {s.Сотрудники.Имя}" : "";
 
-                var sale = selectedSale.OriginalSale;
-                TxtSaleId.Text = sale.Код_чека.ToString();
-                TxtSaleDate.Text = sale.Дата_продажи.ToString("dd.MM.yyyy HH:mm");
-                TxtEmployee.Text = sale.Сотрудники != null ? $"{sale.Сотрудники.Фамилия} {sale.Сотрудники.Имя}" : "";
-
-                var items = context.Состав_продажи
-                    .Include("Товары")
-                    .Where(i => i.Код_чека == sale.Код_чека)
-                    .ToList()
-                    .Select(i => new SaleItemDisplay
-                    {
-                        Товар = i.Товары.Наименование,
-                        Количество = i.Количество,
-                        Цена = i.Цена,
-                        PhotoSource = LoadImageFromBytes(i.Товары?.Фото)
-                    })
-                    .ToList();
+                var items = context.Состав_продажи.Include("Товары")
+                    .Where(i => i.Код_чека == s.Код_чека).ToList()
+                    .Select(i => new SaleItemDisplay { Товар = i.Товары.Наименование, Количество = i.Количество, Цена = i.Цена, PhotoSource = LoadImageFromBytes(i.Товары?.Фото) }).ToList();
 
                 ListViewSaleItems.ItemsSource = items;
-                decimal total = items.Sum(i => i.Сумма);
-                TxtTotal.Text = $"{total:N2} ₽";
+                TxtTotal.Text = $"{items.Sum(i => i.Сумма):N2} ₽";
                 TotalPanel.Visibility = Visibility.Visible;
+
+                // Проверяем возможность редактирования/удаления
+                UpdateDeleteEditButtonsState(s.Код_чека);
             }
             else
             {
-                EnableEditDeleteButtons(false);
+                EnableButtons(false);
                 ClearSaleDetails();
             }
         }
 
-        private void EnableEditDeleteButtons(bool enable)
+        private void EnableButtons(bool enable)
         {
             foreach (var child in ViewModeButtons.Children)
             {
                 if (child is Button button)
                 {
                     var content = button.Content?.ToString();
-                    if (content == "🗑 Удалить" || content == "✏ Редактировать")
-                    {
+                    if (content == "🗑 Удалить" || content == "✏ Редактировать" || content == "🖨 Печать чека")
                         button.IsEnabled = enable;
+                }
+            }
+        }
+        private void UpdateDeleteEditButtonsState(int saleCode)
+        {
+            foreach (var child in ViewModeButtons.Children)
+            {
+                if (child is Grid grid)
+                {
+                    Button button = null;
+                    Border overlay = null;
+
+                    foreach (var gridChild in grid.Children)
+                    {
+                        if (gridChild is Button btn) button = btn;
+                        else if (gridChild is Border brd) overlay = brd;
+                    }
+
+                    if (button == null || overlay == null) continue;
+
+                    var content = button.Content?.ToString();
+
+                    if (content == "🗑 Удалить")
+                    {
+                        string errorMsg;
+                        if (CanDeleteSale(saleCode, out errorMsg))
+                        {
+                            button.IsEnabled = true;
+                            overlay.Visibility = Visibility.Collapsed;
+                            overlay.ToolTip = null;
+                        }
+                        else
+                        {
+                            button.IsEnabled = false;
+                            overlay.Visibility = Visibility.Visible;
+                            overlay.ToolTip = errorMsg;
+                        }
+                    }
+                    else if (content == "✏ Редактировать")
+                    {
+                        string errorMsg;
+                        if (CanEditSale(saleCode, out errorMsg))
+                        {
+                            button.IsEnabled = true;
+                            overlay.Visibility = Visibility.Collapsed;
+                            overlay.ToolTip = null;
+                        }
+                        else
+                        {
+                            button.IsEnabled = false;
+                            overlay.Visibility = Visibility.Visible;
+                            overlay.ToolTip = errorMsg;
+                        }
                     }
                 }
             }
         }
+        /// <summary>
+        /// Проверяет, можно ли удалить продажу (не старше 1 месяца)
+        /// </summary>
+        private bool CanDeleteSale(int saleCode, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+            var sale = context.Продажи.Find(saleCode);
+            if (sale == null) { errorMessage = "Продажа не найдена."; return false; }
+            if (sale.Дата_продажи < DateTime.Now.AddMonths(-1)) { errorMessage = "Нельзя удалить — прошло более 1 мес. с даты продажи."; return false; }
+            return true;
+        }
 
+        /// <summary>
+        /// Проверяет, можно ли редактировать продажу (не старше 1 месяца)
+        /// </summary>
+        private bool CanEditSale(int saleCode, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+            var sale = context.Продажи.Find(saleCode);
+            if (sale == null) { errorMessage = "Продажа не найдена."; return false; }
+            if (sale.Дата_продажи < DateTime.Now.AddMonths(-1)) { errorMessage = "Нельзя редактировать — прошло более 1 мес. с даты продажи."; return false; }
+            return true;
+        }
         private void EditSale_Click(object sender, RoutedEventArgs e)
         {
             var selectedItem = ListViewSales.SelectedItem as SaleViewModel;
@@ -1409,6 +1485,7 @@ namespace Diplomn.Pages
                 {
                     var sale = context.Продажи
                         .Include("Сотрудники")
+                        .Include("Сотрудники.Должность")
                         .FirstOrDefault(s => s.Код_чека == saleCode);
 
                     if (sale == null)
@@ -1433,7 +1510,14 @@ namespace Diplomn.Pages
 
                     var total = items.Sum(i => i.Сумма);
 
-                    using (var document = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4))
+                    // Данные магазина
+                    const string shopName = "Oculus+";
+                    const string shopPhone = "+7 (461) 345 12-34";
+                    const string shopEmail = "Oculus@глаза.ру";
+                    const string shopWebsite = "Oculus.ру";
+                    const string shopHours = "9:00 – 17:00 ежедневно";
+
+                    using (var document = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 40, 40, 50, 50))
                     {
                         using (var writer = iTextSharp.text.pdf.PdfWriter.GetInstance(document, new FileStream(saveFileDialog.FileName, FileMode.Create)))
                         {
@@ -1444,58 +1528,145 @@ namespace Diplomn.Pages
                                 fontPath,
                                 iTextSharp.text.pdf.BaseFont.IDENTITY_H,
                                 iTextSharp.text.pdf.BaseFont.EMBEDDED);
+
+                            var fontShopName = new iTextSharp.text.Font(baseFont, 22, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
+                            var fontTitle = new iTextSharp.text.Font(baseFont, 14, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
+                            var fontBold = new iTextSharp.text.Font(baseFont, 10, iTextSharp.text.Font.BOLD);
                             var font = new iTextSharp.text.Font(baseFont, 10);
-                            var fontBold = new iTextSharp.text.Font(baseFont, 11, iTextSharp.text.Font.BOLD);
-                            var fontTitle = new iTextSharp.text.Font(baseFont, 14, iTextSharp.text.Font.BOLD);
+                            var fontSmall = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.DARK_GRAY);
+                            var fontFooter = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.GRAY);
 
-                            var title = new iTextSharp.text.Paragraph("ЧЕК ПРОДАЖИ", fontTitle);
-                            title.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                            document.Add(title);
-                            document.Add(new iTextSharp.text.Paragraph(" "));
+                            // === НАЗВАНИЕ МАГАЗИНА ===
+                            var shopTitle = new iTextSharp.text.Paragraph(shopName, fontShopName);
+                            shopTitle.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                            shopTitle.SpacingAfter = 15;
+                            document.Add(shopTitle);
 
-                            document.Add(new iTextSharp.text.Paragraph($"Чек №: {saleCode}", font));
-                            document.Add(new iTextSharp.text.Paragraph($"Дата: {sale.Дата_продажи:dd.MM.yyyy HH:mm}", font));
-                            document.Add(new iTextSharp.text.Paragraph($"Сотрудник: {sale.Сотрудники?.Фамилия} {sale.Сотрудники?.Имя}", font));
-                            document.Add(new iTextSharp.text.Paragraph(" "));
+                            // === ЗАГОЛОВОК ===
+                            var headerTitle = new iTextSharp.text.Paragraph("ЧЕК ПРОДАЖИ", fontTitle);
+                            headerTitle.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                            headerTitle.SpacingAfter = 20;
+                            document.Add(headerTitle);
 
+                            // Информация о чеке
+                            var infoTable = new iTextSharp.text.pdf.PdfPTable(2);
+                            infoTable.WidthPercentage = 100;
+                            infoTable.SetWidths(new float[] { 50, 50 });
+                            infoTable.SpacingAfter = 20;
+
+                            // Первая строка: Чек № и Дата продажи
+                            var cellCheckLabel = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph($"Чек №: {saleCode}", fontBold));
+                            cellCheckLabel.Border = iTextSharp.text.Rectangle.NO_BORDER;
+                            cellCheckLabel.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
+                            cellCheckLabel.Padding = 3;
+                            infoTable.AddCell(cellCheckLabel);
+
+                            var cellDateLabel = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph($"Дата: {sale.Дата_продажи:dd.MM.yyyy HH:mm}", font));
+                            cellDateLabel.Border = iTextSharp.text.Rectangle.NO_BORDER;
+                            cellDateLabel.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
+                            cellDateLabel.Padding = 3;
+                            infoTable.AddCell(cellDateLabel);
+
+                            // Вторая строка: Сотрудник
+                            var cellEmployee = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(
+                                $"Сотрудник: {(sale.Сотрудники != null ? $"{sale.Сотрудники.Фамилия} {sale.Сотрудники.Имя}" : "—")}", font));
+                            cellEmployee.Border = iTextSharp.text.Rectangle.NO_BORDER;
+                            cellEmployee.Colspan = 2;
+                            cellEmployee.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
+                            cellEmployee.Padding = 3;
+                            infoTable.AddCell(cellEmployee);
+
+                            document.Add(infoTable);
+
+                            // Таблица товаров
                             var table = new iTextSharp.text.pdf.PdfPTable(4);
                             table.WidthPercentage = 100;
                             table.SetWidths(new float[] { 40, 15, 20, 25 });
+                            table.SpacingBefore = 10;
+                            table.SpacingAfter = 20;
 
-                            var headerCells = new[] { "Товар", "Кол-во", "Цена", "Сумма" };
-                            foreach (var cellText in headerCells)
+                            var headers = new[] { "Товар", "Кол-во", "Цена", "Сумма" };
+                            foreach (var cellText in headers)
                             {
-                                var cell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cellText, fontBold));
-                                cell.BackgroundColor = new iTextSharp.text.BaseColor(200, 200, 200);
-                                table.AddCell(cell);
+                                var headerCell = new iTextSharp.text.pdf.PdfPCell();
+                                headerCell.BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102);
+                                var whiteFont = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.BOLD, iTextSharp.text.BaseColor.WHITE);
+                                headerCell.Phrase = new iTextSharp.text.Phrase(cellText, whiteFont);
+                                headerCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
+                                headerCell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
+                                headerCell.Padding = 5;
+                                table.AddCell(headerCell);
                             }
 
+                            bool alternate = false;
                             foreach (var item in items)
                             {
-                                table.AddCell(new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(item.Товар, font)));
-                                table.AddCell(new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(item.Количество.ToString(), font)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
-                                table.AddCell(new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph($"{item.Цена:N2} ₽", font)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
-                                table.AddCell(new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph($"{item.Сумма:N2} ₽", font)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+                                var cells = new[]
+                                {
+                            item.Товар,
+                            item.Количество.ToString(),
+                            $"{item.Цена:N2} ₽",
+                            $"{item.Сумма:N2} ₽"
+                        };
+
+                                for (int i = 0; i < cells.Length; i++)
+                                {
+                                    var cell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cells[i], font));
+                                    cell.Padding = 5;
+                                    cell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
+
+                                    if (alternate)
+                                        cell.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250);
+
+                                    if (i > 0)
+                                        cell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
+
+                                    table.AddCell(cell);
+                                }
+                                alternate = !alternate;
                             }
 
                             document.Add(table);
-                            document.Add(new iTextSharp.text.Paragraph(" "));
 
-                            var totalParagraph = new iTextSharp.text.Paragraph($"ИТОГО: {total:N2} ₽", fontBold);
+                            // Итого
+                            var totalParagraph = new iTextSharp.text.Paragraph($"ИТОГО: {total:N2} ₽", fontTitle);
                             totalParagraph.Alignment = iTextSharp.text.Element.ALIGN_RIGHT;
+                            totalParagraph.SpacingBefore = 5;
+                            totalParagraph.SpacingAfter = 35;
                             document.Add(totalParagraph);
 
-                            document.Add(new iTextSharp.text.Paragraph(" "));
+                            // === ФУТЕР ===
+                            var footerLine = new iTextSharp.text.pdf.draw.LineSeparator(1f, 100f, iTextSharp.text.BaseColor.LIGHT_GRAY, iTextSharp.text.Element.ALIGN_CENTER, 0);
+                            var footerLineParagraph = new iTextSharp.text.Paragraph();
+                            footerLineParagraph.SpacingBefore = 40;
+                            footerLineParagraph.Add(footerLine);
+                            document.Add(footerLineParagraph);
 
-                            var signature = new iTextSharp.text.Paragraph("Спасибо за покупку! :)", font);
-                            signature.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                            document.Add(signature);
+                            var footerLine1 = new iTextSharp.text.Paragraph();
+                            footerLine1.Add(new iTextSharp.text.Chunk($"{shopName}  |  Часы работы: {shopHours}", fontFooter));
+                            footerLine1.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                            footerLine1.SpacingBefore = 8;
+                            footerLine1.SpacingAfter = 2;
+                            document.Add(footerLine1);
+
+                            var footerLine2 = new iTextSharp.text.Paragraph();
+                            footerLine2.Add(new iTextSharp.text.Chunk($"{shopPhone}  |  {shopEmail}  |  {shopWebsite}", fontFooter));
+                            footerLine2.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                            footerLine2.SpacingBefore = 2;
+                            footerLine2.SpacingAfter = 2;
+                            document.Add(footerLine2);
+
+                            var footerDate = new iTextSharp.text.Paragraph();
+                            footerDate.Add(new iTextSharp.text.Chunk($"Чек сформирован: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter));
+                            footerDate.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                            footerDate.SpacingBefore = 2;
+                            document.Add(footerDate);
 
                             document.Close();
                         }
                     }
 
-                    MessageBox.Show($"Чек успешно сохранен в PDF:\n{saveFileDialog.FileName}",
+                    MessageBox.Show($"Чек №{saleCode} успешно сохранён в PDF:\n{saveFileDialog.FileName}",
                         "Печать чека", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
@@ -1504,6 +1675,20 @@ namespace Diplomn.Pages
                 MessageBox.Show($"Ошибка при печати чека: {ex.Message}", "Ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void AddInfoRow(iTextSharp.text.pdf.PdfPTable table, string label, string value, iTextSharp.text.Font fontLabel, iTextSharp.text.Font fontValue)
+        {
+            var labelCell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(label, fontLabel));
+            labelCell.Border = iTextSharp.text.Rectangle.NO_BORDER;
+            labelCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
+            labelCell.Padding = 3;
+            table.AddCell(labelCell);
+
+            var valueCell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(value, fontValue));
+            valueCell.Border = iTextSharp.text.Rectangle.NO_BORDER;
+            valueCell.Padding = 3;
+            table.AddCell(valueCell);
         }
         #endregion
 

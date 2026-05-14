@@ -1,11 +1,8 @@
-﻿using iTextSharp.text;
-using iTextSharp.text.pdf;
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.Entity;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -17,12 +14,21 @@ using System.Windows.Media.Imaging;
 
 namespace Diplomn.Pages
 {
+    /// <summary>
+    /// Страница управления сотрудниками магазина
+    /// </summary>
     public partial class EmployeesPage : Page
     {
+        #region Поля
+
         private BDEntities context;
         private Сотрудники currentUser;
         private byte[] selectedImageData;
         private ObservableCollection<EmployeeViewModel> employeesView;
+
+        #endregion
+
+        #region Конструктор
 
         public EmployeesPage(Сотрудники user)
         {
@@ -35,79 +41,70 @@ namespace Diplomn.Pages
             LoadData();
         }
 
-        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-                ApplyFilters();
-        }
+        #endregion
 
+        #region Загрузка данных
+
+        /// <summary>
+        /// Загружает список должностей в выпадающий список
+        /// </summary>
         private void LoadPositions()
         {
             CmbPosition.ItemsSource = context.Должность.ToList();
         }
 
+        /// <summary>
+        /// Формирует запрос с учётом поискового фильтра
+        /// </summary>
         private IQueryable<Сотрудники> GetFilteredQuery()
         {
             var query = context.Сотрудники.AsQueryable();
+            var searchText = GetActualText(TxtSearch);
 
-            if (!string.IsNullOrWhiteSpace(TxtSearch.Text))
+            if (!string.IsNullOrWhiteSpace(searchText))
             {
-                var term = TxtSearch.Text.Trim();
-                query = query.Where(e => e.Фамилия.Contains(term) ||
-                                        e.Имя.Contains(term) ||
-                                        e.Логин.Contains(term));
+                query = query.Where(e => e.Фамилия.Contains(searchText) ||
+                                        e.Имя.Contains(searchText) ||
+                                        e.Логин.Contains(searchText));
             }
 
             return query;
         }
 
+        /// <summary>
+        /// Загружает всех сотрудников без фильтрации
+        /// </summary>
         private void LoadData()
         {
-            var employees = context.Сотрудники
-                .Include("Должность")
-                .ToList();
+            var employees = context.Сотрудники.Include("Должность").ToList();
             UpdateEmployeesView(employees);
         }
 
+        /// <summary>
+        /// Обновляет коллекцию ViewModel для отображения в карточках
+        /// </summary>
         private void UpdateEmployeesView(List<Сотрудники> employees)
         {
             employeesView.Clear();
             foreach (var employee in employees)
-            {
                 employeesView.Add(new EmployeeViewModel(employee));
-            }
+
             ListViewEmployees.ItemsSource = employeesView;
         }
 
-        private BitmapImage LoadImageFromBytes(byte[] imageData)
-        {
-            if (imageData == null || imageData.Length == 0)
-                return null;
+        #endregion
 
-            try
-            {
-                using (var ms = new MemoryStream(imageData))
-                {
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.StreamSource = ms;
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.EndInit();
-                    return bitmap;
-                }
-            }
-            catch
-            {
-                return null;
-            }
-        }
+        #region Фильтрация и отчёты
 
         private void ApplyFilters()
         {
-            var employees = GetFilteredQuery()
-                .Include("Должность")
-                .ToList();
+            var employees = GetFilteredQuery().Include("Должность").ToList();
             UpdateEmployeesView(employees);
+        }
+
+        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) ApplyFilters();
         }
 
         private void ApplyFilters_Click(object sender, RoutedEventArgs e) => ApplyFilters();
@@ -118,42 +115,19 @@ namespace Diplomn.Pages
             LoadData();
         }
 
+        /// <summary>
+        /// Сохраняет отчёт о сотрудниках в PDF
+        /// </summary>
         private void SaveReport_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // Проверяем все записи в базе
-                var allEmployees = context.Сотрудники.Include("Должность").ToList();
-                Debug.WriteLine($"Всего сотрудников в БД: {allEmployees.Count}");
-
-                // Получаем отфильтрованные данные
-                var query = context.Сотрудники.Include("Должность").AsQueryable();
-
-                string searchText = GetActualText(TxtSearch);
-                if (!string.IsNullOrWhiteSpace(searchText))
-                {
-                    var term = searchText.Trim();
-                    query = query.Where(emp => emp.Фамилия.Contains(term) ||
-                                            emp.Имя.Contains(term) ||
-                                            emp.Логин.Contains(term));
-                }
-
-                var employees = query.ToList();
-                Debug.WriteLine($"Сотрудников после фильтрации: {employees.Count}");
+                var employees = GetFilteredQuery().Include("Должность").ToList();
 
                 if (!employees.Any())
                 {
-                    // Если фильтр пустой, показываем всех
-                    if (string.IsNullOrWhiteSpace(searchText))
-                    {
-                        MessageBox.Show("В базе данных нет сотрудников.", "Информация",
-                            MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        MessageBox.Show($"По запросу \"{searchText}\" сотрудников не найдено.", "Информация",
-                            MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
+                    MessageBox.Show("Нет данных для сохранения отчета.", "Информация",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
 
@@ -164,8 +138,7 @@ namespace Diplomn.Pages
                     FileName = $"Отчет_сотрудники_{DateTime.Now:yyyy-MM-dd_HH-mm}"
                 };
 
-                if (saveFileDialog.ShowDialog() != true)
-                    return;
+                if (saveFileDialog.ShowDialog() != true) return;
 
                 // Данные магазина
                 const string shopName = "Oculus+";
@@ -174,28 +147,22 @@ namespace Diplomn.Pages
                 const string shopWebsite = "Oculus.ру";
                 const string shopHours = "9:00 – 17:00 ежедневно";
 
-                // Формируем ФИО с инициалами
-                string initials = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.";
+                var initials = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.";
                 if (!string.IsNullOrWhiteSpace(currentUser.Отчество))
                     initials += $"{currentUser.Отчество?.Substring(0, 1)}.";
-                else
-                    initials += ".";
 
-                // Статистика
                 var totalEmployees = employees.Count;
                 var adminCount = employees.Count(emp => emp.Должность?.Уровень_доступа == 1);
                 var managerCount = employees.Count(emp => emp.Должность?.Уровень_доступа > 1 && emp.Должность?.Уровень_доступа <= 3);
                 var staffCount = employees.Count(emp => emp.Должность?.Уровень_доступа > 3 || emp.Должность == null);
 
-                // Создаём PDF
                 using (var document = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 40, 40, 50, 50))
                 {
                     using (var writer = iTextSharp.text.pdf.PdfWriter.GetInstance(document, new FileStream(saveFileDialog.FileName, FileMode.Create)))
                     {
                         document.Open();
 
-                        // Шрифты
-                        string fontPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
+                        var fontPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
                         var baseFont = iTextSharp.text.pdf.BaseFont.CreateFont(fontPath, iTextSharp.text.pdf.BaseFont.IDENTITY_H, iTextSharp.text.pdf.BaseFont.EMBEDDED);
 
                         var fontTitle = new iTextSharp.text.Font(baseFont, 16, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
@@ -206,190 +173,136 @@ namespace Diplomn.Pages
                         var fontSmall = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.DARK_GRAY);
                         var fontSign = new iTextSharp.text.Font(baseFont, 10, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.BLACK);
 
-                        // === ЗАГОЛОВОК ===
                         var reportTitle = new iTextSharp.text.Paragraph("ОТЧЁТ О СОТРУДНИКАХ", fontTitle);
                         reportTitle.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
                         reportTitle.SpacingAfter = 25;
                         document.Add(reportTitle);
 
-                        // === ИНФОРМАЦИЯ О ПОИСКЕ ===
-                        if (!string.IsNullOrWhiteSpace(searchText))
-                        {
-                            var searchInfo = new iTextSharp.text.Paragraph($"Поиск: \"{searchText}\"", fontSmall);
-                            searchInfo.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
-                            searchInfo.SpacingAfter = 15;
-                            document.Add(searchInfo);
-                        }
-
-                        // === ТАБЛИЦА ===
                         var table = new iTextSharp.text.pdf.PdfPTable(7);
                         table.WidthPercentage = 100;
                         table.SetWidths(new float[] { 8, 18, 14, 14, 16, 14, 16 });
                         table.SpacingBefore = 10;
                         table.SpacingAfter = 25;
 
-                        // Заголовки таблицы
                         var headers = new[] { "Код", "Фамилия", "Имя", "Отчество", "Должность", "Телефон", "Логин" };
                         foreach (var header in headers)
                         {
                             var headerCell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(header, fontTableHeader));
                             headerCell.BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102);
                             headerCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
-                            headerCell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
                             headerCell.Padding = 5;
                             table.AddCell(headerCell);
                         }
 
-                        // Данные
                         bool alternate = false;
                         foreach (var employee in employees)
                         {
-                            var position = employee.Должность?.Название ?? "-";
-                            var phone = employee.Телефон ?? "-";
-                            var middleName = employee.Отчество ?? "-";
-
                             var cells = new[]
                             {
-                        employee.Код_сотрудника.ToString(),
-                        employee.Фамилия,
-                        employee.Имя,
-                        middleName,
-                        position,
-                        phone,
-                        employee.Логин
-                    };
+                                employee.Код_сотрудника.ToString(),
+                                employee.Фамилия,
+                                employee.Имя,
+                                employee.Отчество ?? "-",
+                                employee.Должность?.Название ?? "-",
+                                employee.Телефон ?? "-",
+                                employee.Логин
+                            };
 
-                            var centerColumns = new HashSet<int> { 0, 5 }; // Код и Телефон по центру
+                            var centerColumns = new HashSet<int> { 0, 5 };
 
                             for (int i = 0; i < cells.Length; i++)
                             {
                                 var cell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cells[i], fontTableCell));
                                 cell.Padding = 5;
-                                cell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
-
-                                if (alternate)
-                                {
-                                    cell.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250);
-                                }
-
-                                if (centerColumns.Contains(i))
-                                {
-                                    cell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
-                                }
-
+                                if (alternate) cell.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250);
+                                if (centerColumns.Contains(i)) cell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
                                 table.AddCell(cell);
                             }
-
                             alternate = !alternate;
                         }
 
                         document.Add(table);
 
-                        // === ИТОГО (по левому краю) ===
-                        var totalParagraph = new iTextSharp.text.Paragraph();
-                        totalParagraph.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
-                        totalParagraph.SpacingBefore = 5;
-                        totalParagraph.SpacingAfter = 3;
-                        totalParagraph.Add(new iTextSharp.text.Chunk($"Всего сотрудников: {totalEmployees}", fontSubtitle));
-                        document.Add(totalParagraph);
+                        // Итого
+                        var totalP = new iTextSharp.text.Paragraph($"Всего сотрудников: {totalEmployees}", fontSubtitle);
+                        totalP.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        totalP.SpacingAfter = 3;
+                        document.Add(totalP);
 
-                        var adminParagraph = new iTextSharp.text.Paragraph();
-                        adminParagraph.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
-                        adminParagraph.SpacingAfter = 3;
-                        adminParagraph.Add(new iTextSharp.text.Chunk($"Администраторы (ур. 1-3): {adminCount}", fontSmall));
-                        document.Add(adminParagraph);
+                        var adminP = new iTextSharp.text.Paragraph($"Администраторы (ур. 1): {adminCount}", fontSmall);
+                        adminP.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        adminP.SpacingAfter = 3;
+                        document.Add(adminP);
 
-                        var managerParagraph = new iTextSharp.text.Paragraph();
-                        managerParagraph.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
-                        managerParagraph.SpacingAfter = 3;
-                        managerParagraph.Add(new iTextSharp.text.Chunk($"Менеджеры (ур. 4-6): {managerCount}", fontSmall));
-                        document.Add(managerParagraph);
+                        var managerP = new iTextSharp.text.Paragraph($"Менеджеры (ур. 2-3): {managerCount}", fontSmall);
+                        managerP.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        managerP.SpacingAfter = 3;
+                        document.Add(managerP);
 
-                        var staffParagraph = new iTextSharp.text.Paragraph();
-                        staffParagraph.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
-                        staffParagraph.SpacingAfter = 35;
-                        staffParagraph.Add(new iTextSharp.text.Chunk($"Младший персонал (ур. 7-10): {staffCount}", fontSmall));
-                        document.Add(staffParagraph);
+                        var staffP = new iTextSharp.text.Paragraph($"Младший персонал (ур. 4-10): {staffCount}", fontSmall);
+                        staffP.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
+                        staffP.SpacingAfter = 35;
+                        document.Add(staffP);
 
-                        // === ПОДПИСЬ (по правому краю) ===
+                        // Подпись
                         var signTable = new iTextSharp.text.pdf.PdfPTable(1);
                         signTable.WidthPercentage = 55;
                         signTable.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
 
-                        // Строка с должностью, ФИО, линией и датой
                         var signCell1 = new iTextSharp.text.pdf.PdfPCell();
                         signCell1.Border = iTextSharp.text.Rectangle.NO_BORDER;
-                        signCell1.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
                         signCell1.PaddingBottom = 3;
-
-                        var signParagraph = new iTextSharp.text.Paragraph();
-                        signParagraph.Add(new iTextSharp.text.Chunk(
-                            $"{currentUser.Должность?.Название ?? "Сотрудник"} {initials} _______________  {DateTime.Now:dd.MM.yyyy}",
-                            fontSign));
-                        signCell1.AddElement(signParagraph);
+                        signCell1.AddElement(new iTextSharp.text.Paragraph(
+                            $"{currentUser.Должность?.Название ?? "Сотрудник"} {initials} _______________  {DateTime.Now:dd.MM.yyyy}", fontSign));
                         signTable.AddCell(signCell1);
 
-                        // Строка с надписью "(Подпись)" — выровнена под линией
                         var signCell2 = new iTextSharp.text.pdf.PdfPCell();
                         signCell2.Border = iTextSharp.text.Rectangle.NO_BORDER;
-                        signCell2.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
                         signCell2.PaddingLeft = 145;
-
-                        var signLine = new iTextSharp.text.Paragraph();
-                        signLine.Add(new iTextSharp.text.Chunk("(Подпись)", fontSmall));
-                        signCell2.AddElement(signLine);
-
+                        signCell2.AddElement(new iTextSharp.text.Paragraph("(Подпись)", fontSmall));
                         signTable.AddCell(signCell2);
-
                         document.Add(signTable);
 
-                        // === ФУТЕР ===
+                        // Футер
                         var footerLine = new iTextSharp.text.pdf.draw.LineSeparator(1f, 100f, iTextSharp.text.BaseColor.LIGHT_GRAY, iTextSharp.text.Element.ALIGN_CENTER, 0);
-                        var footerLineParagraph = new iTextSharp.text.Paragraph();
-                        footerLineParagraph.SpacingBefore = 40;
-                        footerLineParagraph.Add(footerLine);
-                        document.Add(footerLineParagraph);
+                        var flp = new iTextSharp.text.Paragraph();
+                        flp.SpacingBefore = 40;
+                        flp.Add(footerLine);
+                        document.Add(flp);
 
-                        var footerLine1 = new iTextSharp.text.Paragraph();
-                        footerLine1.Add(new iTextSharp.text.Chunk($"{shopName}  |  Часы работы: {shopHours}", fontFooter));
-                        footerLine1.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                        footerLine1.SpacingBefore = 8;
-                        footerLine1.SpacingAfter = 2;
-                        document.Add(footerLine1);
+                        var fl1 = new iTextSharp.text.Paragraph($"{shopName}  |  Часы работы: {shopHours}", fontFooter);
+                        fl1.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                        fl1.SpacingBefore = 8;
+                        fl1.SpacingAfter = 2;
+                        document.Add(fl1);
 
-                        var footerLine2 = new iTextSharp.text.Paragraph();
-                        footerLine2.Add(new iTextSharp.text.Chunk($"{shopPhone}  |  {shopEmail}  |  {shopWebsite}", fontFooter));
-                        footerLine2.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                        footerLine2.SpacingBefore = 2;
-                        document.Add(footerLine2);
+                        var fl2 = new iTextSharp.text.Paragraph($"{shopPhone}  |  {shopEmail}  |  {shopWebsite}", fontFooter);
+                        fl2.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                        document.Add(fl2);
 
                         document.Close();
                     }
                 }
 
-                // Открываем файл
-                var result = MessageBox.Show(
-                    $"Отчёт о сотрудниках сохранён!\n\nФайл: {saveFileDialog.FileName}\nВсего сотрудников: {totalEmployees}\nАдминистраторы: {adminCount}\nМенеджеры: {managerCount}\nМладший персонал: {staffCount}\n\nОткрыть PDF?",
-                    "Отчёт сохранён",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Information);
+                var result = MessageBox.Show($"Отчёт о сотрудниках сохранён!\n\n{saveFileDialog.FileName}\n\nОткрыть PDF?",
+                    "Отчёт сохранён", MessageBoxButton.YesNo, MessageBoxImage.Information);
 
                 if (result == MessageBoxResult.Yes)
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = saveFileDialog.FileName,
-                        UseShellExecute = true
-                    });
-                }
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = saveFileDialog.FileName, UseShellExecute = true });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при сохранении отчета: {ex.Message}\n\nУбедитесь, что библиотека iTextSharp установлена.",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при сохранении отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
+        #endregion
+
+        #region Выбор сотрудника
+
+        /// <summary>
+        /// Заполняет форму данными выбранного сотрудника
+        /// </summary>
         private void ListViewEmployees_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (ListViewEmployees.SelectedItem is EmployeeViewModel selectedEmployee)
@@ -408,24 +321,27 @@ namespace Diplomn.Pages
             }
         }
 
+        /// <summary>
+        /// Загружает фото сотрудника в превью
+        /// </summary>
         private void LoadEmployeePhoto(Сотрудники employee)
         {
             try
             {
                 if (employee?.Аватарка != null && employee.Аватарка.Length > 0)
-                {
                     EmployeePhoto.Source = LoadImageFromBytes(employee.Аватарка);
-                }
                 else
-                {
                     EmployeePhoto.Source = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.RelativeOrAbsolute));
-                }
             }
             catch
             {
                 EmployeePhoto.Source = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.RelativeOrAbsolute));
             }
         }
+
+        #endregion
+
+        #region Выбор фото
 
         private void SelectPhoto_Click(object sender, MouseButtonEventArgs e)
         {
@@ -445,90 +361,80 @@ namespace Diplomn.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при выборе фото: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при выборе фото: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
+        #endregion
+
+        #region Валидация
+
+        /// <summary>
+        /// Проверяет корректность данных сотрудника
+        /// </summary>
         private bool ValidateEmployee(out string errorMessage, bool skipPasswordValidation = false)
         {
             var errors = new StringBuilder();
-            string lastName = GetActualText(TxtLastName);
-            string firstName = GetActualText(TxtFirstName);
-            string middleName = GetActualText(TxtMiddleName);
-            string phone = GetActualText(TxtPhone);
-            string login = GetActualText(TxtLogin);
-            string password = GetActualPassword();
+            var lastName = GetActualText(TxtLastName);
+            var firstName = GetActualText(TxtFirstName);
+            var phone = GetActualText(TxtPhone);
+            var login = GetActualText(TxtLogin);
+            var password = GetActualPassword();
 
-            // Фамилия
             if (string.IsNullOrWhiteSpace(lastName))
                 errors.AppendLine("• Фамилия не введена");
-            else
-            {
-                var allowedRegex = new Regex(@"^[A-Za-zА-Яа-яЁё-]+$");
-                if (!allowedRegex.IsMatch(lastName))
-                    errors.AppendLine("• Фамилия содержит недопустимые символы");
-                else if (lastName.Length > 30)
-                    errors.AppendLine("• Фамилия должна быть не длиннее 30 символов");
-            }
+            else if (!Regex.IsMatch(lastName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
+                errors.AppendLine("• Фамилия содержит недопустимые символы");
+            else if (lastName.Length > 30)
+                errors.AppendLine("• Фамилия должна быть не длиннее 30 символов");
 
-            // Имя
             if (string.IsNullOrWhiteSpace(firstName))
                 errors.AppendLine("• Имя не введено");
-            else
-            {
-                var allowedRegex = new Regex(@"^[A-Za-zА-Яа-яЁё-]+$");
-                if (!allowedRegex.IsMatch(firstName))
-                    errors.AppendLine("• Имя содержит недопустимые символы");
-                else if (firstName.Length > 30)
-                    errors.AppendLine("• Имя должно быть не длиннее 30 символов");
-            }
+            else if (!Regex.IsMatch(firstName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
+                errors.AppendLine("• Имя содержит недопустимые символы");
+            else if (firstName.Length > 30)
+                errors.AppendLine("• Имя должно быть не длиннее 30 символов");
 
-            // Должность
             if (CmbPosition.SelectedValue == null)
                 errors.AppendLine("• Должность не выбрана");
 
-            // Логин
             if (string.IsNullOrWhiteSpace(login))
-                errors.AppendLine("• Логин не введен");
+                errors.AppendLine("• Логин не введён");
 
-            // Пароль
             if (!skipPasswordValidation)
             {
                 if (string.IsNullOrWhiteSpace(password))
-                    errors.AppendLine("• Пароль не введен");
+                    errors.AppendLine("• Пароль не введён");
                 else if (password.Length < 12)
                     errors.AppendLine("• Пароль должен быть не менее 12 символов");
             }
 
-            // Телефон
-            if (!string.IsNullOrWhiteSpace(phone))
-            {
-                var phoneRegex = new Regex(@"^\+?\d{11}$");
-                if (!phoneRegex.IsMatch(phone))
-                    errors.AppendLine("• Неверный формат телефона (11 цифр)");
-            }
+            if (!string.IsNullOrWhiteSpace(phone) && !Regex.IsMatch(phone, @"^\+?\d{11}$"))
+                errors.AppendLine("• Телефон должен содержать 11 цифр");
 
             errorMessage = errors.ToString();
             return errors.Length == 0;
         }
 
+        #endregion
+
+        #region CRUD операции
+
+        /// <summary>
+        /// Добавляет нового сотрудника
+        /// </summary>
         private void Add_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (!ValidateEmployee(out string errorMessage))
+                if (!ValidateEmployee(out var error))
                 {
-                    MessageBox.Show(errorMessage, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(error, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                string lastName = GetActualText(TxtLastName);
-                string firstName = GetActualText(TxtFirstName);
-                string middleName = GetActualText(TxtMiddleName);
-                string phone = GetActualText(TxtPhone);
-                string login = GetActualText(TxtLogin);
-                string password = GetActualPassword();
+                var login = GetActualText(TxtLogin);
+                var phone = GetActualText(TxtPhone);
 
                 if (context.Сотрудники.Any(s => s.Логин == login))
                 {
@@ -544,13 +450,13 @@ namespace Diplomn.Pages
 
                 var employee = new Сотрудники
                 {
-                    Фамилия = lastName,
-                    Имя = firstName,
-                    Отчество = middleName,
+                    Фамилия = GetActualText(TxtLastName),
+                    Имя = GetActualText(TxtFirstName),
+                    Отчество = GetActualText(TxtMiddleName),
                     Телефон = phone,
                     Код_должности = (int)CmbPosition.SelectedValue,
                     Логин = login,
-                    Пароль = password,
+                    Пароль = GetActualPassword(),
                     Аватарка = selectedImageData
                 };
 
@@ -567,6 +473,9 @@ namespace Diplomn.Pages
             }
         }
 
+        /// <summary>
+        /// Обновляет данные выбранного сотрудника
+        /// </summary>
         private void Update_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -577,16 +486,14 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                string password = GetActualPassword();
-                bool skipPasswordValidation = string.IsNullOrEmpty(password);
-
-                if (!ValidateEmployee(out string errorMessage, skipPasswordValidation))
+                var skipPassword = string.IsNullOrEmpty(GetActualPassword());
+                if (!ValidateEmployee(out var error, skipPassword))
                 {
-                    MessageBox.Show(errorMessage, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(error, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                int employeeId = int.Parse(TxtEmployeeId.Text);
+                var employeeId = int.Parse(TxtEmployeeId.Text);
                 var employee = context.Сотрудники.Find(employeeId);
 
                 if (employee == null)
@@ -595,11 +502,8 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                string lastName = GetActualText(TxtLastName);
-                string firstName = GetActualText(TxtFirstName);
-                string middleName = GetActualText(TxtMiddleName);
-                string phone = GetActualText(TxtPhone);
-                string login = GetActualText(TxtLogin);
+                var login = GetActualText(TxtLogin);
+                var phone = GetActualText(TxtPhone);
 
                 if (context.Сотрудники.Any(s => s.Логин == login && s.Код_сотрудника != employeeId))
                 {
@@ -613,28 +517,28 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                employee.Фамилия = lastName;
-                employee.Имя = firstName;
-                employee.Отчество = middleName;
+                employee.Фамилия = GetActualText(TxtLastName);
+                employee.Имя = GetActualText(TxtFirstName);
+                employee.Отчество = GetActualText(TxtMiddleName);
                 employee.Телефон = phone;
                 employee.Код_должности = (int)CmbPosition.SelectedValue;
                 employee.Логин = login;
 
-                if (!string.IsNullOrEmpty(password))
-                    employee.Пароль = password;
+                if (!string.IsNullOrEmpty(GetActualPassword()))
+                    employee.Пароль = GetActualPassword();
 
                 if (selectedImageData != null)
                     employee.Аватарка = selectedImageData;
 
-                // Обновление currentUser если редактируется текущий пользователь
+                // Если редактируется текущий пользователь — обновляем его локально
                 if (currentUser.Код_сотрудника == employee.Код_сотрудника)
                 {
                     currentUser.Фамилия = employee.Фамилия;
                     currentUser.Имя = employee.Имя;
                     currentUser.Отчество = employee.Отчество;
                     currentUser.Телефон = employee.Телефон;
-                    if (!string.IsNullOrEmpty(password))
-                        currentUser.Пароль = password;
+                    if (!string.IsNullOrEmpty(GetActualPassword()))
+                        currentUser.Пароль = GetActualPassword();
                     if (selectedImageData != null)
                         currentUser.Аватарка = selectedImageData;
 
@@ -644,7 +548,7 @@ namespace Diplomn.Pages
 
                 context.SaveChanges();
 
-                MessageBox.Show("Сотрудник обновлен!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Сотрудник обновлён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 LoadData();
                 ClearForm();
             }
@@ -655,38 +559,8 @@ namespace Diplomn.Pages
         }
 
         /// <summary>
-        /// Получает реальный текст из TextBox, игнорируя плейсхолдер
+        /// Удаляет выбранного сотрудника
         /// </summary>
-        private string GetActualText(TextBox textBox)
-        {
-            if (textBox == null) return string.Empty;
-
-            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
-            var text = textBox.Text?.Trim() ?? string.Empty;
-
-            // Если текст совпадает с плейсхолдером, значит реальных данных нет
-            if (!string.IsNullOrEmpty(placeholderText) && text == placeholderText)
-                return string.Empty;
-
-            return text;
-        }
-
-        /// <summary>
-        /// Получает реальный пароль из PasswordBox, игнорируя плейсхолдер
-        /// </summary>
-        private string GetActualPassword()
-        {
-            if (PassBox == null) return string.Empty;
-
-            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(PassBox);
-            var password = PassBox.Password ?? string.Empty;
-
-            // Если пароль совпадает с плейсхолдером, значит реальных данных нет
-            if (!string.IsNullOrEmpty(placeholderText) && password == placeholderText)
-                return string.Empty;
-
-            return password;
-        }
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -697,7 +571,7 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                int employeeId = int.Parse(TxtEmployeeId.Text);
+                var employeeId = int.Parse(TxtEmployeeId.Text);
                 var employee = context.Сотрудники.Find(employeeId);
 
                 if (employee == null)
@@ -708,18 +582,18 @@ namespace Diplomn.Pages
 
                 if (currentUser.Код_сотрудника == employee.Код_сотрудника)
                 {
-                    MessageBox.Show("Нельзя удалить свою учетную запись!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Нельзя удалить свою учётную запись!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                var result = MessageBox.Show($"Удалить сотрудника '{employee.Фамилия} {employee.Имя}'?",
+                var result = MessageBox.Show($"Удалить сотрудника «{employee.Фамилия} {employee.Имя}»?",
                     "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
                     context.Сотрудники.Remove(employee);
                     context.SaveChanges();
-                    MessageBox.Show("Сотрудник удален!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Сотрудник удалён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                     LoadData();
                     ClearForm();
                 }
@@ -730,7 +604,9 @@ namespace Diplomn.Pages
             }
         }
 
-        private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+        #endregion
+
+        #region Очистка формы
 
         private void ClearForm()
         {
@@ -746,6 +622,48 @@ namespace Diplomn.Pages
             selectedImageData = null;
             ListViewEmployees.SelectedItem = null;
         }
+
+        private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+
+        #endregion
+
+        #region Вспомогательные методы
+
+        private BitmapImage LoadImageFromBytes(byte[] imageData)
+        {
+            if (imageData == null || imageData.Length == 0) return null;
+            try
+            {
+                using (var ms = new MemoryStream(imageData))
+                {
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.StreamSource = ms;
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    return bitmap;
+                }
+            }
+            catch { return null; }
+        }
+
+        private string GetActualText(TextBox textBox)
+        {
+            if (textBox == null) return string.Empty;
+            var placeholder = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
+            var text = textBox.Text?.Trim() ?? string.Empty;
+            return (!string.IsNullOrEmpty(placeholder) && text == placeholder) ? string.Empty : text;
+        }
+
+        private string GetActualPassword()
+        {
+            if (PassBox == null) return string.Empty;
+            var placeholder = Addons.PlaceholderBehavior.GetPlaceholderText(PassBox);
+            var password = PassBox.Password ?? string.Empty;
+            return (!string.IsNullOrEmpty(placeholder) && password == placeholder) ? string.Empty : password;
+        }
+
+        #endregion
     }
 
     /// <summary>
@@ -761,6 +679,9 @@ namespace Diplomn.Pages
         public string Логин { get; set; }
         public BitmapImage AvatarSource { get; set; }
 
+        /// <summary>
+        /// Полное имя сотрудника (Фамилия Имя Отчество)
+        /// </summary>
         public string FullName
         {
             get
@@ -770,17 +691,28 @@ namespace Diplomn.Pages
             }
         }
 
-        public string Position => OriginalEmployee.Должность?.Название ?? "Без должности";
+        /// <summary>
+        /// Название должности сотрудника
+        /// </summary>
+        public string Position => OriginalEmployee.Должность?.Название ?? "Без должности"; //убрать?
 
+        /// <summary>
+        /// Логин с иконкой для отображения
+        /// </summary>
         public string LoginDisplay => $"🔑 {Логин}";
 
+        /// <summary>
+        /// Уровень доступа с текстовым описанием
+        /// </summary>
         public string AccessLevelDisplay
         {
             get
             {
                 var level = OriginalEmployee.Должность?.Уровень_доступа;
-                if (!level.HasValue) return "🔒 Уровень доступа: не определен";
-                return level.Value >= 4 ? "👑 Администратор" : $"🔒 Уровень доступа: {level}";
+                if (!level.HasValue) return "🔒 Уровень доступа: не определён";
+                return level.Value == 1 ? $"👑 Администратор (ур. {level})" :
+                       level.Value <= 3 ? $"⭐ Менеджер (ур. {level})" :
+                                          $"🔒 Сотрудник (ур. {level})";
             }
         }
 

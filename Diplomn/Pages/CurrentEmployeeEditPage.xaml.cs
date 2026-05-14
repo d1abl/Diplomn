@@ -1,29 +1,31 @@
 ﻿using Diplomn.Addons;
 using Microsoft.Win32;
 using System;
-using System.Collections.Generic;
-using System.Data.Entity;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Diplomn.Pages
 {
+    /// <summary>
+    /// Страница редактирования профиля текущего пользователя
+    /// </summary>
     public partial class CurrentEmployeeEditPage : Page
     {
+        #region Поля
+
         private BDEntities context;
         private Сотрудники currentUser;
         private byte[] selectedImageData;
+
+        #endregion
+
+        #region Конструктор
 
         public CurrentEmployeeEditPage(Сотрудники user)
         {
@@ -33,22 +35,31 @@ namespace Diplomn.Pages
             LoadData();
         }
 
+        #endregion
+
+        #region Загрузка данных
+
+        /// <summary>
+        /// Заполняет форму данными текущего пользователя
+        /// </summary>
         private void LoadData()
         {
             if (currentUser == null) return;
 
             TxtLastName.Text = currentUser.Фамилия;
             TxtFirstName.Text = currentUser.Имя;
-            TxtMiddleName.Text = currentUser?.Отчество;
-            TxtPhone.Text = currentUser?.Телефон;
-            TxtEmployeePosition.Text = currentUser.Должность.Название;
+            TxtMiddleName.Text = currentUser.Отчество;
+            TxtPhone.Text = currentUser.Телефон;
+            TxtEmployeePosition.Text = currentUser.Должность?.Название ?? "Не назначена";
             TxtLogin.Text = currentUser.Логин;
             PassBox.Password = currentUser.Пароль;
 
-            // Загрузка фото пользователя
             LoadUserPhoto();
         }
 
+        /// <summary>
+        /// Загружает фотографию пользователя из базы данных
+        /// </summary>
         private void LoadUserPhoto()
         {
             try
@@ -65,28 +76,28 @@ namespace Diplomn.Pages
                         EmployeeImage.Source = bitmap;
                     }
                 }
-                else
-                {
-                    // Установка изображения по умолчанию
-                    EmployeeImage.Source = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.Relative));
-                }
             }
-            catch (Exception ex)
+            catch
             {
-                MessageBox.Show($"Ошибка загрузки фото: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                EmployeeImage.Source = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.Relative));
+                // Оставляем изображение по умолчанию
             }
         }
 
+        #endregion
+
+        #region Выбор фото
+
+        /// <summary>
+        /// Открывает диалог выбора фотографии
+        /// </summary>
         private void SelectPhoto_Click(object sender, MouseButtonEventArgs e)
         {
             try
             {
-                OpenFileDialog openFileDialog = new OpenFileDialog
+                var openFileDialog = new OpenFileDialog
                 {
-                    Filter = "Изображения (*.jpg; *.jpeg; *.png; *.bmp)|*.jpg;*.jpeg;*.png;*.bmp|Все файлы (*.*)|*.*",
-                    Title = "Выберите фотографию сотрудника"
+                    Filter = "Изображения (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp",
+                    Title = "Выберите фотографию"
                 };
 
                 if (openFileDialog.ShowDialog() == true)
@@ -106,146 +117,127 @@ namespace Diplomn.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при выборе фото: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при выборе фото: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
+        #endregion
+
+        #region Валидация
+
+        /// <summary>
+        /// Проверяет корректность введённых данных
+        /// </summary>
+        /// <param name="skipPasswordValidation">Пропустить проверку пароля (если не менялся)</param>
         private bool ValidateEmployee(out string errorMessage, bool skipPasswordValidation = false)
         {
             var errors = new StringBuilder();
 
-            string lastName = GetActualText(TxtLastName);
-            string firstName = GetActualText(TxtFirstName);
-            string middleName = GetActualText(TxtMiddleName);
-            string phone = GetActualText(TxtPhone);
-            string password = GetActualPassword();
+            var lastName = GetActualText(TxtLastName);
+            var firstName = GetActualText(TxtFirstName);
+            var middleName = GetActualText(TxtMiddleName);
+            var phone = GetActualText(TxtPhone);
+            var password = GetActualPassword();
 
             // Фамилия
             if (string.IsNullOrWhiteSpace(lastName))
-                errors.AppendLine("❌ Фамилия не введена!");
+                errors.AppendLine("• Фамилия не введена");
             else
             {
-                var allowedRegex = new Regex(@"^[A-Za-zА-Яа-яЁё-]+$");
-                if (!allowedRegex.IsMatch(lastName))
-                    errors.AppendLine("❌ Фамилия содержит недопустимые символы!");
+                if (!Regex.IsMatch(lastName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
+                    errors.AppendLine("• Фамилия содержит недопустимые символы");
                 else if (lastName.Length > 30)
-                    errors.AppendLine("❌ Фамилия должна быть не длиннее 30 символов!");
-                else
-                {
-                    var lettersOnly = Regex.Replace(lastName, @"[^A-Za-zА-Яа-яЁё]", "");
-                    if (lettersOnly.Length < 2)
-                        errors.AppendLine("❌ Фамилия должна содержать минимум 2 буквы!");
-                    var vowelRegex = new Regex(@"[AEIOUYaeiouyАЕЁИОУЫЭЮЯаеёиоуыэюя]");
-                    if (!vowelRegex.IsMatch(lettersOnly))
-                        errors.AppendLine("❌ Фамилия должна содержать хотя бы одну гласную!");
-                }
+                    errors.AppendLine("• Фамилия должна быть не длиннее 30 символов");
+                else if (Regex.Replace(lastName, @"[^A-Za-zА-Яа-яЁё]", "").Length < 2)
+                    errors.AppendLine("• Фамилия должна содержать минимум 2 буквы");
             }
 
             // Имя
             if (string.IsNullOrWhiteSpace(firstName))
-                errors.AppendLine("❌ Имя не введено!");
+                errors.AppendLine("• Имя не введено");
             else
             {
-                var allowedRegex = new Regex(@"^[A-Za-zА-Яа-яЁё-]+$");
-                if (!allowedRegex.IsMatch(firstName))
-                    errors.AppendLine("❌ Имя содержит недопустимые символы!");
+                if (!Regex.IsMatch(firstName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
+                    errors.AppendLine("• Имя содержит недопустимые символы");
                 else if (firstName.Length > 30)
-                    errors.AppendLine("❌ Имя должно быть не длиннее 30 символов!");
-                else
-                {
-                    var lettersOnly = Regex.Replace(firstName, @"[^A-Za-zА-Яа-яЁё]", "");
-                    if (lettersOnly.Length < 2)
-                        errors.AppendLine("❌ Имя должно содержать минимум 2 буквы!");
-                    var vowelRegex = new Regex(@"[AEIOUYaeiouyАЕЁИОУЫЭЮЯаеёиоуыэюя]");
-                    if (!vowelRegex.IsMatch(lettersOnly))
-                        errors.AppendLine("❌ Имя должно содержать хотя бы одну гласную!");
-                }
+                    errors.AppendLine("• Имя должно быть не длиннее 30 символов");
+                else if (Regex.Replace(firstName, @"[^A-Za-zА-Яа-яЁё]", "").Length < 2)
+                    errors.AppendLine("• Имя должно содержать минимум 2 буквы");
             }
 
-            // Отчество (опционально)
+            // Отчество (опционально, но с проверкой если введено)
             if (!string.IsNullOrWhiteSpace(middleName))
             {
-                var allowedRegex = new Regex(@"^[A-Za-zА-Яа-яЁё-]+$");
-                if (!allowedRegex.IsMatch(middleName))
-                    errors.AppendLine("❌ Отчество содержит недопустимые символы!");
+                if (!Regex.IsMatch(middleName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
+                    errors.AppendLine("• Отчество содержит недопустимые символы");
                 else if (middleName.Length > 30)
-                    errors.AppendLine("❌ Отчество должно быть не длиннее 30 символов!");
-                else
-                {
-                    var lettersOnly = Regex.Replace(middleName, @"[^A-Za-zА-Яа-яЁё]", "");
-                    if (lettersOnly.Length < 2)
-                        errors.AppendLine("❌ Отчество должно содержать минимум 2 буквы!");
-                    var vowelRegex = new Regex(@"[AEIOUYaeiouyАЕЁИОУЫЭЮЯаеёиоуыэюя]");
-                    if (!vowelRegex.IsMatch(lettersOnly))
-                        errors.AppendLine("❌ Отчество должно содержать хотя бы одну гласную!");
-                }
+                    errors.AppendLine("• Отчество должно быть не длиннее 30 символов");
             }
 
-            // Пароль
+            // Пароль (проверяется только если не пропущен)
             if (!skipPasswordValidation)
             {
                 if (string.IsNullOrWhiteSpace(password))
-                    errors.AppendLine("❌ Пароль не введен!");
-                else
-                {
-                    if (password.Length < 12)
-                        errors.AppendLine("❌ Пароль должен быть не менее 12 символов!");
-                    if (!Regex.IsMatch(password, "[A-ZА-ЯЁ]"))
-                        errors.AppendLine("❌ Пароль должен содержать хотя бы одну заглавную букву!");
-                    if (!Regex.IsMatch(password, "[a-zа-яё]"))
-                        errors.AppendLine("❌ Пароль должен содержать хотя бы одну строчную букву!");
-                    if (!Regex.IsMatch(password, "\\d"))
-                        errors.AppendLine("❌ Пароль должен содержать хотя бы одну цифру!");
-                    if (!Regex.IsMatch(password, "[^A-Za-zА-Яа-яЁё0-9]"))
-                        errors.AppendLine("❌ Пароль должен содержать хотя бы один специальный символ!");
-                }
+                    errors.AppendLine("• Пароль не введён");
+                else if (password.Length < 12)
+                    errors.AppendLine("• Пароль должен быть не менее 12 символов");
             }
 
-            // Телефон
+            // Телефон (опционально)
             if (!string.IsNullOrWhiteSpace(phone))
             {
-                var phoneRegex = new Regex(@"^\+?\d{11}$");
-                if (!phoneRegex.IsMatch(phone))
-                    errors.AppendLine("❌ Неверный формат телефона. Ожидается 11 цифр, можно с '+' в начале.");
+                if (!Regex.IsMatch(phone, @"^\+?\d{11}$"))
+                    errors.AppendLine("• Телефон должен содержать 11 цифр");
             }
 
             errorMessage = errors.ToString();
             return errors.Length == 0;
         }
 
+        #endregion
+
+        #region Сохранение изменений
+
+        /// <summary>
+        /// Сохраняет изменения профиля в базу данных
+        /// </summary>
         private void Update_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // При обновлении пароль может оставаться пустым (не изменяется)
-                string password = GetActualPassword();
-                bool skipPasswordValidation = string.IsNullOrEmpty(password);
+                // Если пароль не введён — не проверяем его
+                var password = GetActualPassword();
+                var skipPasswordValidation = string.IsNullOrEmpty(password);
 
-                if (!ValidateEmployee(out string errorMessage, skipPasswordValidation))
+                if (!ValidateEmployee(out var errorMessage, skipPasswordValidation))
                 {
-                    MessageBox.Show(errorMessage, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(errorMessage, "Ошибка валидации",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                string phone = GetActualText(TxtPhone);
-
-                // Находим сотрудника в базе данных
+                // Находим сотрудника в базе
                 var employee = context.Сотрудники.Find(currentUser.Код_сотрудника);
-
                 if (employee == null)
                 {
-                    MessageBox.Show("Сотрудник не найден!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("Сотрудник не найден в базе данных!", "Ошибка",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
-                // Проверка уникальности телефона (если указан, исключая текущего сотрудника)
+                var phone = GetActualText(TxtPhone);
+
+                // Проверка уникальности телефона
                 if (!string.IsNullOrWhiteSpace(phone))
                 {
-                    bool phoneExists = context.Сотрудники.Any(s => s.Телефон == phone && s.Код_сотрудника != currentUser.Код_сотрудника);
+                    var phoneExists = context.Сотрудники.Any(s =>
+                        s.Телефон == phone && s.Код_сотрудника != currentUser.Код_сотрудника);
+
                     if (phoneExists)
                     {
-                        MessageBox.Show("Телефон уже используется другим сотрудником!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        MessageBox.Show("Этот телефон уже используется другим сотрудником!",
+                            "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                         return;
                     }
                 }
@@ -256,85 +248,80 @@ namespace Diplomn.Pages
                 employee.Отчество = GetActualText(TxtMiddleName);
                 employee.Телефон = phone;
 
-                // Обновляем пароль только если он был введен
+                // Пароль меняем только если был введён новый
                 if (!string.IsNullOrEmpty(password))
-                {
                     employee.Пароль = password;
-                }
 
-                // Обновляем аватар если был выбран новый
+                // Фото меняем только если было выбрано новое
                 if (selectedImageData != null)
-                {
                     employee.Аватарка = selectedImageData;
-                }
 
                 context.SaveChanges();
 
-                // Обновляем локальный объект
+                // Обновляем локальный объект пользователя
                 currentUser.Фамилия = employee.Фамилия;
                 currentUser.Имя = employee.Имя;
                 currentUser.Отчество = employee.Отчество;
                 currentUser.Телефон = employee.Телефон;
+
                 if (!string.IsNullOrEmpty(password))
-                {
-                    currentUser.Пароль = employee.Пароль;
-                }
+                    currentUser.Пароль = password;
+
                 if (selectedImageData != null)
-                {
                     currentUser.Аватарка = selectedImageData;
-                }
 
-                // Обновляем отображение в MainWindow
+                // Обновляем отображение в главном окне
                 var mainWindow = Application.Current.Windows.OfType<MainWindow>().FirstOrDefault();
-                if (mainWindow != null)
-                {
-                    mainWindow.SetCurrentUser(currentUser);
-                }
+                mainWindow?.SetCurrentUser(currentUser);
 
-                MessageBox.Show("Данные успешно обновлены!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Данные успешно обновлены!", "Успех",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
 
-                // Возвращаемся назад
+                // Возвращаемся на предыдущую страницу
                 if (NavigationService.CanGoBack)
-                {
                     NavigationService.GoBack();
-                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при обновлении данных: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при обновлении данных: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
+        #endregion
+
+        #region Вспомогательные методы
+
         /// <summary>
-        /// Получает реальный текст из TextBox, игнорируя плейсхолдер
+        /// Возвращает реальный текст из TextBox, игнорируя placeholder
         /// </summary>
         private string GetActualText(TextBox textBox)
         {
             if (textBox == null) return string.Empty;
 
-            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
+            var placeholder = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
             var text = textBox.Text?.Trim() ?? string.Empty;
 
-            if (!string.IsNullOrEmpty(placeholderText) && text == placeholderText)
-                return string.Empty;
-
-            return text;
+            return (!string.IsNullOrEmpty(placeholder) && text == placeholder)
+                ? string.Empty
+                : text;
         }
 
         /// <summary>
-        /// Получает реальный пароль из PasswordBox, игнорируя плейсхолдер
+        /// Возвращает реальный пароль из PasswordBox, игнорируя placeholder
         /// </summary>
         private string GetActualPassword()
         {
             if (PassBox == null) return string.Empty;
 
-            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(PassBox);
+            var placeholder = Addons.PlaceholderBehavior.GetPlaceholderText(PassBox);
             var password = PassBox.Password ?? string.Empty;
 
-            if (!string.IsNullOrEmpty(placeholderText) && password == placeholderText)
-                return string.Empty;
-
-            return password;
+            return (!string.IsNullOrEmpty(placeholder) && password == placeholder)
+                ? string.Empty
+                : password;
         }
+
+        #endregion
     }
 }

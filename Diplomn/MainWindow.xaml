@@ -121,7 +121,6 @@
                                     <TextBlock Text="📦" FontSize="24" VerticalAlignment="Center"/>
                                     <StackPanel Margin="5,0,0,0">
                                         <TextBlock Text="Товары" FontSize="24"/>
-                                        <!--<TextBlock Text="Каталог товаров" FontSize="10"/>-->
                                     </StackPanel>
                                 </StackPanel>
                             </Button>
@@ -131,7 +130,43 @@
                                     <TextBlock Text="📁" FontSize="24" VerticalAlignment="Center"/>
                                     <StackPanel Margin="5,0,0,0">
                                         <TextBlock Text="Категории" FontSize="24"/>
-                                        <!--<TextBlock Text="Категории товаров" FontSize="10"/>-->
+                                    </StackPanel>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- НОВЫЕ КНОПКИ -->
+                            <Button Width="200" Height="50" Margin="10" Click="BrandsBtn_Click">
+                                <StackPanel Orientation="Horizontal" Width="200">
+                                    <TextBlock Text="🏷" FontSize="24" VerticalAlignment="Center"/>
+                                    <StackPanel Margin="5,0,0,0">
+                                        <TextBlock Text="Бренды" FontSize="24"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Width="200" Height="50" Margin="10" Click="ManufacturersBtn_Click">
+                                <StackPanel Orientation="Horizontal" Width="200">
+                                    <TextBlock Text="🏭" FontSize="24" VerticalAlignment="Center"/>
+                                    <StackPanel Margin="5,0,0,0">
+                                        <TextBlock Text="Производители" FontSize="24"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Width="200" Height="50" Margin="10" Click="MaterialsBtn_Click">
+                                <StackPanel Orientation="Horizontal" Width="200">
+                                    <TextBlock Text="🔧" FontSize="24" VerticalAlignment="Center"/>
+                                    <StackPanel Margin="5,0,0,0">
+                                        <TextBlock Text="Материалы" FontSize="24"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Width="200" Height="50" Margin="10" Click="PackingsBtn_Click">
+                                <StackPanel Orientation="Horizontal" Width="200">
+                                    <TextBlock Text="📏" FontSize="24" VerticalAlignment="Center"/>
+                                    <StackPanel Margin="5,0,0,0">
+                                        <TextBlock Text="Фасовка" FontSize="24"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Button>
@@ -141,7 +176,6 @@
                                     <TextBlock Text="🚚" FontSize="24" VerticalAlignment="Center"/>
                                     <StackPanel Margin="5,0,0,0">
                                         <TextBlock Text="Поставщики" FontSize="24"/>
-                                        <!--<TextBlock Text="Управление поставщиками" FontSize="10"/>-->
                                     </StackPanel>
                                 </StackPanel>
                             </Button>
