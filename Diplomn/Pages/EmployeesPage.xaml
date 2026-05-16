@@ -77,7 +77,7 @@
                     </ListView.ItemsPanel>
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <Border Margin="4" Width="345" Height="140"
+                            <Border Margin="4" Width="200" Height="140"
                                     Background="{DynamicResource BackgroundBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" 
                                     BorderThickness="1" CornerRadius="6"
@@ -111,7 +111,7 @@
                                         </Border>
                                         <StackPanel VerticalAlignment="Center">
                                             <TextBlock Text="{Binding FullName}" FontWeight="Bold" FontSize="14"
-                                                       TextWrapping="Wrap" MaxWidth="250"
+                                                       TextWrapping="Wrap" MaxWidth="150"
                                                        Foreground="{DynamicResource ForegroundBrush}"/>
                                             <TextBlock Text="{Binding Position}" FontSize="11"
                                                        Foreground="{DynamicResource AccentBrush}" Margin="0,3,0,0"/>

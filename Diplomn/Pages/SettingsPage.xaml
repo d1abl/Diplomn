@@ -90,7 +90,7 @@
                                 <ComboBoxItem Content="Theme 2" Tag="Theme2" />
                                 <ComboBoxItem Content="Theme 3" Tag="Theme3" />
                             </ComboBox>
-                            <Button Content="Применить тему" Click="ApplyTheme_Click" Width="140" Margin="0,8,0,0" />
+                            <Button Content="Сохранить тему" Click="ApplyTheme_Click" Width="140" Margin="0,8,0,0" />
                         </StackPanel>
                     </StackPanel>
                 </Border>

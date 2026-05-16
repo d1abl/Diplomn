@@ -39,10 +39,15 @@ namespace Diplomn.Pages
 
         private void ThemeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Optional: preview theme on selection
+            ApplyTheme();
         }
 
         private void ApplyTheme_Click(object sender, RoutedEventArgs e)
+        {
+            ApplyTheme();
+            MessageBox.Show("Тема сохранена", "Информация" ,MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        private void ApplyTheme()
         {
             if (ThemeSelector.SelectedItem is ComboBoxItem item && item.Tag is string tag && themes.ContainsKey(tag))
             {
