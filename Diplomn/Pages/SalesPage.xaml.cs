@@ -1,12 +1,11 @@
-﻿using Microsoft.Win32;
+﻿using Diplomn.Addons;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.Entity;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -16,92 +15,52 @@ using System.Windows.Media.Imaging;
 
 namespace Diplomn.Pages
 {
+    /// <summary>
+    /// Страница управления продажами магазина
+    /// </summary>
     public partial class SalesPage : Page
     {
+        #region Поля
+
         private BDEntities context;
         private Сотрудники currentUser;
         private ObservableCollection<SaleViewModel> salesView;
         private ObservableCollection<ProductSaleViewModel> productsView;
         private ObservableCollection<SaleItemDisplay> newSaleItems;
-        private bool isLoading = false;
-        private int? editingSaleCode = null; // Код редактируемого чека
-        private FilterState savedFilterState = null;
+        private AccessManager.AccessRights rights;
+        private int? editingSaleCode = null;
+        private const int MaxEditHours = 24;
+
+        // Контейнеры для кнопок в режиме просмотра
+        private Grid btnNewSaleContainer;
+        private Grid btnEditSaleContainer;
+        private Grid btnDeleteSaleContainer;
+        private Grid btnPrintSaleContainer;
+        private Grid btnClearContainer;
+
+        // Контейнеры для кнопок в режиме создания/редактирования
+        private Grid btnSaveNewSaleContainer;
+        private Grid btnCancelNewSaleContainer;
+
+        #endregion
+
+        #region Вспомогательные классы
 
         public class SaleItemDisplay
         {
             public string Товар { get; set; }
             public int Количество { get; set; }
+            public int OriginalQuantity { get; set; }
             public decimal Цена { get; set; }
             public decimal Сумма => Количество * Цена;
             public string PriceQuantityDisplay => $"{Цена:N2} ₽ × {Количество} шт.";
             public BitmapImage PhotoSource { get; set; }
         }
-        private class FilterState
-        {
-            public string SearchText { get; set; }
-            public DateTime? DateFrom { get; set; }
-            public DateTime? DateTo { get; set; }
-            public int EmployeeIndex { get; set; }
-            public string SortMode { get; set; } // "date", "date_asc", "amount", "amount_asc", "code", "code_asc"
-        }
-        private void SaveFilterState()
-        {
-            savedFilterState = new FilterState
-            {
-                SearchText = TxtSearch.Text,
-                DateFrom = DateFrom.SelectedDate,
-                DateTo = DateTo.SelectedDate,
-                EmployeeIndex = CmbEmployee.SelectedIndex,
-                SortMode = RbSortByDate.IsChecked == true ? "date" :
-                           RbSortByDateAsc.IsChecked == true ? "date_asc" :
-                           RbSortByAmount.IsChecked == true ? "amount" :
-                           RbSortByAmountAsc.IsChecked == true ? "amount_asc" :
-                           RbSortByCode.IsChecked == true ? "code" :
-                           RbSortByCodeAsc.IsChecked == true ? "code_asc" : "date"
-            };
-        }
 
-        private void RestoreFilterState()
-        {
-            if (savedFilterState == null) return;
+        #endregion
 
-            TxtSearch.Text = savedFilterState.SearchText;
-            DateFrom.SelectedDate = savedFilterState.DateFrom;
-            DateTo.SelectedDate = savedFilterState.DateTo;
+        #region Конструктор
 
-            // Временно отписываемся от события, чтобы не вызвать ApplyFilters до восстановления всех фильтров
-            if (CmbEmployee != null)
-            {
-                CmbEmployee.SelectedIndex = savedFilterState.EmployeeIndex >= 0 ? savedFilterState.EmployeeIndex : 0;
-            }
-
-            // Восстанавливаем сортировку (отписываемся от событий чтобы избежать множественных вызовов)
-            RbSortByDate.Checked -= SortChanged;
-            RbSortByDateAsc.Checked -= SortChanged;
-            RbSortByAmount.Checked -= SortChanged;
-            RbSortByAmountAsc.Checked -= SortChanged;
-            RbSortByCode.Checked -= SortChanged;
-            RbSortByCodeAsc.Checked -= SortChanged;
-
-            switch (savedFilterState.SortMode)
-            {
-                case "date": RbSortByDate.IsChecked = true; break;
-                case "date_asc": RbSortByDateAsc.IsChecked = true; break;
-                case "amount": RbSortByAmount.IsChecked = true; break;
-                case "amount_asc": RbSortByAmountAsc.IsChecked = true; break;
-                case "code": RbSortByCode.IsChecked = true; break;
-                case "code_asc": RbSortByCodeAsc.IsChecked = true; break;
-                default: RbSortByDate.IsChecked = true; break;
-            }
-
-            // Подписываемся обратно
-            RbSortByDate.Checked += SortChanged;
-            RbSortByDateAsc.Checked += SortChanged;
-            RbSortByAmount.Checked += SortChanged;
-            RbSortByAmountAsc.Checked += SortChanged;
-            RbSortByCode.Checked += SortChanged;
-            RbSortByCodeAsc.Checked += SortChanged;
-        }
         public SalesPage(Сотрудники user)
         {
             InitializeComponent();
@@ -111,103 +70,293 @@ namespace Diplomn.Pages
             salesView = new ObservableCollection<SaleViewModel>();
             productsView = new ObservableCollection<ProductSaleViewModel>();
             newSaleItems = new ObservableCollection<SaleItemDisplay>();
+
+            rights = AccessManager.GetAccessRights(user.Должность?.Уровень_доступа ?? 10);
+
             ListViewSales.ItemsSource = salesView;
             ListViewNewSaleItems.ItemsSource = newSaleItems;
 
-            // Отключаем кэширование для получения свежих данных
-            context.Configuration.LazyLoadingEnabled = false;
-            context.Configuration.ProxyCreationEnabled = false;
-
-            // Подписываемся на событие выгрузки страницы для освобождения ресурсов
-            this.Unloaded += SalesPage_Unloaded;
-
+            CreateViewModeButtons();
+            CreateNewSaleModeButtons();
             LoadEmployees();
 
-            // Загружаем данные после полной загрузки страницы
             this.Loaded += (s, e) =>
             {
-                LoadAllSalesWithoutFilters();
+                LoadAllSales();
                 LoadGrandTotal();
             };
         }
-        private void LoadGrandTotal()
+
+        #endregion
+
+        #region Создание кнопок с overlay
+
+        private void CreateViewModeButtons()
         {
-            try
+            ViewModeButtons.Children.Clear();
+
+            // Кнопка "Новая продажа"
+            if (rights.Sales.CanCreate)
             {
-                var query = context.Состав_продажи.AsQueryable();
+                var (newBtn, newOverlay) = CreateButtonWithOverlay("➕ Новая продажа", NewSale_Click, 140);
+                newBtn.IsEnabled = true;
+                newOverlay.Visibility = Visibility.Collapsed;
+                btnNewSaleContainer = CreateButtonContainer(newBtn, newOverlay);
+                ViewModeButtons.Children.Add(btnNewSaleContainer);
+            }
 
-                // Применяем фильтр по дате
-                if (DateFrom.SelectedDate.HasValue)
-                {
-                    var dateFrom = DateFrom.SelectedDate.Value.Date;
-                    query = query.Where(i => DbFunctions.TruncateTime(i.Продажи.Дата_продажи) >= dateFrom);
-                }
+            // Кнопка "Редактировать"
+            if (rights.Sales.CanEdit)
+            {
+                var (editBtn, editOverlay) = CreateButtonWithOverlay("✏ Редактировать", EditSale_Click, 120);
+                btnEditSaleContainer = CreateButtonContainer(editBtn, editOverlay);
+                ViewModeButtons.Children.Add(btnEditSaleContainer);
+            }
 
-                if (DateTo.SelectedDate.HasValue)
-                {
-                    var dateTo = DateTo.SelectedDate.Value.Date.AddDays(1);
-                    query = query.Where(i => DbFunctions.TruncateTime(i.Продажи.Дата_продажи) < dateTo);
-                }
+            // Кнопка "Удалить"
+            if (rights.Sales.CanDelete)
+            {
+                var (delBtn, delOverlay) = CreateButtonWithOverlay("🗑 Удалить", DeleteSale_Click, 100);
+                btnDeleteSaleContainer = CreateButtonContainer(delBtn, delOverlay);
+                ViewModeButtons.Children.Add(btnDeleteSaleContainer);
+            }
 
-                // Фильтр по сотруднику
-                if (CmbEmployee.SelectedValue != null)
+            // Кнопка "Печать чека"
+            var (printBtn, printOverlay) = CreateButtonWithOverlay("🖨 Печать чека", PrintSale_Click, 120);
+            btnPrintSaleContainer = CreateButtonContainer(printBtn, printOverlay);
+            ViewModeButtons.Children.Add(btnPrintSaleContainer);
+
+            // Кнопка "Очистить"
+            var (clearBtn, clearOverlay) = CreateButtonWithOverlay("🔄 Очистить", ClearForm_Click, 100);
+            clearBtn.IsEnabled = true;
+            clearOverlay.Visibility = Visibility.Collapsed;
+            btnClearContainer = CreateButtonContainer(clearBtn, clearOverlay);
+            ViewModeButtons.Children.Add(btnClearContainer);
+
+            UpdateViewModeButtonsState();
+        }
+
+        private void CreateNewSaleModeButtons()
+        {
+            NewSaleModeButtons.Children.Clear();
+
+            // Кнопка "Оформить продажу"
+            var (saveBtn, saveOverlay) = CreateButtonWithOverlay("💾 Оформить продажу", SaveNewSale_Click, 150);
+            btnSaveNewSaleContainer = CreateButtonContainer(saveBtn, saveOverlay);
+            NewSaleModeButtons.Children.Add(btnSaveNewSaleContainer);
+
+            // Кнопка "Отмена"
+            var (cancelBtn, cancelOverlay) = CreateButtonWithOverlay("↩ Отмена", CancelNewSale_Click, 100);
+            cancelBtn.IsEnabled = true;
+            cancelOverlay.Visibility = Visibility.Collapsed;
+            btnCancelNewSaleContainer = CreateButtonContainer(cancelBtn, cancelOverlay);
+            NewSaleModeButtons.Children.Add(btnCancelNewSaleContainer);
+        }
+
+        private Grid CreateButtonContainer(Button button, Border overlay)
+        {
+            var grid = new Grid
+            {
+                Margin = new Thickness(3),
+                Width = button.Width,
+                Height = button.Height
+            };
+
+            grid.Children.Add(button);
+            grid.Children.Add(overlay);
+            Grid.SetZIndex(button, 0);
+            Grid.SetZIndex(overlay, 1);
+
+            return grid;
+        }
+
+        private (Button button, Border overlay) CreateButtonWithOverlay(string text, RoutedEventHandler handler, double width = 90)
+        {
+            var button = new Button
+            {
+                Content = text,
+                Width = width,
+                Height = 35,
+                IsEnabled = false,
+                Cursor = Cursors.Hand
+            };
+
+            button.Click += handler;
+
+            var overlay = new Border
+            {
+                Background = Brushes.Transparent,
+                IsHitTestVisible = true,
+                ToolTip = GetButtonTooltip(text)
+            };
+
+            button.IsEnabledChanged += (s, e) =>
+            {
+                var btn = s as Button;
+                if (btn != null)
                 {
-                    int employeeId;
-                    if (int.TryParse(CmbEmployee.SelectedValue.ToString(), out employeeId) && employeeId > 0)
+                    if (btn.IsEnabled)
                     {
-                        query = query.Where(i => i.Продажи.Код_сотрудника == employeeId);
+                        overlay.Visibility = Visibility.Collapsed;
+                        overlay.ToolTip = null;
+                    }
+                    else
+                    {
+                        overlay.Visibility = Visibility.Visible;
+                        overlay.ToolTip = GetButtonTooltip(btn.Content?.ToString());
                     }
                 }
+            };
 
-                var grandTotal = query.Sum(i => (decimal?)i.Количество * i.Цена) ?? 0;
-
-                TxtGrandTotal.Text = $"{grandTotal:N2} ₽";
-            }
-            catch (Exception ex)
-            {
-                TxtGrandTotal.Text = "0.00 ₽";
-                Debug.WriteLine($"Ошибка загрузки общей суммы: {ex.Message}");
-            }
+            return (button, overlay);
         }
 
-        private void SalesPage_Unloaded(object sender, RoutedEventArgs e)
+        private string GetButtonTooltip(string buttonContent)
         {
-            if (context != null)
+            if (string.IsNullOrEmpty(buttonContent)) return "";
+
+            if (buttonContent.Contains("Новая продажа"))
+                return "Создать новую продажу";
+
+            if (buttonContent.Contains("Редактировать"))
+                return "Выберите чек для редактирования";
+
+            if (buttonContent.Contains("Удалить"))
+                return "Выберите чек для удаления";
+
+            if (buttonContent.Contains("Печать чека"))
+                return "Выберите чек для печати";
+
+            if (buttonContent.Contains("Очистить"))
+                return "Очистить детали чека";
+
+            if (buttonContent.Contains("Оформить продажу"))
             {
-                context.Dispose();
-                context = null;
+                if (!newSaleItems.Any())
+                    return "Добавьте товары в чек";
+                return "Нажмите для оформления продажи";
             }
+
+            if (buttonContent.Contains("Отмена"))
+                return "Вернуться к списку продаж";
+
+            return "Кнопка недоступна";
         }
 
-        #region Вспомогательные методы
-
-        private void RefreshContext()
+        private void SetButtonState(Grid container, bool isEnabled)
         {
-            if (context != null)
-            {
-                context.Dispose();
-            }
-            context = new BDEntities();
-            context.Configuration.LazyLoadingEnabled = false;
-            context.Configuration.ProxyCreationEnabled = false;
+            if (container == null) return;
+            var button = container.Children.OfType<Button>().FirstOrDefault();
+            if (button != null) button.IsEnabled = isEnabled;
+        }
 
-            if (currentUser != null)
+        private void UpdateViewModeButtonsState()
+        {
+            bool isSaleSelected = ListViewSales.SelectedItem != null;
+
+            SetButtonState(btnEditSaleContainer, isSaleSelected);
+            SetButtonState(btnDeleteSaleContainer, isSaleSelected);
+            SetButtonState(btnPrintSaleContainer, isSaleSelected);
+
+            // Проверяем возможность редактирования/удаления
+            if (isSaleSelected)
             {
-                currentUser = context.Сотрудники.Find(currentUser.Код_сотрудника);
+                var selected = ListViewSales.SelectedItem as SaleViewModel;
+                if (selected != null)
+                {
+                    UpdateEditDeleteButtonsState(selected.OriginalSale.Код_чека);
+                }
             }
         }
+
+        private void UpdateEditDeleteButtonsState(int saleCode)
+        {
+            // Проверка кнопки "Редактировать"
+            string editError;
+            bool canEdit = CanEditSale(saleCode, out editError);
+            var editBtn = GetButtonFromContainer(btnEditSaleContainer);
+            if (editBtn != null)
+            {
+                editBtn.IsEnabled = canEdit;
+                if (!canEdit)
+                {
+                    var overlay = GetOverlayFromContainer(btnEditSaleContainer);
+                    if (overlay != null) overlay.ToolTip = editError;
+                }
+            }
+
+            // Проверка кнопки "Удалить"
+            string deleteError;
+            bool canDelete = CanEditSale(saleCode, out deleteError);
+            var delBtn = GetButtonFromContainer(btnDeleteSaleContainer);
+            if (delBtn != null)
+            {
+                delBtn.IsEnabled = canDelete;
+                if (!canDelete)
+                {
+                    var overlay = GetOverlayFromContainer(btnDeleteSaleContainer);
+                    if (overlay != null) overlay.ToolTip = deleteError;
+                }
+            }
+        }
+
+        private Button GetButtonFromContainer(Grid container)
+        {
+            if (container == null) return null;
+            return container.Children.OfType<Button>().FirstOrDefault();
+        }
+
+        private Border GetOverlayFromContainer(Grid container)
+        {
+            if (container == null) return null;
+            return container.Children.OfType<Border>().FirstOrDefault(b => b.Background == Brushes.Transparent);
+        }
+
+        private void UpdateNewSaleModeButtonsState()
+        {
+            bool canSave = newSaleItems.Any();
+            SetButtonState(btnSaveNewSaleContainer, canSave);
+        }
+
+        #endregion
+
+        #region Проверка возможности редактирования/удаления
+
+        private bool CanEditSale(int saleCode, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+
+            var sale = context.Продажи.Find(saleCode);
+            if (sale == null)
+            {
+                errorMessage = "Чек не найден.";
+                return false;
+            }
+
+            // Проверка по времени (не старше 24 часов)
+            if (sale.Дата_продажи < DateTime.Now.AddHours(-MaxEditHours))
+            {
+                errorMessage = $"Невозможно редактировать — прошло более {MaxEditHours} ч. с момента продажи.";
+                return false;
+            }
+
+            return true;
+        }
+
+        #endregion
+
+        #region Загрузка данных
 
         private void LoadEmployees()
         {
             var employees = context.Сотрудники.ToList();
-
-            var employeeList = new List<dynamic>();
-            employeeList.Add(new { Код_сотрудника = 0, FullName = "Все сотрудники" });
+            var employeeList = new List<dynamic>
+            {
+                new { Код_сотрудника = 0, FullName = "Все сотрудники" }
+            };
 
             foreach (var emp in employees)
-            {
                 employeeList.Add(new { Код_сотрудника = emp.Код_сотрудника, FullName = $"{emp.Фамилия} {emp.Имя}" });
-            }
 
             CmbEmployee.ItemsSource = employeeList;
             CmbEmployee.SelectedValuePath = "Код_сотрудника";
@@ -215,261 +364,34 @@ namespace Diplomn.Pages
             CmbEmployee.SelectedIndex = 0;
         }
 
-        private BitmapImage LoadImageFromBytes(byte[] imageData)
+        private void LoadAllSales()
         {
-            if (imageData == null || imageData.Length == 0)
-            {
-                try
-                {
-                    return new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute));
-                }
-                catch
-                {
-                    return new BitmapImage();
-                }
-            }
+            var sales = GetBaseQuery()
+                .OrderByDescending(s => s.Дата_продажи)
+                .ToList();
 
-            try
-            {
-                using (var ms = new MemoryStream(imageData))
-                {
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.StreamSource = ms;
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.EndInit();
-                    bitmap.Freeze();
-                    return bitmap;
-                }
-            }
-            catch
-            {
-                try
-                {
-                    return new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute));
-                }
-                catch
-                {
-                    return new BitmapImage();
-                }
-            }
-        }
-
-        private string GetActualText(TextBox textBox)
-        {
-            if (textBox == null) return string.Empty;
-
-            var placeholderText = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
-            var text = textBox.Text?.Trim() ?? string.Empty;
-
-            if (!string.IsNullOrEmpty(placeholderText) && text == placeholderText)
-                return string.Empty;
-
-            return text;
-        }
-
-        private T FindParent<T>(DependencyObject child) where T : DependencyObject
-        {
-            DependencyObject parentObject = VisualTreeHelper.GetParent(child);
-            if (parentObject == null) return null;
-            if (parentObject is T parent) return parent;
-            return FindParent<T>(parentObject);
-        }
-
-        private T FindChild<T>(DependencyObject parent, string childName) where T : DependencyObject
-        {
-            if (parent == null) return null;
-
-            int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
-            for (int i = 0; i < childrenCount; i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is FrameworkElement frameworkElement && frameworkElement.Name == childName && child is T typedChild)
-                    return typedChild;
-
-                var foundChild = FindChild<T>(child, childName);
-                if (foundChild != null)
-                    return foundChild;
-            }
-            return null;
-        }
-
-        #endregion
-
-        #region Режим просмотра продаж
-
-        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-                ApplyFilters();
-        }
-
-        private void SortChanged(object sender, RoutedEventArgs e)
-        {
-            if (context != null && this.IsLoaded)
-            {
-                ApplyFilters();
-            }
-        }
-
-        private IQueryable<Продажи> GetBaseQuery()
-        {
-            var query = context.Продажи
-                .Include("Сотрудники")
-                .AsQueryable();
-
-            // Поиск по товару в чеке
-            string searchText = GetActualText(TxtSearch);
-            if (!string.IsNullOrWhiteSpace(searchText))
-            {
-                var term = searchText.ToLower();
-                var matchingSaleIds = context.Состав_продажи
-                    .Include("Товары")
-                    .Where(i => i.Товары.Наименование.ToLower().Contains(term))
-                    .Select(i => i.Код_чека)
-                    .Distinct()
-                    .ToList();
-
-                query = query.Where(s => matchingSaleIds.Contains(s.Код_чека));
-            }
-
-            // Фильтр по дате ОТ
-            if (DateFrom.SelectedDate.HasValue)
-            {
-                var dateFrom = DateFrom.SelectedDate.Value.Date;
-                query = query.Where(s => DbFunctions.TruncateTime(s.Дата_продажи) >= dateFrom);
-            }
-
-            // Фильтр по дате ДО
-            if (DateTo.SelectedDate.HasValue)
-            {
-                var dateTo = DateTo.SelectedDate.Value.Date.AddDays(1);
-                query = query.Where(s => DbFunctions.TruncateTime(s.Дата_продажи) < dateTo);
-            }
-
-            // Фильтр по сотруднику
-            if (CmbEmployee.SelectedValue != null)
-            {
-                int employeeId;
-                if (int.TryParse(CmbEmployee.SelectedValue.ToString(), out employeeId) && employeeId > 0)
-                {
-                    query = query.Where(s => s.Код_сотрудника == employeeId);
-                }
-            }
-
-            return query;
-        }
-
-        private List<Продажи> GetFilteredAndSortedSales()
-        {
-            var query = GetBaseQuery();
-
-            // Сортировка
-            if (RbSortByDate.IsChecked == true)
-                query = query.OrderByDescending(s => s.Дата_продажи);
-            else if (RbSortByDateAsc.IsChecked == true)
-                query = query.OrderBy(s => s.Дата_продажи);
-            else if (RbSortByCode.IsChecked == true)
-                query = query.OrderByDescending(s => s.Код_чека);
-            else if (RbSortByCodeAsc.IsChecked == true)
-                query = query.OrderBy(s => s.Код_чека);
-            else if (RbSortByAmount.IsChecked == true || RbSortByAmountAsc.IsChecked == true)
-            {
-                // Для сортировки по сумме - загружаем и сортируем в памяти
-                var sales = query.AsNoTracking().ToList();
-                var saleIds = sales.Select(s => s.Код_чека).ToList();
-                var totals = context.Состав_продажи
-                    .Where(i => saleIds.Contains(i.Код_чека))
-                    .GroupBy(i => i.Код_чека)
-                    .Select(g => new { SaleId = g.Key, Total = g.Sum(i => (decimal?)i.Количество * i.Цена) ?? 0 })
-                    .ToDictionary(x => x.SaleId, x => x.Total);
-
-                if (RbSortByAmount.IsChecked == true)
-                    return sales.OrderByDescending(s => totals.TryGetValue(s.Код_чека, out var t) ? t : 0).ToList();
-                else
-                    return sales.OrderBy(s => totals.TryGetValue(s.Код_чека, out var t) ? t : 0).ToList();
-            }
-            else
-                query = query.OrderByDescending(s => s.Дата_продажи); // По умолчанию
-
-            return query.AsNoTracking().ToList();
-        }
-
-        private void LoadAllSalesWithoutFilters()
-        {
-            if (isLoading) return;
-
-            try
-            {
-                isLoading = true;
-
-                var sales = GetBaseQuery()
-                    .OrderByDescending(s => s.Дата_продажи)
-                    .AsNoTracking()
-                    .ToList();
-
-                UpdateSalesView(sales);
-                LoadGrandTotal();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при загрузке данных: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                isLoading = false;
-            }
+            UpdateSalesView(sales);
         }
 
         private void LoadFilteredSales()
         {
-            if (isLoading) return;
-
-            try
-            {
-                isLoading = true;
-
-                var sales = GetFilteredAndSortedSales();
-                UpdateSalesView(sales);
-                LoadGrandTotal(); // ← добавить
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при загрузке данных: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                isLoading = false;
-            }
+            var sales = GetFilteredAndSortedSales();
+            UpdateSalesView(sales);
+            LoadGrandTotal();
         }
 
         private void UpdateSalesView(List<Продажи> sales)
         {
-            if (sales == null)
-            {
-                sales = new List<Продажи>();
-            }
-
-            var selectedItem = ListViewSales.SelectedItem as SaleViewModel;
-            int? selectedReceiptCode = selectedItem?.OriginalSale?.Код_чека;
+            var selectedCode = (ListViewSales.SelectedItem as SaleViewModel)?.OriginalSale?.Код_чека;
 
             var saleIds = sales.Select(s => s.Код_чека).ToList();
-            Dictionary<int, decimal> totals;
-
-            if (saleIds.Any())
-            {
-                totals = context.Состав_продажи
+            var totals = saleIds.Any()
+                ? context.Состав_продажи
                     .Where(i => saleIds.Contains(i.Код_чека))
                     .GroupBy(i => i.Код_чека)
                     .Select(g => new { SaleId = g.Key, Total = g.Sum(i => (decimal?)i.Количество * i.Цена) ?? 0 })
-                    .ToDictionary(x => x.SaleId, x => x.Total);
-            }
-            else
-            {
-                totals = new Dictionary<int, decimal>();
-            }
+                    .ToDictionary(x => x.SaleId, x => x.Total)
+                : new Dictionary<int, decimal>();
 
             salesView.Clear();
             foreach (var sale in sales)
@@ -478,44 +400,95 @@ namespace Diplomn.Pages
                 salesView.Add(new SaleViewModel(sale, total));
             }
 
-            if (selectedReceiptCode.HasValue)
+            if (selectedCode.HasValue)
             {
-                var itemToSelect = salesView.FirstOrDefault(s => s.OriginalSale?.Код_чека == selectedReceiptCode.Value);
-                if (itemToSelect != null)
-                {
-                    ListViewSales.SelectedItem = itemToSelect;
-                }
-                else
-                {
-                    ClearSaleDetails();
-                }
+                var item = salesView.FirstOrDefault(s => s.OriginalSale?.Код_чека == selectedCode.Value);
+                if (item != null) ListViewSales.SelectedItem = item;
+                else ClearSaleDetails();
+            }
+            else ClearSaleDetails();
+        }
+
+        #endregion
+
+        #region Фильтрация и запросы
+
+        private IQueryable<Продажи> GetBaseQuery()
+        {
+            var query = context.Продажи
+                .Include(s => s.Сотрудники)
+                .AsQueryable();
+
+            string searchText = GetActualText(TxtSearch);
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var term = searchText.ToLower();
+                var matchingIds = context.Состав_продажи
+                    .Include(i => i.Товары)
+                    .Where(i => i.Товары.Наименование.ToLower().Contains(term))
+                    .Select(i => i.Код_чека)
+                    .Distinct()
+                    .ToList();
+
+                query = query.Where(s => matchingIds.Contains(s.Код_чека));
+            }
+
+            if (DateFrom.SelectedDate.HasValue)
+            {
+                var dateFrom = DateFrom.SelectedDate.Value;
+                query = query.Where(s => s.Дата_продажи >= dateFrom);
+            }
+
+            if (DateTo.SelectedDate.HasValue)
+            {
+                var dateTo = DateTo.SelectedDate.Value.AddDays(1);
+                query = query.Where(s => s.Дата_продажи < dateTo);
+            }
+
+            if (CmbEmployee.SelectedValue != null && int.TryParse(CmbEmployee.SelectedValue.ToString(), out int empId) && empId > 0)
+                query = query.Where(s => s.Код_сотрудника == empId);
+
+            return query;
+        }
+
+        private List<Продажи> GetFilteredAndSortedSales()
+        {
+            var query = GetBaseQuery();
+
+            if (RbSortByDateAsc.IsChecked == true)
+                query = query.OrderBy(s => s.Дата_продажи);
+            else if (RbSortByAmount.IsChecked == true || RbSortByAmountAsc.IsChecked == true)
+            {
+                var sales = query.ToList();
+                var ids = sales.Select(s => s.Код_чека).ToList();
+                var totals = context.Состав_продажи
+                    .Where(i => ids.Contains(i.Код_чека))
+                    .GroupBy(i => i.Код_чека)
+                    .Select(g => new { Id = g.Key, Total = g.Sum(i => (decimal?)i.Количество * i.Цена) ?? 0 })
+                    .ToDictionary(x => x.Id, x => x.Total);
+
+                return RbSortByAmount.IsChecked == true
+                    ? sales.OrderByDescending(s => totals.TryGetValue(s.Код_чека, out var t) ? t : 0).ToList()
+                    : sales.OrderBy(s => totals.TryGetValue(s.Код_чека, out var t) ? t : 0).ToList();
             }
             else
-            {
-                ClearSaleDetails();
-            }
+                query = query.OrderByDescending(s => s.Дата_продажи);
 
-            if (ListViewSales.ItemsSource != salesView)
-            {
-                ListViewSales.ItemsSource = salesView;
-            }
+            return query.ToList();
         }
 
-        private void ApplyFilters()
+        private IQueryable<Товары> GetProductFilteredQuery()
         {
-            LoadFilteredSales();
-        }
-        private void PrintReceipt_Click(object sender, RoutedEventArgs e)
-        {
-            var selectedItem = ListViewSales.SelectedItem as SaleViewModel;
-            if (selectedItem == null)
-            {
-                MessageBox.Show("Выберите продажу для печати чека!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
+            var query = context.Товары.AsQueryable();
+            string searchText = GetActualText(TxtProductSearch);
+            if (!string.IsNullOrWhiteSpace(searchText))
+                query = query.Where(p => p.Наименование.ToLower().Contains(searchText.ToLower()));
 
-            PrintReceipt(selectedItem.OriginalSale.Код_чека);
+            return query;
         }
+
+        private void ApplyFilters() => LoadFilteredSales();
+
         private void ApplyFilters_Click(object sender, RoutedEventArgs e) => ApplyFilters();
 
         private void ClearFilters_Click(object sender, RoutedEventArgs e)
@@ -525,389 +498,79 @@ namespace Diplomn.Pages
             DateTo.SelectedDate = null;
             CmbEmployee.SelectedIndex = 0;
             RbSortByDate.IsChecked = true;
-            LoadAllSalesWithoutFilters();
+            LoadAllSales();
             LoadGrandTotal();
             ClearSaleDetails();
+            ListViewSales.SelectedItem = null;
+            UpdateViewModeButtonsState();
         }
 
-        private void SaveReport_Click(object sender, RoutedEventArgs e)
+        private void SortChanged(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                var sales = GetBaseQuery()
-                    .OrderByDescending(s => s.Дата_продажи)
-                    .AsNoTracking()
-                    .ToList();
-
-                if (!sales.Any())
-                {
-                    MessageBox.Show("Нет данных для сохранения отчета.", "Информация",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
-
-                var saveFileDialog = new SaveFileDialog
-                {
-                    Filter = "PDF файл (*.pdf)|*.pdf",
-                    Title = "Сохранить отчет о продажах",
-                    FileName = $"Отчет_продажи_{DateTime.Now:yyyy-MM-dd_HH-mm}"
-                };
-
-                if (saveFileDialog.ShowDialog() != true)
-                    return;
-
-                const string shopName = "Oculus+";
-                const string shopPhone = "+7 (461) 345 12-34";
-                const string shopEmail = "Oculus@глаза.ру";
-                const string shopWebsite = "Oculus.ру";
-                const string shopHours = "9:00 – 17:00 ежедневно";
-
-                string initials = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.";
-                if (!string.IsNullOrWhiteSpace(currentUser.Отчество))
-                    initials += $"{currentUser.Отчество?.Substring(0, 1)}.";
-                else
-                    initials += ".";
-
-                var saleIds = sales.Select(s => s.Код_чека).ToList();
-                var totals = context.Состав_продажи
-                    .Where(i => saleIds.Contains(i.Код_чека))
-                    .GroupBy(i => i.Код_чека)
-                    .Select(g => new { SaleId = g.Key, Total = g.Sum(i => (decimal?)i.Количество * i.Цена) ?? 0 })
-                    .ToDictionary(x => x.SaleId, x => x.Total);
-
-                var totalSales = sales.Count;
-                var grandTotal = totals.Values.Sum();
-
-                using (var document = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 40, 40, 50, 50))
-                {
-                    using (var writer = iTextSharp.text.pdf.PdfWriter.GetInstance(document, new FileStream(saveFileDialog.FileName, FileMode.Create)))
-                    {
-                        document.Open();
-
-                        string fontPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
-                        var baseFont = iTextSharp.text.pdf.BaseFont.CreateFont(fontPath, iTextSharp.text.pdf.BaseFont.IDENTITY_H, iTextSharp.text.pdf.BaseFont.EMBEDDED);
-
-                        var fontTitle = new iTextSharp.text.Font(baseFont, 16, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
-                        var fontSubtitle = new iTextSharp.text.Font(baseFont, 11, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.DARK_GRAY);
-                        var fontTableHeader = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.BOLD, iTextSharp.text.BaseColor.WHITE);
-                        var fontTableCell = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.BLACK);
-                        var fontFooter = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.GRAY);
-                        var fontSmall = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.DARK_GRAY);
-                        var fontSign = new iTextSharp.text.Font(baseFont, 10, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.BLACK);
-
-                        var reportTitle = new iTextSharp.text.Paragraph("ОТЧЁТ О ПРОДАЖАХ", fontTitle);
-                        reportTitle.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                        reportTitle.SpacingAfter = 25;
-                        document.Add(reportTitle);
-
-                        var table = new iTextSharp.text.pdf.PdfPTable(4);
-                        table.WidthPercentage = 100;
-                        table.SetWidths(new float[] { 15, 25, 35, 25 });
-                        table.SpacingBefore = 10;
-                        table.SpacingAfter = 25;
-
-                        var headers = new[] { "Код чека", "Дата продажи", "Сотрудник", "Сумма" };
-                        foreach (var header in headers)
-                        {
-                            var headerCell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(header, fontTableHeader));
-                            headerCell.BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102);
-                            headerCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
-                            headerCell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
-                            headerCell.Padding = 5;
-                            table.AddCell(headerCell);
-                        }
-
-                        bool alternate = false;
-                        foreach (var sale in sales)
-                        {
-                            var total = totals.TryGetValue(sale.Код_чека, out var t) ? t : 0;
-                            var employee = sale.Сотрудники != null
-                                ? $"{sale.Сотрудники.Фамилия} {sale.Сотрудники.Имя}"
-                                : "—";
-
-                            var cells = new[]
-                            {
-                                sale.Код_чека.ToString(),
-                                sale.Дата_продажи.ToString("dd.MM.yyyy HH:mm"),
-                                employee,
-                                $"{total:N2} ₽"
-                            };
-
-                            var centerColumns = new HashSet<int> { 0, 3 };
-
-                            for (int i = 0; i < cells.Length; i++)
-                            {
-                                var cell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cells[i], fontTableCell));
-                                cell.Padding = 5;
-                                cell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
-
-                                if (alternate)
-                                {
-                                    cell.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250);
-                                }
-
-                                if (centerColumns.Contains(i))
-                                {
-                                    cell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
-                                }
-
-                                table.AddCell(cell);
-                            }
-
-                            alternate = !alternate;
-                        }
-
-                        document.Add(table);
-
-                        var totalParagraph = new iTextSharp.text.Paragraph();
-                        totalParagraph.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
-                        totalParagraph.SpacingBefore = 5;
-                        totalParagraph.SpacingAfter = 3;
-                        totalParagraph.Add(new iTextSharp.text.Chunk($"Всего продаж: {totalSales}", fontSubtitle));
-                        document.Add(totalParagraph);
-
-                        var totalSumParagraph = new iTextSharp.text.Paragraph();
-                        totalSumParagraph.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
-                        totalSumParagraph.SpacingAfter = 35;
-                        totalSumParagraph.Add(new iTextSharp.text.Chunk($"Общая выручка: {grandTotal:N2} ₽", fontSubtitle));
-                        document.Add(totalSumParagraph);
-
-                        var signTable = new iTextSharp.text.pdf.PdfPTable(1);
-                        signTable.WidthPercentage = 55;
-                        signTable.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
-
-                        var signCell1 = new iTextSharp.text.pdf.PdfPCell();
-                        signCell1.Border = iTextSharp.text.Rectangle.NO_BORDER;
-                        signCell1.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
-                        signCell1.PaddingBottom = 3;
-
-                        var signParagraph = new iTextSharp.text.Paragraph();
-                        signParagraph.Add(new iTextSharp.text.Chunk(
-                            $"{currentUser.Должность?.Название ?? "Сотрудник"} {initials} _______________  {DateTime.Now:dd.MM.yyyy}",
-                            fontSign));
-                        signCell1.AddElement(signParagraph);
-                        signTable.AddCell(signCell1);
-
-                        var signCell2 = new iTextSharp.text.pdf.PdfPCell();
-                        signCell2.Border = iTextSharp.text.Rectangle.NO_BORDER;
-                        signCell2.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
-                        signCell2.PaddingLeft = 145;
-
-                        var signLine = new iTextSharp.text.Paragraph();
-                        signLine.Add(new iTextSharp.text.Chunk("(Подпись)", fontSmall));
-                        signCell2.AddElement(signLine);
-
-                        signTable.AddCell(signCell2);
-                        document.Add(signTable);
-
-                        var footerLine = new iTextSharp.text.pdf.draw.LineSeparator(1f, 100f, iTextSharp.text.BaseColor.LIGHT_GRAY, iTextSharp.text.Element.ALIGN_CENTER, 0);
-                        var footerLineParagraph = new iTextSharp.text.Paragraph();
-                        footerLineParagraph.SpacingBefore = 40;
-                        footerLineParagraph.Add(footerLine);
-                        document.Add(footerLineParagraph);
-
-                        var footerLine1 = new iTextSharp.text.Paragraph();
-                        footerLine1.Add(new iTextSharp.text.Chunk($"{shopName}  |  Часы работы: {shopHours}", fontFooter));
-                        footerLine1.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                        footerLine1.SpacingBefore = 8;
-                        footerLine1.SpacingAfter = 2;
-                        document.Add(footerLine1);
-
-                        var footerLine2 = new iTextSharp.text.Paragraph();
-                        footerLine2.Add(new iTextSharp.text.Chunk($"{shopPhone}  |  {shopEmail}  |  {shopWebsite}", fontFooter));
-                        footerLine2.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                        footerLine2.SpacingBefore = 2;
-                        document.Add(footerLine2);
-
-                        document.Close();
-                    }
-                }
-
-                var result = MessageBox.Show(
-                    $"Отчёт о продажах сохранён!\n\nФайл: {saveFileDialog.FileName}\nВсего продаж: {totalSales}\nОбщая выручка: {grandTotal:N2} ₽\n\nОткрыть PDF?",
-                    "Отчёт сохранён",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Information);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = saveFileDialog.FileName,
-                        UseShellExecute = true
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при сохранении отчета: {ex.Message}\n\nУбедитесь, что библиотека iTextSharp установлена.",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            if (this.IsLoaded) ApplyFilters();
         }
+
+        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) ApplyFilters();
+        }
+
+        private void ApplyProductFilters()
+        {
+            var products = GetProductFilteredQuery().Include("Категории").ToList();
+            UpdateProductsView(products);
+        }
+
+        private void ApplyProductFilters_Click(object sender, RoutedEventArgs e) => ApplyProductFilters();
+
+        private void ClearProductFilters_Click(object sender, RoutedEventArgs e)
+        {
+            TxtProductSearch.Text = "";
+            ApplyProductFilters();
+        }
+
+        private void TxtProductSearch_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) ApplyProductFilters();
+        }
+
+        #endregion
+
+        #region Выбор продажи
 
         private void ListViewSales_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ListViewSales.SelectedItem is SaleViewModel sv)
+            if (ListViewSales.SelectedItem is SaleViewModel selected)
             {
-                EnableButtons(true);
-                var s = sv.OriginalSale;
-                TxtSaleId.Text = s.Код_чека.ToString();
-                TxtSaleDate.Text = s.Дата_продажи.ToString("dd.MM.yyyy HH:mm");
-                TxtEmployee.Text = s.Сотрудники != null ? $"{s.Сотрудники.Фамилия} {s.Сотрудники.Имя}" : "";
+                var sale = selected.OriginalSale;
+                TxtSaleId.Text = sale.Код_чека.ToString();
+                TxtSaleDate.Text = sale.Дата_продажи.ToString("dd.MM.yyyy HH:mm");
+                TxtEmployee.Text = sale.Сотрудники != null ? $"{sale.Сотрудники.Фамилия} {sale.Сотрудники.Имя}" : "";
 
-                var items = context.Состав_продажи.Include("Товары")
-                    .Where(i => i.Код_чека == s.Код_чека).ToList()
-                    .Select(i => new SaleItemDisplay { Товар = i.Товары.Наименование, Количество = i.Количество, Цена = i.Цена, PhotoSource = LoadImageFromBytes(i.Товары?.Фото) }).ToList();
+                var items = context.Состав_продажи
+                    .Include(i => i.Товары)
+                    .Where(i => i.Код_чека == sale.Код_чека)
+                    .ToList()
+                    .Select(i => new SaleItemDisplay
+                    {
+                        Товар = i.Товары.Наименование,
+                        Количество = i.Количество,
+                        Цена = i.Цена,
+                        PhotoSource = LoadImageFromBytes(i.Товары?.Фото)
+                    }).ToList();
 
                 ListViewSaleItems.ItemsSource = items;
                 TxtTotal.Text = $"{items.Sum(i => i.Сумма):N2} ₽";
                 TotalPanel.Visibility = Visibility.Visible;
-
-                // Проверяем возможность редактирования/удаления
-                UpdateDeleteEditButtonsState(s.Код_чека);
             }
             else
             {
-                EnableButtons(false);
                 ClearSaleDetails();
             }
+
+            UpdateViewModeButtonsState();
         }
 
-        private void EnableButtons(bool enable)
-        {
-            foreach (var child in ViewModeButtons.Children)
-            {
-                if (child is Button button)
-                {
-                    var content = button.Content?.ToString();
-                    if (content == "🗑 Удалить" || content == "✏ Редактировать" || content == "🖨 Печать чека")
-                        button.IsEnabled = enable;
-                }
-            }
-        }
-        private void UpdateDeleteEditButtonsState(int saleCode)
-        {
-            foreach (var child in ViewModeButtons.Children)
-            {
-                if (child is Grid grid)
-                {
-                    Button button = null;
-                    Border overlay = null;
-
-                    foreach (var gridChild in grid.Children)
-                    {
-                        if (gridChild is Button btn) button = btn;
-                        else if (gridChild is Border brd) overlay = brd;
-                    }
-
-                    if (button == null || overlay == null) continue;
-
-                    var content = button.Content?.ToString();
-
-                    if (content == "🗑 Удалить")
-                    {
-                        string errorMsg;
-                        if (CanDeleteSale(saleCode, out errorMsg))
-                        {
-                            button.IsEnabled = true;
-                            overlay.Visibility = Visibility.Collapsed;
-                            overlay.ToolTip = null;
-                        }
-                        else
-                        {
-                            button.IsEnabled = false;
-                            overlay.Visibility = Visibility.Visible;
-                            overlay.ToolTip = errorMsg;
-                        }
-                    }
-                    else if (content == "✏ Редактировать")
-                    {
-                        string errorMsg;
-                        if (CanEditSale(saleCode, out errorMsg))
-                        {
-                            button.IsEnabled = true;
-                            overlay.Visibility = Visibility.Collapsed;
-                            overlay.ToolTip = null;
-                        }
-                        else
-                        {
-                            button.IsEnabled = false;
-                            overlay.Visibility = Visibility.Visible;
-                            overlay.ToolTip = errorMsg;
-                        }
-                    }
-                }
-            }
-        }
-        /// <summary>
-        /// Проверяет, можно ли удалить продажу (не старше 1 месяца)
-        /// </summary>
-        private bool CanDeleteSale(int saleCode, out string errorMessage)
-        {
-            errorMessage = string.Empty;
-            var sale = context.Продажи.Find(saleCode);
-            if (sale == null) { errorMessage = "Продажа не найдена."; return false; }
-            if (sale.Дата_продажи < DateTime.Now.AddMonths(-1)) { errorMessage = "Нельзя удалить — прошло более 1 мес. с даты продажи."; return false; }
-            return true;
-        }
-
-        /// <summary>
-        /// Проверяет, можно ли редактировать продажу (не старше 1 месяца)
-        /// </summary>
-        private bool CanEditSale(int saleCode, out string errorMessage)
-        {
-            errorMessage = string.Empty;
-            var sale = context.Продажи.Find(saleCode);
-            if (sale == null) { errorMessage = "Продажа не найдена."; return false; }
-            if (sale.Дата_продажи < DateTime.Now.AddMonths(-1)) { errorMessage = "Нельзя редактировать — прошло более 1 мес. с даты продажи."; return false; }
-            return true;
-        }
-        private void EditSale_Click(object sender, RoutedEventArgs e)
-        {
-            var selectedItem = ListViewSales.SelectedItem as SaleViewModel;
-            if (selectedItem == null)
-            {
-                MessageBox.Show("Выберите чек для редактирования!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            SaveFilterState(); // Сохраняем фильтры
-            editingSaleCode = selectedItem.OriginalSale.Код_чека;
-
-            SalesViewGrid.Visibility = Visibility.Collapsed;
-            NewSaleGrid.Visibility = Visibility.Visible;
-            ViewModeButtons.Visibility = Visibility.Collapsed;
-            NewSaleModeButtons.Visibility = Visibility.Visible;
-            NewSaleTotalPanel.Visibility = Visibility.Visible;
-            GrandTotalPanel.Visibility = Visibility.Collapsed;
-            PageModeText.Text = $"Редактирование чека №{editingSaleCode}";
-
-            newSaleItems.Clear();
-
-            var items = context.Состав_продажи
-                .Include("Товары")
-                .Where(i => i.Код_чека == editingSaleCode.Value)
-                .ToList();
-
-            foreach (var item in items)
-            {
-                newSaleItems.Add(new SaleItemDisplay
-                {
-                    Товар = item.Товары.Наименование,
-                    Количество = item.Количество,
-                    Цена = item.Цена,
-                    PhotoSource = LoadImageFromBytes(item.Товары?.Фото)
-                });
-            }
-
-            UpdateNewSaleTotal();
-            ListViewNewSaleItems.Items.Refresh();
-            BtnSaveNewSale.Content = "💾 Сохранить изменения";
-
-            ClearProductFilterFields();
-            RefreshContext();
-            LoadAllProducts();
-        }
         private void ClearSaleDetails()
         {
             TxtSaleId.Text = "";
@@ -918,93 +581,15 @@ namespace Diplomn.Pages
             TotalPanel.Visibility = Visibility.Collapsed;
         }
 
-        private void DeleteSale_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var selectedItem = ListViewSales.SelectedItem as SaleViewModel;
-                if (selectedItem == null)
-                {
-                    MessageBox.Show("Выберите продажу для удаления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                var saleCode = selectedItem.OriginalSale.Код_чека;
-
-                var result = MessageBox.Show($"Вы уверены, что хотите удалить чек №{saleCode}?\nВместе с чеком будет удален его состав!",
-                                            "Подтверждение удаления",
-                                            MessageBoxButton.YesNo,
-                                            MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    SaveFilterState();
-
-                    var items = context.Состав_продажи.Where(i => i.Код_чека == saleCode).ToList();
-                    foreach (var item in items)
-                    {
-                        var product = context.Товары.Find(item.Код_товара);
-                        if (product != null)
-                        {
-                            product.Количество += item.Количество;
-                        }
-                        context.Состав_продажи.Remove(item);
-                    }
-
-                    var saleToDelete = context.Продажи.Find(saleCode);
-                    if (saleToDelete != null)
-                    {
-                        context.Продажи.Remove(saleToDelete);
-                    }
-
-                    context.SaveChanges();
-
-                    MessageBox.Show("Продажа успешно удалена! Товары возвращены на склад.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    RefreshContext();
-                    RestoreFilterState();
-
-                    // Применяем фильтры
-                    if (HasActiveFilters())
-                    {
-                        LoadFilteredSales();
-                    }
-                    else
-                    {
-                        LoadAllSalesWithoutFilters();
-                    }
-
-                    LoadGrandTotal();
-                    ClearSaleDetails();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при удалении продажи: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-        private void Refresh_Click(object sender, RoutedEventArgs e)
-        {
-            RefreshContext();
-            LoadAllSalesWithoutFilters();
-            ClearSaleDetails();
-        }
-
-        private void ClearForm_Click(object sender, RoutedEventArgs e)
-        {
-            ClearSaleDetails();
-        }
-
         #endregion
 
-        #region Режим создания новой продажи
+        #region Режим создания/редактирования продажи
 
         private void NewSale_Click(object sender, RoutedEventArgs e)
         {
-            SaveFilterState();
-
             editingSaleCode = null;
-            BtnSaveNewSale.Content = "💾 Оформить продажу";
+            var saveBtn = GetButtonFromContainer(btnSaveNewSaleContainer);
+            if (saveBtn != null) saveBtn.Content = "💾 Оформить продажу";
 
             SalesViewGrid.Visibility = Visibility.Collapsed;
             NewSaleGrid.Visibility = Visibility.Visible;
@@ -1016,219 +601,104 @@ namespace Diplomn.Pages
 
             newSaleItems.Clear();
             TxtNewSaleTotal.Text = "0.00 ₽";
-            BtnSaveNewSale.IsEnabled = false;
-
-            ClearProductFilterFields();
-            RefreshContext();
-            LoadAllProducts();
-        }
-
-        private void ClearProductFilterFields()
-        {
             TxtProductSearch.Text = "";
-            TxtPriceMin.Text = "";
-            TxtPriceMax.Text = "";
-            TxtQtyMin.Text = "";
-            TxtQtyMax.Text = "";
-            ChkInStock.IsChecked = false;
+
+            LoadProducts();
+            UpdateNewSaleModeButtonsState();
         }
 
-        private void LoadAllProducts()
+        private void EditSale_Click(object sender, RoutedEventArgs e)
         {
-            try
+            var selected = ListViewSales.SelectedItem as SaleViewModel;
+            if (selected == null)
             {
-                var products = context.Товары
-                    .Include("Категории")
-                    .AsNoTracking()
-                    .ToList();
+                MessageBox.Show("Выберите чек для редактирования!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
-                UpdateProductsView(products);
-            }
-            catch (Exception ex)
+            var saleCode = selected.OriginalSale.Код_чека;
+            string errorMsg;
+            if (!CanEditSale(saleCode, out errorMsg))
             {
-                MessageBox.Show($"Ошибка при загрузке товаров: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(errorMsg, "Редактирование невозможно", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
+
+            editingSaleCode = saleCode;
+            var saveBtn = GetButtonFromContainer(btnSaveNewSaleContainer);
+            if (saveBtn != null) saveBtn.Content = "💾 Сохранить изменения";
+
+            SalesViewGrid.Visibility = Visibility.Collapsed;
+            NewSaleGrid.Visibility = Visibility.Visible;
+            ViewModeButtons.Visibility = Visibility.Collapsed;
+            NewSaleModeButtons.Visibility = Visibility.Visible;
+            NewSaleTotalPanel.Visibility = Visibility.Visible;
+            GrandTotalPanel.Visibility = Visibility.Collapsed;
+            PageModeText.Text = $"Редактирование чека №{editingSaleCode}";
+
+            newSaleItems.Clear();
+
+            // Загружаем существующие позиции
+            var items = context.Состав_продажи
+                .Include(i => i.Товары)
+                .Where(i => i.Код_чека == editingSaleCode.Value)
+                .ToList();
+
+            foreach (var item in items)
+            {
+                newSaleItems.Add(new SaleItemDisplay
+                {
+                    Товар = item.Товары.Наименование,
+                    Количество = item.Количество,
+                    OriginalQuantity = item.Количество,
+                    Цена = item.Цена,
+                    PhotoSource = LoadImageFromBytes(item.Товары?.Фото)
+                });
+            }
+
+            UpdateNewSaleTotal();
+            ListViewNewSaleItems.Items.Refresh();
+
+            TxtProductSearch.Text = "";
+            LoadProducts();
+            UpdateNewSaleModeButtonsState();
         }
 
-        private void CancelNewSale_Click(object sender, RoutedEventArgs e)
-        {
-            SwitchToViewMode();
-        }
+        private void CancelNewSale_Click(object sender, RoutedEventArgs e) => SwitchToViewMode();
+
         private void LoadProducts()
         {
-            try
-            {
-                var products = GetProductFilteredQuery()
-                    .Include("Категории")
-                    .AsNoTracking()
-                    .ToList();
-                UpdateProductsView(products);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при загрузке товаров: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            var products = context.Товары.Include("Категории").ToList();
+            UpdateProductsView(products);
         }
 
         private void UpdateProductsView(List<Товары> products)
         {
-            if (products == null || products.Count == 0)
-            {
-                productsView.Clear();
-                return;
-            }
-
-            var selectedItem = ListViewProducts.SelectedItem as ProductSaleViewModel;
-            int? selectedProductCode = selectedItem?.OriginalProduct?.Код_товара;
-
             productsView.Clear();
             foreach (var product in products)
-            {
                 productsView.Add(new ProductSaleViewModel(product));
-            }
 
-            if (ListViewProducts.ItemsSource != productsView)
-            {
-                ListViewProducts.ItemsSource = productsView;
-            }
-            else
-            {
-                ListViewProducts.Items.Refresh();
-            }
-
-            if (selectedProductCode.HasValue)
-            {
-                var itemToSelect = productsView.FirstOrDefault(p => p.OriginalProduct?.Код_товара == selectedProductCode.Value);
-                if (itemToSelect != null)
-                {
-                    ListViewProducts.SelectedItem = itemToSelect;
-                }
-            }
+            ListViewProducts.ItemsSource = productsView;
         }
 
-        private IQueryable<Товары> GetProductFilteredQuery()
-        {
-            var query = context.Товары.AsQueryable();
-
-            string searchText = GetActualText(TxtProductSearch);
-            if (!string.IsNullOrWhiteSpace(searchText))
-            {
-                var term = searchText.ToLower();
-                query = query.Where(p => p.Наименование.ToLower().Contains(term));
-            }
-
-            if (ChkInStock.IsChecked == true)
-            {
-                query = query.Where(p => p.Количество > 0);
-            }
-
-            string priceMinText = GetActualText(TxtPriceMin);
-            if (decimal.TryParse(priceMinText, out decimal priceMin))
-            {
-                query = query.Where(p => p.Цена_за_ед_продажа >= priceMin);
-            }
-
-            string priceMaxText = GetActualText(TxtPriceMax);
-            if (decimal.TryParse(priceMaxText, out decimal priceMax))
-            {
-                query = query.Where(p => p.Цена_за_ед_продажа <= priceMax);
-            }
-
-            string qtyMinText = GetActualText(TxtQtyMin);
-            if (int.TryParse(qtyMinText, out int qtyMin))
-            {
-                query = query.Where(p => p.Количество >= qtyMin);
-            }
-
-            string qtyMaxText = GetActualText(TxtQtyMax);
-            if (int.TryParse(qtyMaxText, out int qtyMax))
-            {
-                query = query.Where(p => p.Количество <= qtyMax);
-            }
-
-            return query;
-        }
-
-        private void ApplyProductFilters()
-        {
-            LoadProducts();
-        }
-
-        private void ApplyProductFilters_Click(object sender, RoutedEventArgs e) => ApplyProductFilters();
-
-        private void ClearProductFilters_Click(object sender, RoutedEventArgs e)
-        {
-            TxtProductSearch.Text = "";
-            TxtPriceMin.Text = "";
-            TxtPriceMax.Text = "";
-            TxtQtyMin.Text = "";
-            TxtQtyMax.Text = "";
-            ChkInStock.IsChecked = false;
-            LoadProducts();
-        }
-
-        private void TxtProductSearch_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-                ApplyProductFilters();
-        }
+        private void ListViewProducts_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
 
         private void TxtItemQuantity_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = !int.TryParse(e.Text, out _);
         }
 
-        private void TxtItemQuantity_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (sender is TextBox textBox)
-            {
-                var parentBorder = FindParent<Border>(textBox);
-                if (parentBorder != null)
-                {
-                    var slider = FindChild<Slider>(parentBorder, "QuantitySlider");
-                    var dataContext = parentBorder.DataContext as ProductSaleViewModel;
-
-                    if (dataContext != null && int.TryParse(textBox.Text, out int value))
-                    {
-                        if (value > dataContext.Количество)
-                        {
-                            value = dataContext.Количество;
-                            textBox.Text = value.ToString();
-                        }
-                        if (value < 0)
-                        {
-                            value = 0;
-                            textBox.Text = "0";
-                        }
-                        if (slider != null)
-                        {
-                            slider.Value = value;
-                        }
-                    }
-                }
-            }
-        }
-
         private void QuantitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (sender is Slider slider)
             {
-                var parentBorder = FindParent<Border>(slider);
-                if (parentBorder != null)
+                var parent = FindParent<Border>(slider);
+                if (parent != null)
                 {
-                    var textBox = FindChild<TextBox>(parentBorder, "TxtItemQuantity");
-                    if (textBox != null)
-                    {
-                        textBox.Text = ((int)slider.Value).ToString();
-                    }
+                    var tb = FindChild<TextBox>(parent, "TxtItemQuantity");
+                    if (tb != null) tb.Text = ((int)slider.Value).ToString();
                 }
             }
-        }
-
-        private void ListViewProducts_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
         }
 
         private void AddToSaleItem_Click(object sender, RoutedEventArgs e)
@@ -1236,23 +706,15 @@ namespace Diplomn.Pages
             if (sender is Button button && button.Tag is ProductSaleViewModel productVM)
             {
                 var product = productVM.OriginalProduct;
+                var parent = FindParent<Border>(button);
+                if (parent == null) return;
 
-                var parentBorder = FindParent<Border>(button);
-                if (parentBorder == null) return;
-
-                var textBox = FindChild<TextBox>(parentBorder, "TxtItemQuantity");
-                var slider = FindChild<Slider>(parentBorder, "QuantitySlider");
+                var tb = FindChild<TextBox>(parent, "TxtItemQuantity");
+                var slider = FindChild<Slider>(parent, "QuantitySlider");
 
                 int quantity = 0;
-
-                if (textBox != null && int.TryParse(textBox.Text, out int textQty))
-                {
-                    quantity = textQty;
-                }
-                else if (slider != null)
-                {
-                    quantity = (int)slider.Value;
-                }
+                if (tb != null && int.TryParse(tb.Text, out int q)) quantity = q;
+                else if (slider != null) quantity = (int)slider.Value;
 
                 if (quantity <= 0)
                 {
@@ -1260,31 +722,22 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                if (quantity > product.Количество)
+                // Проверяем доступное количество с учётом уже добавленного
+                var alreadyInCart = newSaleItems
+                    .Where(i => i.Товар == product.Наименование)
+                    .Sum(i => i.Количество);
+
+                if (product.Количество < quantity + alreadyInCart)
                 {
-                    quantity = product.Количество;
-                    MessageBox.Show($"Недостаточно товара на складе! Будет добавлено максимальное доступное количество: {quantity} шт.",
-                        "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    var available = product.Количество - alreadyInCart;
+                    MessageBox.Show($"Недостаточно товара на складе!\nВ наличии: {product.Количество} шт.\nУже в чеке: {alreadyInCart} шт.\nДоступно: {available} шт.",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
                 }
 
-                var existingItem = newSaleItems.FirstOrDefault(i => i.Товар == product.Наименование);
-                if (existingItem != null)
-                {
-                    int newTotal = existingItem.Количество + quantity;
-                    if (newTotal > product.Количество)
-                    {
-                        quantity = product.Количество - existingItem.Количество;
-                        if (quantity <= 0)
-                        {
-                            MessageBox.Show("Товар уже добавлен в максимальном количестве!", "Предупреждение",
-                                MessageBoxButton.OK, MessageBoxImage.Warning);
-                            return;
-                        }
-                        MessageBox.Show($"Будет добавлено только {quantity} шт. (доступный остаток)", "Предупреждение",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
-                    }
-                    existingItem.Количество += quantity;
-                }
+                var existing = newSaleItems.FirstOrDefault(i => i.Товар == product.Наименование);
+                if (existing != null)
+                    existing.Количество += quantity;
                 else
                 {
                     newSaleItems.Add(new SaleItemDisplay
@@ -1297,10 +750,11 @@ namespace Diplomn.Pages
                 }
 
                 if (slider != null) slider.Value = 0;
-                if (textBox != null) textBox.Text = "1";
+                if (tb != null) tb.Text = "1";
 
                 UpdateNewSaleTotal();
                 ListViewNewSaleItems.Items.Refresh();
+                UpdateNewSaleModeButtonsState();
             }
         }
 
@@ -1311,14 +765,13 @@ namespace Diplomn.Pages
                 newSaleItems.Remove(item);
                 UpdateNewSaleTotal();
                 ListViewNewSaleItems.Items.Refresh();
+                UpdateNewSaleModeButtonsState();
             }
         }
 
         private void UpdateNewSaleTotal()
         {
-            decimal total = newSaleItems.Sum(i => i.Сумма);
-            TxtNewSaleTotal.Text = $"{total:N2} ₽";
-            BtnSaveNewSale.IsEnabled = newSaleItems.Any();
+            TxtNewSaleTotal.Text = $"{newSaleItems.Sum(i => i.Сумма):N2} ₽";
         }
 
         private void SaveNewSale_Click(object sender, RoutedEventArgs e)
@@ -1333,16 +786,19 @@ namespace Diplomn.Pages
             {
                 if (editingSaleCode.HasValue)
                 {
-                    // Режим редактирования — заменяем состав существующего чека
+                    // Режим редактирования
                     var existingSale = context.Продажи.Find(editingSaleCode.Value);
                     if (existingSale == null)
                     {
-                        MessageBox.Show("Редактируемый чек не найден!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show("Чек не найден!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                         return;
                     }
 
                     // Возвращаем старые товары на склад
-                    var oldItems = context.Состав_продажи.Where(i => i.Код_чека == editingSaleCode.Value).ToList();
+                    var oldItems = context.Состав_продажи
+                        .Where(i => i.Код_чека == editingSaleCode.Value)
+                        .ToList();
+
                     foreach (var oldItem in oldItems)
                     {
                         var product = context.Товары.Find(oldItem.Код_товара);
@@ -1359,25 +815,25 @@ namespace Diplomn.Pages
                         var product = context.Товары.FirstOrDefault(p => p.Наименование == item.Товар);
                         if (product != null)
                         {
-                            var saleComposition = new Состав_продажи
+                            context.Состав_продажи.Add(new Состав_продажи
                             {
                                 Код_чека = editingSaleCode.Value,
                                 Код_товара = product.Код_товара,
                                 Количество = item.Количество,
                                 Цена = item.Цена
-                            };
-                            context.Состав_продажи.Add(saleComposition);
+                            });
+
                             product.Количество -= item.Количество;
+                            if (product.Количество < 0) product.Количество = 0;
                         }
                     }
 
                     context.SaveChanges();
-                    MessageBox.Show($"Чек №{editingSaleCode} успешно обновлён!", "Успех",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show($"Чек №{editingSaleCode} обновлён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
                 {
-                    // Режим создания нового чека
+                    // Режим создания
                     var sale = new Продажи
                     {
                         Код_сотрудника = currentUser.Код_сотрудника,
@@ -1387,51 +843,41 @@ namespace Diplomn.Pages
                     context.Продажи.Add(sale);
                     context.SaveChanges();
 
-                    var saleCode = sale.Код_чека;
-
                     foreach (var item in newSaleItems)
                     {
                         var product = context.Товары.FirstOrDefault(p => p.Наименование == item.Товар);
                         if (product != null)
                         {
-                            var saleComposition = new Состав_продажи
+                            context.Состав_продажи.Add(new Состав_продажи
                             {
-                                Код_чека = saleCode,
+                                Код_чека = sale.Код_чека,
                                 Код_товара = product.Код_товара,
                                 Количество = item.Количество,
                                 Цена = item.Цена
-                            };
-                            context.Состав_продажи.Add(saleComposition);
+                            });
+
                             product.Количество -= item.Количество;
+                            if (product.Количество < 0) product.Количество = 0;
                         }
                     }
 
                     context.SaveChanges();
-
-                    var printResult = MessageBox.Show(
-                        $"Продажа оформлена! Чек №{saleCode}\n\nЖелаете распечатать чек?",
-                        "Успех",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Information);
-
-                    if (printResult == MessageBoxResult.Yes)
-                    {
-                        PrintReceipt(saleCode);
-                    }
+                    MessageBox.Show($"Продажа №{sale.Код_чека} оформлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
 
                 SwitchToViewMode();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
         private void SwitchToViewMode()
         {
             editingSaleCode = null;
-            BtnSaveNewSale.Content = "💾 Оформить продажу";
+            var saveBtn = GetButtonFromContainer(btnSaveNewSaleContainer);
+            if (saveBtn != null) saveBtn.Content = "💾 Оформить продажу";
 
             SalesViewGrid.Visibility = Visibility.Visible;
             NewSaleGrid.Visibility = Visibility.Collapsed;
@@ -1442,267 +888,334 @@ namespace Diplomn.Pages
             PageModeText.Text = "Управление продажами";
 
             newSaleItems.Clear();
-            RefreshContext();
-            RestoreFilterState(); // Восстанавливаем фильтры
-
-            // Применяем фильтры вместо загрузки без фильтров
-            if (HasActiveFilters())
-            {
-                LoadFilteredSales();
-            }
-            else
-            {
-                LoadAllSalesWithoutFilters();
-            }
-
+            LoadAllSales();
             LoadGrandTotal();
             ClearSaleDetails();
+            ListViewSales.SelectedItem = null;
+            UpdateViewModeButtonsState();
         }
-        private bool HasActiveFilters()
+
+        #endregion
+
+        #region CRUD и отчёты
+
+        private void DeleteSale_Click(object sender, RoutedEventArgs e)
         {
-            return !string.IsNullOrWhiteSpace(GetActualText(TxtSearch)) ||
-                   DateFrom.SelectedDate.HasValue ||
-                   DateTo.SelectedDate.HasValue ||
-                   (CmbEmployee.SelectedValue != null && int.TryParse(CmbEmployee.SelectedValue.ToString(), out int empId) && empId > 0) ||
-                   RbSortByDateAsc.IsChecked == true ||
-                   RbSortByAmount.IsChecked == true ||
-                   RbSortByAmountAsc.IsChecked == true ||
-                   RbSortByCode.IsChecked == true ||
-                   RbSortByCodeAsc.IsChecked == true;
+            var selected = ListViewSales.SelectedItem as SaleViewModel;
+            if (selected == null)
+            {
+                MessageBox.Show("Выберите чек для удаления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var code = selected.OriginalSale.Код_чека;
+            string errorMsg;
+            if (!CanEditSale(code, out errorMsg))
+            {
+                MessageBox.Show(errorMsg, "Удаление невозможно", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var result = MessageBox.Show($"Удалить чек №{code}?\nТовары будут возвращены на склад.", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    var items = context.Состав_продажи.Where(i => i.Код_чека == code).ToList();
+                    foreach (var item in items)
+                    {
+                        var product = context.Товары.Find(item.Код_товара);
+                        if (product != null) product.Количество += item.Количество;
+                        context.Состав_продажи.Remove(item);
+                    }
+
+                    var sale = context.Продажи.Find(code);
+                    if (sale != null) context.Продажи.Remove(sale);
+
+                    context.SaveChanges();
+                    MessageBox.Show("Чек удалён! Товары возвращены на склад.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    LoadAllSales();
+                    LoadGrandTotal();
+                    ClearSaleDetails();
+                    ListViewSales.SelectedItem = null;
+                    UpdateViewModeButtonsState();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
-        private void PrintReceipt(int saleCode)
+
+        private void PrintSale_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = ListViewSales.SelectedItem as SaleViewModel;
+            if (selected == null)
+            {
+                MessageBox.Show("Выберите чек для печати!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            PrintSale(selected.OriginalSale.Код_чека);
+        }
+
+        private void PrintSale(int code)
         {
             try
             {
-                var saveFileDialog = new SaveFileDialog
+                var sfd = new SaveFileDialog
                 {
                     Filter = "PDF файл (*.pdf)|*.pdf",
                     Title = "Сохранить чек",
-                    FileName = $"Чек_{saleCode}_{DateTime.Now:yyyy-MM-dd_HH-mm}"
+                    FileName = $"Чек_{code}_{DateTime.Now:yyyy-MM-dd_HH-mm}"
                 };
 
-                if (saveFileDialog.ShowDialog() == true)
+                if (sfd.ShowDialog() != true) return;
+
+                var sale = context.Продажи
+                    .Include(s => s.Сотрудники)
+                    .FirstOrDefault(s => s.Код_чека == code);
+
+                if (sale == null) return;
+
+                var items = context.Состав_продажи
+                    .Include(i => i.Товары)
+                    .Where(i => i.Код_чека == code)
+                    .ToList()
+                    .Select(i => new
+                    {
+                        Товар = i.Товары.Наименование,
+                        Количество = i.Количество,
+                        Цена = i.Цена,
+                        Сумма = i.Количество * i.Цена
+                    }).ToList();
+
+                var total = items.Sum(i => i.Сумма);
+
+                using (var doc = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 40, 40, 50, 50))
+                using (var w = iTextSharp.text.pdf.PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create)))
                 {
-                    var sale = context.Продажи
-                        .Include("Сотрудники")
-                        .Include("Сотрудники.Должность")
-                        .FirstOrDefault(s => s.Код_чека == saleCode);
+                    doc.Open();
+                    var fp = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
+                    var bf = iTextSharp.text.pdf.BaseFont.CreateFont(fp, iTextSharp.text.pdf.BaseFont.IDENTITY_H, iTextSharp.text.pdf.BaseFont.EMBEDDED);
 
-                    if (sale == null)
+                    var fontTitle = new iTextSharp.text.Font(bf, 14, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
+                    var font = new iTextSharp.text.Font(bf, 10);
+                    var fontBold = new iTextSharp.text.Font(bf, 10, iTextSharp.text.Font.BOLD);
+
+                    doc.Add(new iTextSharp.text.Paragraph("Oculus+", new iTextSharp.text.Font(bf, 22, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102))) { Alignment = iTextSharp.text.Element.ALIGN_CENTER, SpacingAfter = 15 });
+                    doc.Add(new iTextSharp.text.Paragraph($"ЧЕК №{code}", fontTitle) { Alignment = iTextSharp.text.Element.ALIGN_CENTER, SpacingAfter = 20 });
+                    doc.Add(new iTextSharp.text.Paragraph($"Дата: {sale.Дата_продажи:dd.MM.yyyy HH:mm}", font) { SpacingAfter = 3 });
+                    doc.Add(new iTextSharp.text.Paragraph($"Сотрудник: {sale.Сотрудники?.Фамилия} {sale.Сотрудники?.Имя}", font) { SpacingAfter = 15 });
+
+                    var table = new iTextSharp.text.pdf.PdfPTable(4) { WidthPercentage = 100 };
+                    table.SetWidths(new float[] { 40, 15, 20, 25 });
+
+                    foreach (var h in new[] { "Товар", "Кол-во", "Цена", "Сумма" })
                     {
-                        MessageBox.Show("Продажа не найдена в базе данных.", "Ошибка",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                        return;
+                        var hc = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(h, new iTextSharp.text.Font(bf, 9, iTextSharp.text.Font.BOLD, iTextSharp.text.BaseColor.WHITE)))
+                        { BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102), HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, Padding = 5 };
+                        table.AddCell(hc);
                     }
 
-                    var items = context.Состав_продажи
-                        .Include("Товары")
-                        .Where(i => i.Код_чека == saleCode)
-                        .ToList()
-                        .Select(i => new
-                        {
-                            Товар = i.Товары.Наименование,
-                            Количество = i.Количество,
-                            Цена = i.Цена,
-                            Сумма = i.Количество * i.Цена
-                        })
-                        .ToList();
-
-                    var total = items.Sum(i => i.Сумма);
-
-                    // Данные магазина
-                    const string shopName = "Oculus+";
-                    const string shopPhone = "+7 (461) 345 12-34";
-                    const string shopEmail = "Oculus@глаза.ру";
-                    const string shopWebsite = "Oculus.ру";
-                    const string shopHours = "9:00 – 17:00 ежедневно";
-
-                    using (var document = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 40, 40, 50, 50))
+                    bool alt = false;
+                    foreach (var item in items)
                     {
-                        using (var writer = iTextSharp.text.pdf.PdfWriter.GetInstance(document, new FileStream(saveFileDialog.FileName, FileMode.Create)))
+                        var cells = new[] { item.Товар, item.Количество.ToString(), $"{item.Цена:N2} ₽", $"{item.Сумма:N2} ₽" };
+                        for (int i = 0; i < cells.Length; i++)
                         {
-                            document.Open();
-
-                            string fontPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
-                            var baseFont = iTextSharp.text.pdf.BaseFont.CreateFont(
-                                fontPath,
-                                iTextSharp.text.pdf.BaseFont.IDENTITY_H,
-                                iTextSharp.text.pdf.BaseFont.EMBEDDED);
-
-                            var fontShopName = new iTextSharp.text.Font(baseFont, 22, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
-                            var fontTitle = new iTextSharp.text.Font(baseFont, 14, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
-                            var fontBold = new iTextSharp.text.Font(baseFont, 10, iTextSharp.text.Font.BOLD);
-                            var font = new iTextSharp.text.Font(baseFont, 10);
-                            var fontSmall = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.DARK_GRAY);
-                            var fontFooter = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.GRAY);
-
-                            // === НАЗВАНИЕ МАГАЗИНА ===
-                            var shopTitle = new iTextSharp.text.Paragraph(shopName, fontShopName);
-                            shopTitle.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                            shopTitle.SpacingAfter = 15;
-                            document.Add(shopTitle);
-
-                            // === ЗАГОЛОВОК ===
-                            var headerTitle = new iTextSharp.text.Paragraph("ЧЕК ПРОДАЖИ", fontTitle);
-                            headerTitle.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                            headerTitle.SpacingAfter = 20;
-                            document.Add(headerTitle);
-
-                            // Информация о чеке
-                            var infoTable = new iTextSharp.text.pdf.PdfPTable(2);
-                            infoTable.WidthPercentage = 100;
-                            infoTable.SetWidths(new float[] { 50, 50 });
-                            infoTable.SpacingAfter = 20;
-
-                            // Первая строка: Чек № и Дата продажи
-                            var cellCheckLabel = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph($"Чек №: {saleCode}", fontBold));
-                            cellCheckLabel.Border = iTextSharp.text.Rectangle.NO_BORDER;
-                            cellCheckLabel.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
-                            cellCheckLabel.Padding = 3;
-                            infoTable.AddCell(cellCheckLabel);
-
-                            var cellDateLabel = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph($"Дата: {sale.Дата_продажи:dd.MM.yyyy HH:mm}", font));
-                            cellDateLabel.Border = iTextSharp.text.Rectangle.NO_BORDER;
-                            cellDateLabel.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
-                            cellDateLabel.Padding = 3;
-                            infoTable.AddCell(cellDateLabel);
-
-                            // Вторая строка: Сотрудник
-                            var cellEmployee = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(
-                                $"Сотрудник: {(sale.Сотрудники != null ? $"{sale.Сотрудники.Фамилия} {sale.Сотрудники.Имя}" : "—")}", font));
-                            cellEmployee.Border = iTextSharp.text.Rectangle.NO_BORDER;
-                            cellEmployee.Colspan = 2;
-                            cellEmployee.HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT;
-                            cellEmployee.Padding = 3;
-                            infoTable.AddCell(cellEmployee);
-
-                            document.Add(infoTable);
-
-                            // Таблица товаров
-                            var table = new iTextSharp.text.pdf.PdfPTable(4);
-                            table.WidthPercentage = 100;
-                            table.SetWidths(new float[] { 40, 15, 20, 25 });
-                            table.SpacingBefore = 10;
-                            table.SpacingAfter = 20;
-
-                            var headers = new[] { "Товар", "Кол-во", "Цена", "Сумма" };
-                            foreach (var cellText in headers)
-                            {
-                                var headerCell = new iTextSharp.text.pdf.PdfPCell();
-                                headerCell.BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102);
-                                var whiteFont = new iTextSharp.text.Font(baseFont, 9, iTextSharp.text.Font.BOLD, iTextSharp.text.BaseColor.WHITE);
-                                headerCell.Phrase = new iTextSharp.text.Phrase(cellText, whiteFont);
-                                headerCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
-                                headerCell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
-                                headerCell.Padding = 5;
-                                table.AddCell(headerCell);
-                            }
-
-                            bool alternate = false;
-                            foreach (var item in items)
-                            {
-                                var cells = new[]
-                                {
-                            item.Товар,
-                            item.Количество.ToString(),
-                            $"{item.Цена:N2} ₽",
-                            $"{item.Сумма:N2} ₽"
-                        };
-
-                                for (int i = 0; i < cells.Length; i++)
-                                {
-                                    var cell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cells[i], font));
-                                    cell.Padding = 5;
-                                    cell.VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE;
-
-                                    if (alternate)
-                                        cell.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250);
-
-                                    if (i > 0)
-                                        cell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
-
-                                    table.AddCell(cell);
-                                }
-                                alternate = !alternate;
-                            }
-
-                            document.Add(table);
-
-                            // Итого
-                            var totalParagraph = new iTextSharp.text.Paragraph($"ИТОГО: {total:N2} ₽", fontTitle);
-                            totalParagraph.Alignment = iTextSharp.text.Element.ALIGN_RIGHT;
-                            totalParagraph.SpacingBefore = 5;
-                            totalParagraph.SpacingAfter = 35;
-                            document.Add(totalParagraph);
-
-                            // === ФУТЕР ===
-                            var footerLine = new iTextSharp.text.pdf.draw.LineSeparator(1f, 100f, iTextSharp.text.BaseColor.LIGHT_GRAY, iTextSharp.text.Element.ALIGN_CENTER, 0);
-                            var footerLineParagraph = new iTextSharp.text.Paragraph();
-                            footerLineParagraph.SpacingBefore = 40;
-                            footerLineParagraph.Add(footerLine);
-                            document.Add(footerLineParagraph);
-
-                            var footerLine1 = new iTextSharp.text.Paragraph();
-                            footerLine1.Add(new iTextSharp.text.Chunk($"{shopName}  |  Часы работы: {shopHours}", fontFooter));
-                            footerLine1.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                            footerLine1.SpacingBefore = 8;
-                            footerLine1.SpacingAfter = 2;
-                            document.Add(footerLine1);
-
-                            var footerLine2 = new iTextSharp.text.Paragraph();
-                            footerLine2.Add(new iTextSharp.text.Chunk($"{shopPhone}  |  {shopEmail}  |  {shopWebsite}", fontFooter));
-                            footerLine2.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                            footerLine2.SpacingBefore = 2;
-                            footerLine2.SpacingAfter = 2;
-                            document.Add(footerLine2);
-
-                            var footerDate = new iTextSharp.text.Paragraph();
-                            footerDate.Add(new iTextSharp.text.Chunk($"Чек сформирован: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter));
-                            footerDate.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
-                            footerDate.SpacingBefore = 2;
-                            document.Add(footerDate);
-
-                            document.Close();
+                            var c = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cells[i], font)) { Padding = 5 };
+                            if (alt) c.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250);
+                            if (i > 0) c.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
+                            table.AddCell(c);
                         }
+                        alt = !alt;
                     }
 
-                    MessageBox.Show($"Чек №{saleCode} успешно сохранён в PDF:\n{saveFileDialog.FileName}",
-                        "Печать чека", MessageBoxButton.OK, MessageBoxImage.Information);
+                    doc.Add(table);
+                    doc.Add(new iTextSharp.text.Paragraph($"ИТОГО: {total:N2} ₽", fontTitle) { Alignment = iTextSharp.text.Element.ALIGN_RIGHT, SpacingBefore = 15 });
+                    doc.Close();
                 }
+
+                MessageBox.Show($"Чек №{code} сохранён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при печати чека: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void AddInfoRow(iTextSharp.text.pdf.PdfPTable table, string label, string value, iTextSharp.text.Font fontLabel, iTextSharp.text.Font fontValue)
+        private void SaveReport_Click(object sender, RoutedEventArgs e)
         {
-            var labelCell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(label, fontLabel));
-            labelCell.Border = iTextSharp.text.Rectangle.NO_BORDER;
-            labelCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
-            labelCell.Padding = 3;
-            table.AddCell(labelCell);
+            try
+            {
+                var sales = GetBaseQuery().OrderByDescending(s => s.Дата_продажи).ToList();
+                if (!sales.Any()) { MessageBox.Show("Нет данных для отчёта.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information); return; }
 
-            var valueCell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(value, fontValue));
-            valueCell.Border = iTextSharp.text.Rectangle.NO_BORDER;
-            valueCell.Padding = 3;
-            table.AddCell(valueCell);
+                var sfd = new SaveFileDialog { Filter = "PDF файл (*.pdf)|*.pdf", Title = "Сохранить отчёт о продажах", FileName = $"Отчёт_продажи_{DateTime.Now:yyyy-MM-dd_HH-mm}" };
+                if (sfd.ShowDialog() != true) return;
+
+                var ids = sales.Select(s => s.Код_чека).ToList();
+                var totals = context.Состав_продажи
+                    .Where(i => ids.Contains(i.Код_чека))
+                    .GroupBy(i => i.Код_чека)
+                    .Select(g => new { Id = g.Key, Total = g.Sum(i => (decimal?)i.Количество * i.Цена) ?? 0 })
+                    .ToDictionary(x => x.Id, x => x.Total);
+
+                var grandTotal = totals.Values.Sum();
+
+                using (var doc = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 40, 40, 50, 50))
+                using (var w = iTextSharp.text.pdf.PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create)))
+                {
+                    doc.Open();
+                    var fp = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
+                    var bf = iTextSharp.text.pdf.BaseFont.CreateFont(fp, iTextSharp.text.pdf.BaseFont.IDENTITY_H, iTextSharp.text.pdf.BaseFont.EMBEDDED);
+
+                    var ft = new iTextSharp.text.Font(bf, 16, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
+                    var fs = new iTextSharp.text.Font(bf, 11);
+                    var fth = new iTextSharp.text.Font(bf, 9, iTextSharp.text.Font.BOLD, iTextSharp.text.BaseColor.WHITE);
+                    var ftc = new iTextSharp.text.Font(bf, 9);
+
+                    doc.Add(new iTextSharp.text.Paragraph("ОТЧЁТ О ПРОДАЖАХ", ft) { Alignment = iTextSharp.text.Element.ALIGN_CENTER, SpacingAfter = 25 });
+
+                    var table = new iTextSharp.text.pdf.PdfPTable(5) { WidthPercentage = 100 };
+                    table.SetWidths(new float[] { 12, 22, 25, 25, 16 });
+
+                    foreach (var h in new[] { "Код", "Дата", "Сотрудник", "Товаров", "Сумма" })
+                    {
+                        var hc = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(h, fth)) { BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102), HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, Padding = 5 };
+                        table.AddCell(hc);
+                    }
+
+                    bool alt = false;
+                    foreach (var s in sales)
+                    {
+                        var total = totals.TryGetValue(s.Код_чека, out var t) ? t : 0;
+                        var itemCount = context.Состав_продажи.Count(i => i.Код_чека == s.Код_чека);
+                        var cells = new[] { s.Код_чека.ToString(), s.Дата_продажи.ToString("dd.MM.yyyy HH:mm"), $"{s.Сотрудники?.Фамилия} {s.Сотрудники?.Имя}", itemCount.ToString(), $"{total:N2} ₽" };
+                        for (int i = 0; i < cells.Length; i++)
+                        {
+                            var c = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cells[i], ftc)) { Padding = 5 };
+                            if (alt) c.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250);
+                            if (i == 0 || i == 3 || i == 4) c.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
+                            table.AddCell(c);
+                        }
+                        alt = !alt;
+                    }
+
+                    doc.Add(table);
+                    doc.Add(new iTextSharp.text.Paragraph($"Всего чеков: {sales.Count} | Общая сумма: {grandTotal:N2} ₽", fs) { SpacingBefore = 10, SpacingAfter = 35 });
+                    doc.Close();
+                }
+
+                MessageBox.Show($"Отчёт сохранён!\n{sales.Count} чеков\nОбщая сумма: {grandTotal:N2} ₽", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
         }
+
+        private void ClearForm_Click(object sender, RoutedEventArgs e)
+        {
+            ClearSaleDetails();
+            ListViewSales.SelectedItem = null;
+            UpdateViewModeButtonsState();
+        }
+
+        private void LoadGrandTotal()
+        {
+            try
+            {
+                var query = context.Состав_продажи.AsQueryable(); // или Состав_продажи
+
+                if (DateFrom.SelectedDate.HasValue)
+                {
+                    var dateFrom = DateFrom.SelectedDate.Value;
+                    query = query.Where(i => i.Продажи.Дата_продажи >= dateFrom); // или i.Продажи.Дата_продажи
+                }
+
+                if (DateTo.SelectedDate.HasValue)
+                {
+                    var dateTo = DateTo.SelectedDate.Value.AddDays(1);
+                    query = query.Where(i => i.Продажи.Дата_продажи < dateTo);
+                }
+
+                if (CmbEmployee.SelectedValue != null && int.TryParse(CmbEmployee.SelectedValue.ToString(), out int empId) && empId > 0)
+                    query = query.Where(i => i.Продажи.Код_сотрудника == empId);
+
+                var total = query.Sum(i => (decimal?)i.Количество * i.Цена) ?? 0;
+                TxtGrandTotal.Text = $"{query.Sum(i => (decimal?)i.Количество * i.Цена) ?? 0:N2} ₽";
+            }
+            catch { TxtGrandTotal.Text = "0.00 ₽"; }
+        }
+
         #endregion
 
+        #region Вспомогательные методы
+
+        private BitmapImage LoadImageFromBytes(byte[] data)
+        {
+            if (data == null || data.Length == 0)
+                return new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute));
+
+            try
+            {
+                using (var ms = new MemoryStream(data))
+                {
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.StreamSource = ms;
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.EndInit();
+                    bmp.Freeze();
+                    return bmp;
+                }
+            }
+            catch { return new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute)); }
+        }
+
+        private string GetActualText(TextBox tb)
+        {
+            if (tb == null) return string.Empty;
+            var ph = PlaceholderBehavior.GetPlaceholderText(tb);
+            var text = tb.Text?.Trim() ?? string.Empty;
+            return (!string.IsNullOrEmpty(ph) && text == ph) ? string.Empty : text;
+        }
+
+        private T FindParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            var parent = VisualTreeHelper.GetParent(child);
+            while (parent != null && !(parent is T))
+                parent = VisualTreeHelper.GetParent(parent);
+            return parent as T;
+        }
+
+        private T FindChild<T>(DependencyObject parent, string name) where T : DependencyObject
+        {
+            if (parent == null) return null;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is FrameworkElement fe && fe.Name == name && child is T t) return t;
+                var found = FindChild<T>(child, name);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        #endregion
     }
+
+    #region ViewModels
 
     public class SaleViewModel
     {
         public Продажи OriginalSale { get; set; }
         public decimal Total { get; set; }
 
-        public string ReceiptDisplay => $"Чек №{OriginalSale.Код_чека}";
+        public string SaleDisplay => $"Чек №{OriginalSale.Код_чека}";
         public string DateDisplay => OriginalSale.Дата_продажи.ToString("dd.MM.yyyy HH:mm");
-        public string EmployeeDisplay => OriginalSale.Сотрудники != null ?
-            $"👤 {OriginalSale.Сотрудники.Фамилия} {OriginalSale.Сотрудники.Имя}" : "👤 Не указан";
+        public string EmployeeDisplay => OriginalSale.Сотрудники != null ? $"👤 {OriginalSale.Сотрудники.Фамилия} {OriginalSale.Сотрудники.Имя}" : "👤 Не указан";
         public string TotalDisplay => $"💰 {Total:N2} ₽";
 
         public SaleViewModel(Продажи sale, decimal total)
@@ -1712,69 +1225,48 @@ namespace Diplomn.Pages
         }
     }
 
-
     public class ProductSaleViewModel
     {
         public Товары OriginalProduct { get; set; }
         public string Наименование { get; set; }
-        public decimal Цена_за_ед_продажа { get; set; }
+        public decimal Цена { get; set; }
         public int Количество { get; set; }
         public string CategoryName { get; set; }
         public BitmapImage PhotoSource { get; set; }
 
-        public bool HasStock => Количество > 0;
-
-        public string PriceDisplay => $"{Цена_за_ед_продажа:N2} ₽";
-        public string QuantityDisplay => $"📦 В наличии: {Количество} шт.";
+        public string PriceDisplay => $"{Цена:N2} ₽";
+        public string StockStatus => Количество > 0 ? $"✅ В наличии: {Количество} шт." : "❌ Нет в наличии";
 
         public ProductSaleViewModel(Товары product)
         {
             OriginalProduct = product;
             Наименование = product.Наименование;
-            Цена_за_ед_продажа = product.Цена_за_ед_продажа;
+            Цена = product.Цена_за_ед_продажа;
             Количество = product.Количество;
             CategoryName = product.Категории?.Категория != null ? $"📂 {product.Категории.Категория}" : "📂 Без категории";
-            PhotoSource = LoadImageFromBytes(product.Фото);
+            PhotoSource = LoadImage(product.Фото);
         }
 
-        private static BitmapImage LoadImageFromBytes(byte[] imageData)
+        private static BitmapImage LoadImage(byte[] data)
         {
-            if (imageData == null || imageData.Length == 0)
-            {
-                try
-                {
-                    return new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute));
-                }
-                catch
-                {
-                    return new BitmapImage();
-                }
-            }
-
+            if (data == null || data.Length == 0)
+                return new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute));
             try
             {
-                using (var ms = new MemoryStream(imageData))
+                using (var ms = new MemoryStream(data))
                 {
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.StreamSource = ms;
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.EndInit();
-                    bitmap.Freeze();
-                    return bitmap;
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.StreamSource = ms;
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.EndInit();
+                    bmp.Freeze();
+                    return bmp;
                 }
             }
-            catch
-            {
-                try
-                {
-                    return new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute));
-                }
-                catch
-                {
-                    return new BitmapImage();
-                }
-            }
+            catch { return new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute)); }
         }
     }
+
+    #endregion
 }

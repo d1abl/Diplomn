@@ -22,6 +22,7 @@ namespace Diplomn
     public partial class MainWindow : Window
     {
         private Сотрудники currentUser;
+        private AccessManager.AccessRights currentRights;
         public MainWindow()
         {
             InitializeComponent();
@@ -35,19 +36,20 @@ namespace Diplomn
             {
                 if (page is AuthPage)
                 {
-                    this.Title = "HR - Авторизация";
+                    this.Title = "Oculus+ - Авторизация";
                     ButtomGrid.Visibility = Visibility.Collapsed;
                     MenuPanel.Visibility = Visibility.Collapsed;
                 }
                 else if (page is MainMenu)
                 {
-                    this.Title = "HR - Меню администратора";
+                    this.Title = "Oculus+ - Главное меню";
                     ButtomGrid.Visibility = Visibility.Visible;
                 }
                 else
                 {
-                    this.Title = "HR - Система управления";
+                    this.Title = "Oculus+ - Система управления";
                 }
+
                 if (currentUser != null)
                 {
                     LoadUserPhoto(currentUser);
@@ -56,44 +58,164 @@ namespace Diplomn
             }
         }
 
+        #region Загрузка пользователя
         private void UpdateCurrentUserDisplay()
         {
-            if (currentUser?.Отчество != null)
-                CurrentUser.Content = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.{currentUser.Отчество?.Substring(0, 1)}.";
-            else
-                CurrentUser.Content = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.";
-        }
+            string roleName = currentUser.Должность?.Название ?? "Сотрудник";
 
-        #region Загрузка пользователя
+            if (currentUser?.Отчество != null)
+                CurrentUser.Content = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.{currentUser.Отчество?.Substring(0, 1)}. ({roleName})";
+            else
+                CurrentUser.Content = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}. ({roleName})";
+        }
+        
         public void SetCurrentUser(Сотрудники user)
         {
             currentUser = user;
+            currentRights = AccessManager.GetAccessRights(user.Должность?.Уровень_доступа ?? 10);
 
-            if (currentUser?.Отчество != null)
-                CurrentUser.Content = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.{currentUser.Отчество?.Substring(0, 1)}.";
-            else
-                CurrentUser.Content = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.";
-
+            UpdateCurrentUserDisplay();
             LoadUserPhoto(user);
 
-            if (user.Должность?.Уровень_доступа == 1) // Администратор
-            {
-                VisiblEmployeesBtn.Visibility = Visibility.Visible;
-                RolesBtn.Visibility = Visibility.Visible;
-                CategoriesBtn.Visibility = Visibility.Visible;
-                // Новые страницы видны только админу
-            }
-            else if (user.Должность?.Уровень_доступа == 2) // Менеджер
-            {
-                VisiblEmployeesBtn.Visibility = Visibility.Collapsed;
-                RolesBtn.Visibility = Visibility.Collapsed;
-                CategoriesBtn.Visibility = Visibility.Collapsed;
-            }
+            // Настройка меню на основе прав
+            ConfigureMenuByRights();
 
             // Показываем меню
             MenuPanel.Visibility = Visibility.Visible;
         }
+        #region Создание меню
+        private void ConfigureMenuByRights()
+        {
+            // Скрываем все секции сначала
+            VisiblEmployeesBtn.Visibility = Visibility.Collapsed;
+            VisiblProductsBtn.Visibility = Visibility.Collapsed;
+            VisiblSuppliesBtn.Visibility = Visibility.Collapsed;
+            VisiblReportsBtn.Visibility = Visibility.Collapsed;
+            VisiblEmployeesWarp.Visibility = Visibility.Collapsed;
+            VisiblProductsWarp.Visibility = Visibility.Collapsed;
+            VisiblSuppliesWarp.Visibility = Visibility.Collapsed;
+            VisiblReportsWarp.Visibility = Visibility.Collapsed;
 
+            // Управление персоналом
+            if (currentRights.Employees.CanView || currentRights.Roles.CanView)
+            {
+                VisiblEmployeesBtn.Visibility = Visibility.Visible;
+                ConfigureEmployeesSection();
+            }
+
+            // Управление товарами
+            if (currentRights.Products.CanView || currentRights.Categories.CanView ||
+                currentRights.Brands.CanView || currentRights.Manufacturers.CanView ||
+                currentRights.Materials.CanView || currentRights.Packings.CanView ||
+                currentRights.Suppliers.CanView)
+            {
+                VisiblProductsBtn.Visibility = Visibility.Visible;
+                ConfigureProductsSection();
+            }
+
+            // Управление заказами и продажами
+            if (currentRights.Supplies.CanView || currentRights.Sales.CanView)
+            {
+                VisiblSuppliesBtn.Visibility = Visibility.Visible;
+                ConfigureSuppliesSection();
+            }
+
+            // Отчеты и настройки
+            if (currentRights.Reports.CanView || currentRights.Settings.CanView)
+            {
+                VisiblReportsBtn.Visibility = Visibility.Visible;
+                ConfigureReportsSection();
+            }
+        }
+
+        private void ConfigureEmployeesSection()
+        {
+            VisiblEmployeesWarp.Children.Clear();
+
+            // Сотрудники
+            if (currentRights.Employees.CanView)
+                VisiblEmployeesWarp.Children.Add(CreateMenuButton("👥 Сотрудники", EmployeesBtn_Click));
+
+            // Роли
+            if (currentRights.Roles.CanView)
+                VisiblEmployeesWarp.Children.Add(CreateMenuButton("🔐 Роли", RolesBtn_Click));
+        }
+
+        private void ConfigureProductsSection()
+        {
+            VisiblProductsWarp.Children.Clear();
+
+            // Товары
+            if (currentRights.Products.CanView)
+                VisiblProductsWarp.Children.Add(CreateMenuButton("📦 Товары", ProductsBtn_Click));
+
+            // Категории
+            if (currentRights.Categories.CanView)
+                VisiblProductsWarp.Children.Add(CreateMenuButton("📁 Категории", CategoriesBtn_Click));
+
+            // Бренды
+            if (currentRights.Brands.CanView)
+                VisiblProductsWarp.Children.Add(CreateMenuButton("🏷 Бренды", BrandsBtn_Click));
+
+            // Производители
+            if (currentRights.Manufacturers.CanView)
+                VisiblProductsWarp.Children.Add(CreateMenuButton("🏭 Производители", ManufacturersBtn_Click));
+
+            // Материалы
+            if (currentRights.Materials.CanView)
+                VisiblProductsWarp.Children.Add(CreateMenuButton("🔧 Материалы", MaterialsBtn_Click));
+
+            // Фасовка
+            if (currentRights.Packings.CanView)
+                VisiblProductsWarp.Children.Add(CreateMenuButton("📏 Фасовка", PackingsBtn_Click));
+
+            // Поставщики
+            if (currentRights.Suppliers.CanView)
+                VisiblProductsWarp.Children.Add(CreateMenuButton("🚚 Поставщики", SuppliersBtn_Click));
+        }
+
+        private void ConfigureSuppliesSection()
+        {
+            VisiblSuppliesWarp.Children.Clear();
+
+            // Поставки
+            if (currentRights.Supplies.CanView)
+                VisiblSuppliesWarp.Children.Add(CreateMenuButton("📋 Поставки", SuppliesBtn_Click));
+
+            // Продажи
+            if (currentRights.Sales.CanView)
+                VisiblSuppliesWarp.Children.Add(CreateMenuButton("💰 Продажи", SalesBtn_Click));
+        }
+
+        private void ConfigureReportsSection()
+        {
+            VisiblReportsWarp.Children.Clear();
+
+            // Настройки
+            if (currentRights.Settings.CanView)
+                VisiblReportsWarp.Children.Add(CreateMenuButton("⚙️ Настройки", SettingsBtn_Click));
+        }
+        private Button CreateMenuButton(string text, RoutedEventHandler clickHandler)
+        {
+            var button = new Button
+            {
+                Width = 200,
+                Height = 50,
+                Margin = new Thickness(10),
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Content = new TextBlock
+                {
+                    Text = text,
+                    FontSize = 24,
+                    Width = 200,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(10, 0, 0, 0)
+                }
+            };
+            button.Click += clickHandler;
+            return button;
+        }
+        #endregion
         private void LoadUserPhoto(Сотрудники user)
         {
             try
@@ -133,58 +255,41 @@ namespace Diplomn
         private void CurrentUser_Click(object sender, RoutedEventArgs e) =>
             MainFrame.NavigateIfDifferent(new CurrentEmployeeEditPage(currentUser));
         
-
         private void EmployeesBtn_Click(object sender, RoutedEventArgs e) =>        
             MainFrame?.NavigateIfDifferent(new EmployeesPage(currentUser));
         
-
         private void RolesBtn_Click(object sender, RoutedEventArgs e) =>       
-            MainFrame?.NavigateIfDifferent(new RolePage());
+            MainFrame?.NavigateIfDifferent(new RolePage(currentUser));
         
-
         private void ProductsBtn_Click(object sender, RoutedEventArgs e) =>        
             MainFrame?.NavigateIfDifferent(new ProductsPage(currentUser));
         
-
         private void CategoriesBtn_Click(object sender, RoutedEventArgs e) =>        
-            MainFrame?.NavigateIfDifferent(new CategoriesPage());
+            MainFrame?.NavigateIfDifferent(new CategoriesPage(currentUser));
         
-
         private void SuppliersBtn_Click(object sender, RoutedEventArgs e) =>        
             MainFrame?.NavigateIfDifferent(new SuppliersPage(currentUser));
         
-
         private void SuppliesBtn_Click(object sender, RoutedEventArgs e) =>        
             MainFrame?.NavigateIfDifferent(new SuppliesPage(currentUser));
         
-
         private void SalesBtn_Click(object sender, RoutedEventArgs e) =>        
             MainFrame?.NavigateIfDifferent(new SalesPage(currentUser));
         
-
-        //private void ReportsBtn_Click(object sender, RoutedEventArgs e) =>        
-        //    MainFrame?.NavigateIfDifferent(new ReportPage(currentUser));
-        
-
         private void SettingsBtn_Click(object sender, RoutedEventArgs e) =>        
             MainFrame?.NavigateIfDifferent(new SettingsPage(currentUser));
 
-
-        //private void CalendarBtn_Click(object sender, RoutedEventArgs e)
-        //{
-        //    MainFrame?.NavigateIfDifferent(new CalendarPage(currentUser));
-        //}
         private void BrandsBtn_Click(object sender, RoutedEventArgs e) =>
-            MainFrame?.NavigateIfDifferent(new BrandsPage());
+            MainFrame?.NavigateIfDifferent(new BrandsPage(currentUser));
 
         private void ManufacturersBtn_Click(object sender, RoutedEventArgs e) =>
-            MainFrame?.NavigateIfDifferent(new ManufacturersPage());
+            MainFrame?.NavigateIfDifferent(new ManufacturersPage(currentUser));
 
         private void MaterialsBtn_Click(object sender, RoutedEventArgs e) =>
-            MainFrame?.NavigateIfDifferent(new MaterialsPage());
+            MainFrame?.NavigateIfDifferent(new MaterialsPage(currentUser));
 
         private void PackingsBtn_Click(object sender, RoutedEventArgs e) =>
-            MainFrame?.NavigateIfDifferent(new PackingsPage());
+            MainFrame?.NavigateIfDifferent(new PackingsPage(currentUser));
         #endregion
 
         #region Сворачивание/разворачивание секций меню

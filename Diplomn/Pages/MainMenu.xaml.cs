@@ -34,14 +34,7 @@ namespace Diplomn.Pages
             var level = currentUser.Должность?.Уровень_доступа;
             if (level.HasValue)
             {
-                string levelText;
-                if (level <= 3)
-                    levelText = $"👑 Администратор (уровень {level})";
-                else if (level <= 6)
-                    levelText = $"⭐ Менеджер (уровень {level})";
-                else
-                    levelText = $"🔒 Сотрудник (уровень {level})";
-                TxtAccessLevel.Text = levelText;
+                TxtAccessLevel.Text = $"Уровень доступа: {level.Value}";
             }
             else
             {

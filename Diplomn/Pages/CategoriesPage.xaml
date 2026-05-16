@@ -80,7 +80,7 @@
 
                 <TextBlock Text="Код" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtCategoryId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
-                         addons:PlaceholderBehavior.PlaceholderText="Код категории"/>
+                         addons:PlaceholderBehavior.PlaceholderText="Код категории" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                 <TextBlock Text="Название *" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtCategoryName" Height="32" Margin="0,0,0,12"
@@ -91,12 +91,7 @@
                          TextWrapping="Wrap" AcceptsReturn="True"
                          addons:PlaceholderBehavior.PlaceholderText="Введите описание (необязательно)"/>
 
-                <WrapPanel HorizontalAlignment="Center" Margin="0,10,0,0">
-                    <Button Content="Добавить" Click="Add_Click" Width="90" Height="34" Margin="3"/>
-                    <Button Content="Обновить" Click="Update_Click" Width="90" Height="34" Margin="3"/>
-                    <Button Content="Удалить" Click="Delete_Click" Width="90" Height="34" Margin="3"/>
-                    <Button Content="Очистить" Click="ClearForm_Click" Width="90" Height="34" Margin="3"/>
-                </WrapPanel>
+                <WrapPanel x:Name="ActionButtonsPanel" HorizontalAlignment="Center" Margin="0,10,0,0"/>
             </StackPanel>
         </Grid>
     </Grid>
