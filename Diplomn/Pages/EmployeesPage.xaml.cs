@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace Diplomn.Pages
@@ -29,6 +30,18 @@ namespace Diplomn.Pages
         private AccessManager.AccessRights rights;
         private WrapPanel actionButtonsPanel;
 
+        // Ссылки на кнопки
+        private Button addButton;
+        private Button editButton;
+        private Button deleteButton;
+        private Button clearButton;
+
+        // Ссылки на overlay-элементы для tooltip
+        private Border addButtonOverlay;
+        private Border editButtonOverlay;
+        private Border deleteButtonOverlay;
+        private Border clearButtonOverlay;
+
         #endregion
 
         #region Конструктор
@@ -43,18 +56,14 @@ namespace Diplomn.Pages
 
             rights = AccessManager.GetAccessRights(user.Должность?.Уровень_доступа ?? 10);
             actionButtonsPanel = FindName("ActionButtonsPanel") as WrapPanel;
-            ButtonHelper.CreateActionButtons(actionButtonsPanel,
-                canCreate: rights.Employees.CanCreate,
-                canEdit: rights.Employees.CanEdit,
-                canDelete: rights.Employees.CanDelete,
-                createHandler: Add_Click,
-                editHandler: Update_Click,
-                deleteHandler: Delete_Click,
-                clearHandler: ClearForm_Click
-            );
+
+            CreateActionButtons();
+            SubscribeToFieldChanges();
 
             LoadPositions();
             LoadData();
+
+            UpdateButtonsState();
         }
 
         #endregion
@@ -314,76 +323,231 @@ namespace Diplomn.Pages
 
         #endregion
 
-        #region Выбор сотрудника
+        #region Подписка на изменения полей
 
         /// <summary>
-        /// Заполняет форму данными выбранного сотрудника
+        /// Подписываемся на изменения обязательных полей для валидации в реальном времени
         /// </summary>
-        private void ListViewEmployees_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void SubscribeToFieldChanges()
         {
-            if (ListViewEmployees.SelectedItem is EmployeeViewModel selectedEmployee)
-            {
-                var employee = selectedEmployee.OriginalEmployee;
-                TxtEmployeeId.Text = employee.Код_сотрудника.ToString();
-                TxtLastName.Text = employee.Фамилия;
-                TxtFirstName.Text = employee.Имя;
-                TxtMiddleName.Text = employee.Отчество;
-                TxtPhone.Text = employee.Телефон;
-                CmbPosition.SelectedValue = employee.Код_должности;
-                TxtLogin.Text = employee.Логин;
-                PassBox.Password = employee.Пароль;
-                LoadEmployeePhoto(employee);
-                selectedImageData = null;
-            }
-        }
-
-        /// <summary>
-        /// Загружает фото сотрудника в превью
-        /// </summary>
-        private void LoadEmployeePhoto(Сотрудники employee)
-        {
-            try
-            {
-                if (employee?.Аватарка != null && employee.Аватарка.Length > 0)
-                    EmployeePhoto.Source = LoadImageFromBytes(employee.Аватарка);
-                else
-                    EmployeePhoto.Source = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.RelativeOrAbsolute));
-            }
-            catch
-            {
-                EmployeePhoto.Source = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.RelativeOrAbsolute));
-            }
+            TxtLastName.TextChanged += (s, e) => UpdateButtonsState();
+            TxtFirstName.TextChanged += (s, e) => UpdateButtonsState();
+            TxtLogin.TextChanged += (s, e) => UpdateButtonsState();
+            PassBox.PasswordChanged += (s, e) => UpdateButtonsState();
+            CmbPosition.SelectionChanged += (s, e) => UpdateButtonsState();
+            TxtPhone.TextChanged += (s, e) => UpdateButtonsState();
         }
 
         #endregion
 
-        #region Выбор фото
+        #region Создание кнопок с overlay для tooltip
 
-        private void SelectPhoto_Click(object sender, MouseButtonEventArgs e)
+        private void CreateActionButtons()
         {
-            try
-            {
-                var openFileDialog = new OpenFileDialog
-                {
-                    Filter = "Изображения (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp",
-                    Title = "Выберите фотографию сотрудника"
-                };
+            if (actionButtonsPanel == null) return;
+            actionButtonsPanel.Children.Clear();
 
-                if (openFileDialog.ShowDialog() == true)
+            // Кнопка "Добавить"
+            if (rights.Employees.CanCreate)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("➕ Добавить", Add_Click, 110);
+                addButton = button;
+                addButtonOverlay = overlay;
+                actionButtonsPanel.Children.Add(CreateButtonContainer(button, overlay));
+            }
+
+            // Кнопка "Обновить"
+            if (rights.Employees.CanEdit)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("✏️ Обновить", Update_Click, 110);
+                editButton = button;
+                editButtonOverlay = overlay;
+                actionButtonsPanel.Children.Add(CreateButtonContainer(button, overlay));
+            }
+
+            // Кнопка "Удалить"
+            if (rights.Employees.CanDelete)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("🗑️ Удалить", Delete_Click, 110);
+                deleteButton = button;
+                deleteButtonOverlay = overlay;
+                actionButtonsPanel.Children.Add(CreateButtonContainer(button, overlay));
+            }
+
+            // Кнопка "Очистить"
+            var (clearBtn, clearOverlay) = CreateButtonWithOverlay("🔄 Очистить", ClearForm_Click, 110);
+            clearButton = clearBtn;
+            clearButtonOverlay = clearOverlay;
+            actionButtonsPanel.Children.Add(CreateButtonContainer(clearButton, clearOverlay));
+        }
+
+        /// <summary>
+        /// Создает контейнер Grid, содержащий кнопку и overlay для tooltip
+        /// </summary>
+        private Grid CreateButtonContainer(Button button, Border overlay)
+        {
+            var grid = new Grid
+            {
+                Margin = new Thickness(3),
+                Width = button.Width,
+                Height = button.Height
+            };
+
+            grid.Children.Add(button);
+            grid.Children.Add(overlay);
+
+            return grid;
+        }
+
+        /// <summary>
+        /// Создает кнопку и прозрачный overlay Border для tooltip
+        /// </summary>
+        private (Button button, Border overlay) CreateButtonWithOverlay(string text, RoutedEventHandler handler, double width = 90)
+        {
+            var button = new Button
+            {
+                Content = text,
+                Width = width,
+                Height = 34,
+                IsEnabled = false
+            };
+
+            button.Click += handler;
+
+            var overlay = new Border
+            {
+                Background = Brushes.Transparent,
+                IsHitTestVisible = true,
+                ToolTip = GetButtonTooltip(text, false)
+            };
+
+            button.IsEnabledChanged += (s, e) =>
+            {
+                var btn = s as Button;
+                if (btn != null)
                 {
-                    selectedImageData = File.ReadAllBytes(openFileDialog.FileName);
-                    EmployeePhoto.Source = LoadImageFromBytes(selectedImageData);
+                    if (btn.IsEnabled)
+                    {
+                        overlay.Visibility = Visibility.Collapsed;
+                        overlay.ToolTip = null;
+                    }
+                    else
+                    {
+                        overlay.Visibility = Visibility.Visible;
+                        overlay.ToolTip = GetButtonTooltip(btn.Content?.ToString(), false);
+                    }
                 }
-            }
-            catch (Exception ex)
+            };
+
+            return (button, overlay);
+        }
+
+        /// <summary>
+        /// Возвращает текст подсказки для кнопки
+        /// </summary>
+        private string GetButtonTooltip(string buttonContent, bool isActive)
+        {
+            if (string.IsNullOrEmpty(buttonContent)) return "";
+
+            if (buttonContent.Contains("Добавить"))
             {
-                MessageBox.Show($"Ошибка при выборе фото: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (!isActive)
+                {
+                    var missingFields = GetMissingRequiredFields();
+                    if (missingFields.Any())
+                        return $"Для активации заполните:\n• {string.Join("\n• ", missingFields)}";
+                }
+                return "Нажмите для добавления нового сотрудника";
             }
+
+            if (buttonContent.Contains("Обновить"))
+            {
+                if (!isActive && ListViewEmployees.SelectedItem == null)
+                    return "Сначала выберите сотрудника из списка";
+                if (!isActive)
+                {
+                    var missingFields = GetMissingRequiredFieldsForUpdate();
+                    if (missingFields.Any())
+                        return $"Для активации заполните:\n• {string.Join("\n• ", missingFields)}";
+                }
+                return "Нажмите для обновления данных сотрудника";
+            }
+
+            if (buttonContent.Contains("Удалить"))
+                return "Выберите сотрудника из списка для удаления";
+
+            if (buttonContent.Contains("Очистить"))
+                return "Очистить все поля формы";
+
+            return "Кнопка недоступна";
         }
 
         #endregion
 
-        #region Валидация
+        #region Валидация полей
+
+        /// <summary>
+        /// Проверяет обязательные поля и возвращает список незаполненных
+        /// </summary>
+        private List<string> GetMissingRequiredFields()
+        {
+            var missing = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(GetActualText(TxtLastName)))
+                missing.Add("Фамилия");
+
+            if (string.IsNullOrWhiteSpace(GetActualText(TxtFirstName)))
+                missing.Add("Имя");
+
+            if (CmbPosition.SelectedValue == null)
+                missing.Add("Должность");
+
+            if (string.IsNullOrWhiteSpace(GetActualText(TxtLogin)))
+                missing.Add("Логин");
+
+            if (string.IsNullOrWhiteSpace(GetActualPassword()))
+                missing.Add("Пароль (мин. 12 символов)");
+
+            return missing;
+        }
+
+        /// <summary>
+        /// Проверяет обязательные поля для обновления (без пароля)
+        /// </summary>
+        private List<string> GetMissingRequiredFieldsForUpdate()
+        {
+            var missing = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(GetActualText(TxtLastName)))
+                missing.Add("Фамилия");
+
+            if (string.IsNullOrWhiteSpace(GetActualText(TxtFirstName)))
+                missing.Add("Имя");
+
+            if (CmbPosition.SelectedValue == null)
+                missing.Add("Должность");
+
+            if (string.IsNullOrWhiteSpace(GetActualText(TxtLogin)))
+                missing.Add("Логин");
+
+            return missing;
+        }
+
+        /// <summary>
+        /// Проверяет, все ли обязательные поля заполнены
+        /// </summary>
+        private bool AreRequiredFieldsFilled()
+        {
+            return !GetMissingRequiredFields().Any();
+        }
+
+        /// <summary>
+        /// Проверяет, заполнены ли обязательные поля для обновления (без пароля)
+        /// </summary>
+        private bool AreRequiredFieldsFilledForUpdate()
+        {
+            return !GetMissingRequiredFieldsForUpdate().Any();
+        }
 
         /// <summary>
         /// Проверяет корректность данных сотрудника
@@ -430,6 +594,138 @@ namespace Diplomn.Pages
 
             errorMessage = errors.ToString();
             return errors.Length == 0;
+        }
+
+        #endregion
+
+        #region Управление состоянием кнопок
+
+        /// <summary>
+        /// Обновляет состояние всех кнопок
+        /// </summary>
+        private void UpdateButtonsState()
+        {
+            bool isEmployeeSelected = ListViewEmployees.SelectedItem != null;
+            bool requiredFieldsFilled = AreRequiredFieldsFilled();
+            bool requiredFieldsForUpdate = AreRequiredFieldsFilledForUpdate();
+
+            // Кнопка "Добавить" активна только когда заполнены все обязательные поля
+            if (addButton != null)
+            {
+                addButton.IsEnabled = requiredFieldsFilled;
+                UpdateOverlayState(addButtonOverlay, addButton.IsEnabled, "Добавить");
+            }
+
+            // Кнопка "Обновить" активна когда выбран сотрудник и заполнены обязательные поля (кроме пароля)
+            if (editButton != null)
+            {
+                editButton.IsEnabled = isEmployeeSelected && requiredFieldsForUpdate;
+                UpdateOverlayState(editButtonOverlay, editButton.IsEnabled, "Обновить");
+            }
+
+            // Кнопка "Удалить" активна только когда выбран сотрудник
+            if (deleteButton != null)
+            {
+                deleteButton.IsEnabled = isEmployeeSelected;
+                UpdateOverlayState(deleteButtonOverlay, deleteButton.IsEnabled, "Удалить");
+            }
+
+            // Кнопка "Очистить" всегда активна
+            if (clearButton != null)
+            {
+                clearButton.IsEnabled = true;
+                UpdateOverlayState(clearButtonOverlay, clearButton.IsEnabled, "Очистить");
+            }
+        }
+
+        /// <summary>
+        /// Обновляет состояние overlay для кнопки
+        /// </summary>
+        private void UpdateOverlayState(Border overlay, bool isButtonEnabled, string buttonType)
+        {
+            if (overlay == null) return;
+
+            if (isButtonEnabled)
+            {
+                overlay.Visibility = Visibility.Collapsed;
+                overlay.ToolTip = null;
+            }
+            else
+            {
+                overlay.Visibility = Visibility.Visible;
+                overlay.ToolTip = GetButtonTooltip(buttonType, false);
+            }
+        }
+
+        #endregion
+
+        #region Выбор сотрудника
+
+        /// <summary>
+        /// Заполняет форму данными выбранного сотрудника
+        /// </summary>
+        private void ListViewEmployees_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ListViewEmployees.SelectedItem is EmployeeViewModel selectedEmployee)
+            {
+                var employee = selectedEmployee.OriginalEmployee;
+                TxtEmployeeId.Text = employee.Код_сотрудника.ToString();
+                TxtLastName.Text = employee.Фамилия;
+                TxtFirstName.Text = employee.Имя;
+                TxtMiddleName.Text = employee.Отчество;
+                TxtPhone.Text = employee.Телефон;
+                CmbPosition.SelectedValue = employee.Код_должности;
+                TxtLogin.Text = employee.Логин;
+                PassBox.Password = employee.Пароль;
+                LoadEmployeePhoto(employee);
+                selectedImageData = null;
+            }
+
+            UpdateButtonsState();
+        }
+
+        /// <summary>
+        /// Загружает фото сотрудника в превью
+        /// </summary>
+        private void LoadEmployeePhoto(Сотрудники employee)
+        {
+            try
+            {
+                if (employee?.Аватарка != null && employee.Аватарка.Length > 0)
+                    EmployeePhoto.Source = LoadImageFromBytes(employee.Аватарка);
+                else
+                    EmployeePhoto.Source = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.RelativeOrAbsolute));
+            }
+            catch
+            {
+                EmployeePhoto.Source = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.RelativeOrAbsolute));
+            }
+        }
+
+        #endregion
+
+        #region Выбор фото
+
+        private void SelectPhoto_Click(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                var openFileDialog = new OpenFileDialog
+                {
+                    Filter = "Изображения (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp",
+                    Title = "Выберите фотографию сотрудника"
+                };
+
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    selectedImageData = File.ReadAllBytes(openFileDialog.FileName);
+                    EmployeePhoto.Source = LoadImageFromBytes(selectedImageData);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при выборе фото: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         #endregion
@@ -637,6 +933,8 @@ namespace Diplomn.Pages
             EmployeePhoto.Source = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.RelativeOrAbsolute));
             selectedImageData = null;
             ListViewEmployees.SelectedItem = null;
+
+            UpdateButtonsState();
         }
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
@@ -710,7 +1008,7 @@ namespace Diplomn.Pages
         /// <summary>
         /// Название должности сотрудника
         /// </summary>
-        public string Position => OriginalEmployee.Должность?.Название ?? "Без должности"; //убрать?
+        public string Position => OriginalEmployee.Должность?.Название ?? "Без должности";
 
         /// <summary>
         /// Логин с иконкой для отображения

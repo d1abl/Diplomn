@@ -116,15 +116,6 @@ namespace Diplomn.Addons
         /// <summary>
         /// Создаёт кнопки действий на панели
         /// </summary>
-        /// <param name="panel">Панель для размещения кнопок</param>
-        /// <param name="rights">Права доступа</param>
-        /// <param name="canCreate">Разрешено ли создание</param>
-        /// <param name="canEdit">Разрешено ли редактирование</param>
-        /// <param name="canDelete">Разрешено ли удаление</param>
-        /// <param name="createHandler">Обработчик для кнопки "Добавить"</param>
-        /// <param name="editHandler">Обработчик для кнопки "Обновить"</param>
-        /// <param name="deleteHandler">Обработчик для кнопки "Удалить"</param>
-        /// <param name="clearHandler">Обработчик для кнопки "Очистить"</param>
         public static void CreateActionButtons(Panel panel,
             bool canCreate, bool canEdit, bool canDelete,
             RoutedEventHandler createHandler = null,
@@ -139,78 +130,141 @@ namespace Diplomn.Addons
             // Кнопка "Добавить"
             if (canCreate && createHandler != null)
             {
-                panel.Children.Add(CreateButton("Добавить", createHandler));
+                panel.Children.Add(CreateButtonWithTooltip("Добавить", createHandler));
             }
 
             // Кнопка "Обновить"
             if (canEdit && editHandler != null)
             {
-                panel.Children.Add(CreateButton("Обновить", editHandler));
+                panel.Children.Add(CreateButtonWithTooltip("Обновить", editHandler));
             }
 
             // Кнопка "Удалить"
             if (canDelete && deleteHandler != null)
             {
-                panel.Children.Add(CreateButton("Удалить", deleteHandler));
+                panel.Children.Add(CreateButtonWithTooltip("Удалить", deleteHandler));
             }
 
-            // Кнопка "Очистить" - всегда доступна (если передан обработчик)
+            // Кнопка "Очистить" - всегда доступна
             if (clearHandler != null)
             {
-                panel.Children.Add(CreateButton("Очистить", clearHandler));
-                
+                panel.Children.Add(CreateButtonWithTooltip("Очистить", clearHandler));
             }
         }
 
         /// <summary>
-        /// Создаёт кнопки действий с кастомными названиями
+        /// Создаёт кнопку, обернутую в Border для отображения Tooltip даже когда кнопка неактивна
         /// </summary>
-        public static void CreateCustomActionButtons(Panel panel,
-            (string text, bool condition, RoutedEventHandler handler)[] buttons)
+        private static Border CreateButtonWithTooltip(string text, RoutedEventHandler handler,
+            double width = 90, double height = 34, Thickness? margin = null)
         {
-            if (panel == null) return;
-
-            panel.Children.Clear();
-
-            foreach (var button in buttons)
+            var button = new Button
             {
-                if (button.condition && button.handler != null)
+                Content = text,
+                Width = width,
+                Height = height,
+                IsEnabled = false // По умолчанию неактивна
+            };
+
+            button.Click += handler;
+
+            // Оборачиваем кнопку в Border
+            var border = new Border
+            {
+                Margin = margin ?? new Thickness(3),
+                Child = button,
+                Tag = button // Сохраняем ссылку на кнопку в Tag
+            };
+
+            // Подписываемся на изменение состояния кнопки
+            button.IsEnabledChanged += (s, e) =>
+            {
+                var btn = s as Button;
+                if (btn != null)
                 {
-                    panel.Children.Add(CreateButton(button.text, button.handler));
+                    // Находим родительский Border
+                    var parentBorder = FindParentBorder(btn);
+                    if (parentBorder != null)
+                    {
+                        if (btn.IsEnabled)
+                        {
+                            parentBorder.ToolTip = null;
+                        }
+                        else
+                        {
+                            parentBorder.ToolTip = GetTooltipText(btn);
+                        }
+                    }
                 }
+            };
+
+            return border;
+        }
+
+        /// <summary>
+        /// Находит родительский Border для кнопки
+        /// </summary>
+        private static Border FindParentBorder(DependencyObject child)
+        {
+            var parent = VisualTreeHelper.GetParent(child);
+            while (parent != null && !(parent is Border))
+            {
+                parent = VisualTreeHelper.GetParent(parent);
+            }
+            return parent as Border;
+        }
+
+        /// <summary>
+        /// Возвращает текст подсказки для кнопки
+        /// </summary>
+        private static string GetTooltipText(Button button)
+        {
+            var content = button.Content?.ToString() ?? "";
+
+            if (content.Contains("Добавить"))
+                return "Заполните форму и нажмите для добавления нового сотрудника";
+
+            if (content.Contains("Обновить"))
+                return "Выберите сотрудника из списка для редактирования";
+
+            if (content.Contains("Удалить"))
+                return "Выберите сотрудника из списка для удаления";
+
+            if (content.Contains("Очистить"))
+                return "Очистить все поля формы";
+
+            return "Кнопка временно недоступна";
+        }
+
+        /// <summary>
+        /// Обновляет состояние кнопки
+        /// </summary>
+        public static void UpdateButtonState(Border buttonBorder, bool isEnabled)
+        {
+            if (buttonBorder?.Child is Button button)
+            {
+                button.IsEnabled = isEnabled;
+                // Tooltip обновится автоматически через обработчик IsEnabledChanged
             }
         }
 
         /// <summary>
-        /// Создаёт одну кнопку
+        /// Создаёт обычную кнопку (без обертки) для обратной совместимости
         /// </summary>
         public static Button CreateButton(string text, RoutedEventHandler handler,
             double width = 90, double height = 34, Thickness? margin = null)
         {
             var button = new Button
             {
-                Tag = handler,
                 Content = text,
                 Width = width,
                 Height = height,
                 Margin = margin ?? new Thickness(3),
-                IsEnabled = false,                
-                ToolTip = "Кнопка отключена",
+                IsEnabled = text == "Очистить",
             };
+
             button.Click += handler;
-            if (text == "Очистить") { button.IsEnabled = true; button.ToolTip = "Очистить форму"; }
             return button;
-        }
-
-        /// <summary>
-        /// Обновляет состояние кнопки
-        /// </summary>
-        public static void UpdateButtonState(Button button, bool isEnabled, string toolTip = null)
-        {
-            if (button == null) return;
-
-            button.IsEnabled = isEnabled;
-            button.ToolTip = toolTip;
         }
     }
 }
