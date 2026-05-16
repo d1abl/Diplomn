@@ -457,10 +457,16 @@ namespace Diplomn.Pages
             }
 
             if (DateFrom.SelectedDate.HasValue)
-                query = query.Where(s => DbFunctions.TruncateTime(s.Дата_оформления_постивки) >= DateFrom.SelectedDate.Value.Date);
+            {
+                var dateFrom = DateFrom.SelectedDate.Value.Date; // Вычисляем здесь
+                query = query.Where(s => DbFunctions.TruncateTime(s.Дата_оформления_постивки) >= dateFrom);
+            }
 
             if (DateTo.SelectedDate.HasValue)
-                query = query.Where(s => DbFunctions.TruncateTime(s.Дата_оформления_постивки) < DateTo.SelectedDate.Value.Date.AddDays(1));
+            {
+                var dateTo = DateTo.SelectedDate.Value.Date.AddDays(1); // Вычисляем здесь
+                query = query.Where(s => DbFunctions.TruncateTime(s.Дата_оформления_постивки) < dateTo);
+            }
 
             if (CmbEmployee.SelectedValue != null && int.TryParse(CmbEmployee.SelectedValue.ToString(), out int empId) && empId > 0)
                 query = query.Where(s => s.Код_сотрудника == empId);
@@ -994,9 +1000,19 @@ namespace Diplomn.Pages
         {
             try
             {
-                var query = context.Состав_поставки.AsQueryable();
-                if (DateFrom.SelectedDate.HasValue) query = query.Where(i => DbFunctions.TruncateTime(i.Поставка.Дата_оформления_постивки) >= DateFrom.SelectedDate.Value.Date);
-                if (DateTo.SelectedDate.HasValue) query = query.Where(i => DbFunctions.TruncateTime(i.Поставка.Дата_оформления_постивки) < DateTo.SelectedDate.Value.Date.AddDays(1));
+                var query = context.Состав_поставки.AsQueryable(); // или Состав_продажи
+
+                if (DateFrom.SelectedDate.HasValue)
+                {
+                    var dateFrom = DateFrom.SelectedDate.Value;
+                    query = query.Where(i => i.Поставка.Дата_оформления_постивки >= dateFrom); // или i.Продажи.Дата_продажи
+                }
+
+                if (DateTo.SelectedDate.HasValue)
+                {
+                    var dateTo = DateTo.SelectedDate.Value.AddDays(1);
+                    query = query.Where(i => i.Поставка.Дата_оформления_постивки < dateTo);
+                }
                 if (CmbEmployee.SelectedValue != null && int.TryParse(CmbEmployee.SelectedValue.ToString(), out int empId) && empId > 0) query = query.Where(i => i.Поставка.Код_сотрудника == empId);
                 if (CmbSupplier.SelectedValue != null && int.TryParse(CmbSupplier.SelectedValue.ToString(), out int supId) && supId > 0) query = query.Where(i => i.Поставка.Код_поставщика == supId);
                 TxtGrandTotal.Text = $"{query.Sum(i => (decimal?)i.Количество * i.Цена_за_ед_покупка) ?? 0:N2} ₽";

@@ -46,7 +46,7 @@
                            Margin="0,0,0,5" 
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource ForegroundBrush}"/>
-                <TextBox x:Name="LoginBox" 
+                <TextBox x:Name="LoginBox"  Text="admin"
                          Height="38" 
                          Margin="0,0,0,15"
                          FontSize="14"
@@ -58,7 +58,7 @@
                            Margin="0,0,0,5" 
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource ForegroundBrush}"/>
-                <PasswordBox x:Name="PassBox" 
+                <PasswordBox x:Name="PassBox" Password="admin123"
                              Height="38" 
                              Margin="0,0,0,25"
                              FontSize="14"

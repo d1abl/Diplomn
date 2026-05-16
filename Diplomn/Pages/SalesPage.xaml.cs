@@ -433,10 +433,16 @@ namespace Diplomn.Pages
             }
 
             if (DateFrom.SelectedDate.HasValue)
-                query = query.Where(s => DbFunctions.TruncateTime(s.Дата_продажи) >= DateFrom.SelectedDate.Value.Date);
+            {
+                var dateFrom = DateFrom.SelectedDate.Value;
+                query = query.Where(s => s.Дата_продажи >= dateFrom);
+            }
 
             if (DateTo.SelectedDate.HasValue)
-                query = query.Where(s => DbFunctions.TruncateTime(s.Дата_продажи) < DateTo.SelectedDate.Value.Date.AddDays(1));
+            {
+                var dateTo = DateTo.SelectedDate.Value.AddDays(1);
+                query = query.Where(s => s.Дата_продажи < dateTo);
+            }
 
             if (CmbEmployee.SelectedValue != null && int.TryParse(CmbEmployee.SelectedValue.ToString(), out int empId) && empId > 0)
                 query = query.Where(s => s.Код_сотрудника == empId);
@@ -1119,19 +1125,25 @@ namespace Diplomn.Pages
         {
             try
             {
-                var query = context.Состав_продажи.AsQueryable();
+                var query = context.Состав_продажи.AsQueryable(); // или Состав_продажи
 
                 if (DateFrom.SelectedDate.HasValue)
-                    query = query.Where(i => DbFunctions.TruncateTime(i.Продажи.Дата_продажи) >= DateFrom.SelectedDate.Value.Date);
+                {
+                    var dateFrom = DateFrom.SelectedDate.Value;
+                    query = query.Where(i => i.Продажи.Дата_продажи >= dateFrom); // или i.Продажи.Дата_продажи
+                }
 
                 if (DateTo.SelectedDate.HasValue)
-                    query = query.Where(i => DbFunctions.TruncateTime(i.Продажи.Дата_продажи) < DateTo.SelectedDate.Value.Date.AddDays(1));
+                {
+                    var dateTo = DateTo.SelectedDate.Value.AddDays(1);
+                    query = query.Where(i => i.Продажи.Дата_продажи < dateTo);
+                }
 
                 if (CmbEmployee.SelectedValue != null && int.TryParse(CmbEmployee.SelectedValue.ToString(), out int empId) && empId > 0)
                     query = query.Where(i => i.Продажи.Код_сотрудника == empId);
 
                 var total = query.Sum(i => (decimal?)i.Количество * i.Цена) ?? 0;
-                TxtGrandTotal.Text = $"{total:N2} ₽";
+                TxtGrandTotal.Text = $"{query.Sum(i => (decimal?)i.Количество * i.Цена) ?? 0:N2} ₽";
             }
             catch { TxtGrandTotal.Text = "0.00 ₽"; }
         }
