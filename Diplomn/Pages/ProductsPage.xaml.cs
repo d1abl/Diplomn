@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿using Diplomn.Addons;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -10,6 +11,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
 
 namespace Diplomn.Pages
 {
@@ -24,7 +26,8 @@ namespace Diplomn.Pages
         private Сотрудники currentUser;
         private byte[] selectedImageData;
         private ObservableCollection<ProductViewModel> productsView;
-
+        private AccessManager.AccessRights rights;
+        private WrapPanel actionButtonsPanel;
         #endregion
 
         #region Конструктор
@@ -36,6 +39,17 @@ namespace Diplomn.Pages
             currentUser = user;
             WelcomeText.Text = $"Товары — {user.Фамилия} {user.Имя}";
             productsView = new ObservableCollection<ProductViewModel>();
+            rights = AccessManager.GetAccessRights(user.Должность?.Уровень_доступа ?? 10);
+            actionButtonsPanel = FindName("ActionButtonsPanel") as WrapPanel;
+            ButtonHelper.CreateActionButtons(actionButtonsPanel,
+                canCreate: rights.Roles.CanCreate,
+                canEdit: rights.Roles.CanEdit,
+                canDelete: rights.Roles.CanDelete,
+                createHandler: Add_Click,
+                editHandler: Update_Click,
+                deleteHandler: Delete_Click,
+                clearHandler: ClearForm_Click
+            );
             LoadLookups();
             LoadData();
         }

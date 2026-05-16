@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Diplomn.Addons;
+using System;
 using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-
 namespace Diplomn.Pages
 {
     /// <summary>
@@ -15,15 +15,28 @@ namespace Diplomn.Pages
         #region Поля
 
         private BDEntities context;
-
+        private AccessManager.AccessRights rights;
+        private WrapPanel actionButtonsPanel;
         #endregion
 
         #region Конструктор
 
-        public RolePage()
+        public RolePage(Сотрудники user)
         {
             InitializeComponent();
             context = new BDEntities();
+
+            rights = AccessManager.GetAccessRights(user.Должность?.Уровень_доступа ?? 10);
+            actionButtonsPanel = FindName("ActionButtonsPanel") as WrapPanel;
+            ButtonHelper.CreateActionButtons(actionButtonsPanel,
+                canCreate: rights.Roles.CanCreate,
+                canEdit: rights.Roles.CanDelete,
+                canDelete: rights.Roles.CanDelete,
+                createHandler: Add_Click,
+                editHandler: Update_Click,
+                deleteHandler: Delete_Click,
+                clearHandler: ClearForm_Click
+                );
             LoadData();
         }
 
@@ -115,7 +128,7 @@ namespace Diplomn.Pages
 
         #region CRUD операции
 
-        private void AddRole_Click(object sender, RoutedEventArgs e)
+        private void Add_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -144,7 +157,7 @@ namespace Diplomn.Pages
             }
         }
 
-        private void UpdateRole_Click(object sender, RoutedEventArgs e)
+        private void Update_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -183,7 +196,7 @@ namespace Diplomn.Pages
             }
         }
 
-        private void DeleteRole_Click(object sender, RoutedEventArgs e)
+        private void Delete_Click(object sender, RoutedEventArgs e)
         {
             try
             {

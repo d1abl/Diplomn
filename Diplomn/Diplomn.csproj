@@ -76,6 +76,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Addons\AccessManager.cs" />
     <Compile Include="Addons\FrameExtensions.cs" />
     <Compile Include="Addons\PhoneNumberConverter.cs" />
     <Compile Include="Addons\PlaceholderBehavior.cs" />
@@ -138,9 +139,6 @@
     </Compile>
     <Compile Include="Pages\SuppliersPage.xaml.cs">
       <DependentUpon>SuppliersPage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="SupplierSelectDialog.xaml.cs">
-      <DependentUpon>SupplierSelectDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="Бренд.cs">
       <DependentUpon>BD.tt</DependentUpon>
@@ -250,10 +248,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Pages\SuppliersPage.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="SupplierSelectDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

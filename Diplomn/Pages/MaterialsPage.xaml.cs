@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Diplomn.Addons;
+using System;
 using System.Linq;
 using System.Text;
 using System.Windows;
@@ -15,15 +16,29 @@ namespace Diplomn.Pages
         #region Поля
 
         private BDEntities context;
+        private AccessManager.AccessRights rights;
+        private WrapPanel actionButtonsPanel;
 
         #endregion
 
         #region Конструктор
 
-        public MaterialsPage()
+        public MaterialsPage(Сотрудники user)
         {
             InitializeComponent();
             context = new BDEntities();
+            rights = AccessManager.GetAccessRights(user.Должность?.Уровень_доступа ?? 10);
+            actionButtonsPanel = FindName("ActionButtonsPanel") as WrapPanel;
+            ButtonHelper.CreateActionButtons(actionButtonsPanel,
+                canCreate: rights.Materials.CanCreate,
+                canEdit: rights.Materials.CanEdit,
+                canDelete: rights.Materials.CanDelete,
+                createHandler: Add_Click,
+                editHandler: Update_Click,
+                deleteHandler: Delete_Click,
+                clearHandler: ClearForm_Click
+            );
+
             LoadData();
         }
 

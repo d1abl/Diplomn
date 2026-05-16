@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿using Diplomn.Addons;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -25,6 +26,8 @@ namespace Diplomn.Pages
         private Сотрудники currentUser;
         private byte[] selectedImageData;
         private ObservableCollection<EmployeeViewModel> employeesView;
+        private AccessManager.AccessRights rights;
+        private WrapPanel actionButtonsPanel;
 
         #endregion
 
@@ -37,6 +40,19 @@ namespace Diplomn.Pages
             currentUser = user;
             WelcomeText.Text = $"Сотрудники — {user.Фамилия} {user.Имя}";
             employeesView = new ObservableCollection<EmployeeViewModel>();
+
+            rights = AccessManager.GetAccessRights(user.Должность?.Уровень_доступа ?? 10);
+            actionButtonsPanel = FindName("ActionButtonsPanel") as WrapPanel;
+            ButtonHelper.CreateActionButtons(actionButtonsPanel,
+                canCreate: rights.Employees.CanCreate,
+                canEdit: rights.Employees.CanEdit,
+                canDelete: rights.Employees.CanDelete,
+                createHandler: Add_Click,
+                editHandler: Update_Click,
+                deleteHandler: Delete_Click,
+                clearHandler: ClearForm_Click
+            );
+
             LoadPositions();
             LoadData();
         }

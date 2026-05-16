@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Diplomn.Addons;
+using System;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -16,16 +17,28 @@ namespace Diplomn.Pages
         #region Поля
 
         private BDEntities context;
-
+        private AccessManager.AccessRights rights;
+        private WrapPanel actionButtonsPanel;
         #endregion
 
         #region Конструктор
 
-        public CategoriesPage()
+        public CategoriesPage(Сотрудники user)
         {
             InitializeComponent();
             context = new BDEntities();
             LoadData();
+            rights = AccessManager.GetAccessRights(user.Должность?.Уровень_доступа ?? 10);
+            actionButtonsPanel = FindName("ActionButtonsPanel") as WrapPanel;
+            ButtonHelper.CreateActionButtons(actionButtonsPanel,
+                canCreate: rights.Categories.CanCreate,
+                canEdit: rights.Categories.CanEdit,
+                canDelete: rights.Categories.CanDelete,
+                createHandler: Add_Click,
+                editHandler: Update_Click,
+                deleteHandler: Delete_Click,
+                clearHandler: ClearForm_Click
+            );
         }
 
         #endregion
