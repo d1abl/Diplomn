@@ -10,8 +10,8 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Media.Media3D;
 
 namespace Diplomn.Pages
 {
@@ -28,6 +28,13 @@ namespace Diplomn.Pages
         private ObservableCollection<SupplierViewModel> suppliersView;
         private AccessManager.AccessRights rights;
         private WrapPanel actionButtonsPanel;
+
+        // Контейнеры для кнопок
+        private Grid addButtonContainer;
+        private Grid editButtonContainer;
+        private Grid deleteButtonContainer;
+        private Grid clearButtonContainer;
+
         #endregion
 
         #region Конструктор
@@ -40,20 +47,213 @@ namespace Diplomn.Pages
             WelcomeText.Text = $"Поставщики — {user.Фамилия} {user.Имя}";
             suppliersView = new ObservableCollection<SupplierViewModel>();
 
-
             rights = AccessManager.GetAccessRights(user.Должность?.Уровень_доступа ?? 10);
             actionButtonsPanel = FindName("ActionButtonsPanel") as WrapPanel;
-            ButtonHelper.CreateActionButtons(actionButtonsPanel,
-                canCreate: rights.Suppliers.CanCreate,
-                canEdit: rights.Suppliers.CanEdit,
-                canDelete: rights.Suppliers.CanDelete,
-                createHandler: Add_Click,
-                editHandler: Update_Click,
-                deleteHandler: Delete_Click,
-                clearHandler: ClearForm_Click
-            );
+
+            CreateActionButtons();
+            SubscribeToFieldChanges();
 
             LoadData();
+            UpdateButtonsState();
+        }
+
+        #endregion
+
+        #region Подписка на изменения полей
+
+        private void SubscribeToFieldChanges()
+        {
+            TxtSupplierName.TextChanged += (s, e) => UpdateButtonsState();
+            TxtInn.TextChanged += (s, e) => UpdateButtonsState();
+            TxtAddress.TextChanged += (s, e) => UpdateButtonsState();
+            TxtEmail.TextChanged += (s, e) => UpdateButtonsState();
+            TxtContactLastName.TextChanged += (s, e) => UpdateButtonsState();
+            TxtContactFirstName.TextChanged += (s, e) => UpdateButtonsState();
+            TxtPhone.TextChanged += (s, e) => UpdateButtonsState();
+        }
+
+        #endregion
+
+        #region Создание кнопок
+
+        private void CreateActionButtons()
+        {
+            if (actionButtonsPanel == null) return;
+            actionButtonsPanel.Children.Clear();
+
+            if (rights.Suppliers.CanCreate)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("➕ Добавить", Add_Click, 110);
+                addButtonContainer = CreateButtonContainer(button, overlay);
+                actionButtonsPanel.Children.Add(addButtonContainer);
+            }
+
+            if (rights.Suppliers.CanEdit)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("✏️ Обновить", Update_Click, 110);
+                editButtonContainer = CreateButtonContainer(button, overlay);
+                actionButtonsPanel.Children.Add(editButtonContainer);
+            }
+
+            if (rights.Suppliers.CanDelete)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("🗑️ Удалить", Delete_Click, 110);
+                deleteButtonContainer = CreateButtonContainer(button, overlay);
+                actionButtonsPanel.Children.Add(deleteButtonContainer);
+            }
+
+            var (clearBtn, clearOverlay) = CreateButtonWithOverlay("🔄 Очистить", ClearForm_Click, 110);
+            clearButtonContainer = CreateButtonContainer(clearBtn, clearOverlay);
+            actionButtonsPanel.Children.Add(clearButtonContainer);
+        }
+
+        private Grid CreateButtonContainer(Button button, Border overlay)
+        {
+            var grid = new Grid
+            {
+                Margin = new Thickness(3),
+                Width = button.Width,
+                Height = button.Height
+            };
+
+            grid.Children.Add(button);
+            grid.Children.Add(overlay);
+
+            return grid;
+        }
+
+        private (Button button, Border overlay) CreateButtonWithOverlay(string text, RoutedEventHandler handler, double width = 90)
+        {
+            var button = new Button
+            {
+                Content = text,
+                Width = width,
+                Height = 34,
+                IsEnabled = false
+            };
+
+            button.Click += handler;
+
+            var overlay = new Border
+            {
+                Background = Brushes.Transparent,
+                IsHitTestVisible = true,
+                ToolTip = GetButtonTooltip(text)
+            };
+
+            button.IsEnabledChanged += (s, e) =>
+            {
+                var btn = s as Button;
+                if (btn != null)
+                {
+                    if (btn.IsEnabled)
+                    {
+                        overlay.Visibility = Visibility.Collapsed;
+                        overlay.ToolTip = null;
+                    }
+                    else
+                    {
+                        overlay.Visibility = Visibility.Visible;
+                        overlay.ToolTip = GetButtonTooltip(btn.Content?.ToString());
+                    }
+                }
+            };
+
+            return (button, overlay);
+        }
+
+        private string GetButtonTooltip(string buttonContent)
+        {
+            if (string.IsNullOrEmpty(buttonContent)) return "";
+
+            if (buttonContent.Contains("Добавить"))
+            {
+                var missing = GetMissingRequiredFields();
+                if (missing.Any())
+                    return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                return "Нажмите для добавления поставщика";
+            }
+
+            if (buttonContent.Contains("Обновить"))
+            {
+                if (ListViewSuppliers.SelectedItem == null)
+                    return "Выберите поставщика из списка";
+                var missing = GetMissingRequiredFields();
+                if (missing.Any())
+                    return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                return "Нажмите для обновления поставщика";
+            }
+
+            if (buttonContent.Contains("Удалить"))
+                return "Выберите поставщика из списка для удаления";
+
+            if (buttonContent.Contains("Очистить"))
+                return "Очистить все поля формы";
+
+            return "Кнопка недоступна";
+        }
+
+        #endregion
+
+        #region Валидация полей
+
+        private List<string> GetMissingRequiredFields()
+        {
+            var missing = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(GetActualText(TxtSupplierName)))
+                missing.Add("Наименование поставщика");
+
+            var inn = GetActualText(TxtInn);
+            if (string.IsNullOrWhiteSpace(inn) || !Regex.IsMatch(inn, @"^\d+$") || (inn.Length != 10 && inn.Length != 12))
+                missing.Add("ИНН (10 или 12 цифр)");
+
+            var address = GetActualText(TxtAddress);
+            if (string.IsNullOrWhiteSpace(address) || address.Length < 5)
+                missing.Add("Адрес (мин. 5 символов)");
+
+            var email = GetActualText(TxtEmail);
+            if (string.IsNullOrWhiteSpace(email) || !Regex.IsMatch(email, @"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"))
+                missing.Add("Email (корректный формат)");
+
+            if (string.IsNullOrWhiteSpace(GetActualText(TxtContactLastName)))
+                missing.Add("Фамилия контактного лица");
+
+            if (string.IsNullOrWhiteSpace(GetActualText(TxtContactFirstName)))
+                missing.Add("Имя контактного лица");
+
+            return missing;
+        }
+
+        private bool AreRequiredFieldsFilled()
+        {
+            return !GetMissingRequiredFields().Any();
+        }
+
+        #endregion
+
+        #region Управление состоянием кнопок
+
+        private void UpdateButtonsState()
+        {
+            bool isSupplierSelected = ListViewSuppliers.SelectedItem != null;
+            bool requiredFieldsFilled = AreRequiredFieldsFilled();
+
+            SetButtonState(addButtonContainer, requiredFieldsFilled);
+            SetButtonState(editButtonContainer, isSupplierSelected && requiredFieldsFilled);
+            SetButtonState(deleteButtonContainer, isSupplierSelected);
+            SetButtonState(clearButtonContainer, true);
+        }
+
+        private void SetButtonState(Grid container, bool isEnabled)
+        {
+            if (container == null) return;
+
+            var button = container.Children.OfType<Button>().FirstOrDefault();
+            if (button != null)
+            {
+                button.IsEnabled = isEnabled;
+            }
         }
 
         #endregion
@@ -201,6 +401,8 @@ namespace Diplomn.Pages
                 TxtContactMiddleName.Text = s.Отчество_контактного_лица; TxtPhone.Text = s.Телефон_контактного_лица;
                 LoadSupplierLogo(s); selectedImageData = null;
             }
+
+            UpdateButtonsState();
         }
 
         private void LoadSupplierLogo(Поставщики s)
@@ -330,7 +532,10 @@ namespace Diplomn.Pages
             TxtContactLastName.Text = ""; TxtContactFirstName.Text = ""; TxtContactMiddleName.Text = ""; TxtPhone.Text = "";
             SupplierLogo.Source = new BitmapImage(new Uri("/Photos/istocklogo.png", UriKind.RelativeOrAbsolute));
             selectedImageData = null; ListViewSuppliers.SelectedItem = null;
+
+            UpdateButtonsState();
         }
+
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
 
         private BitmapImage LoadImageFromBytes(byte[] d)

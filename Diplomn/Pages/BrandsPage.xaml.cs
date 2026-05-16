@@ -1,10 +1,12 @@
 ﻿using Diplomn.Addons;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace Diplomn.Pages
 {
@@ -19,6 +21,12 @@ namespace Diplomn.Pages
         private AccessManager.AccessRights rights;
         private WrapPanel actionButtonsPanel;
 
+        // Контейнеры для кнопок
+        private Grid addButtonContainer;
+        private Grid editButtonContainer;
+        private Grid deleteButtonContainer;
+        private Grid clearButtonContainer;
+
         #endregion
 
         #region Конструктор
@@ -29,33 +37,198 @@ namespace Diplomn.Pages
             context = new BDEntities();
             rights = AccessManager.GetAccessRights(user.Должность?.Уровень_доступа ?? 10);
             actionButtonsPanel = FindName("ActionButtonsPanel") as WrapPanel;
-            ButtonHelper.CreateActionButtons(actionButtonsPanel,
-                canCreate: rights.Brands.CanCreate,
-                canEdit: rights.Brands.CanEdit,
-                canDelete: rights.Brands.CanDelete,
-                createHandler: Add_Click,
-                editHandler: Update_Click,
-                deleteHandler: Delete_Click,
-                clearHandler: ClearForm_Click
-            );
+
+            CreateActionButtons();
+            SubscribeToFieldChanges();
+
             LoadData();
+            UpdateButtonsState();
+        }
+
+        #endregion
+
+        #region Подписка на изменения полей
+
+        private void SubscribeToFieldChanges()
+        {
+            TxtBrandName.TextChanged += (s, e) => UpdateButtonsState();
+        }
+
+        #endregion
+
+        #region Создание кнопок
+
+        private void CreateActionButtons()
+        {
+            if (actionButtonsPanel == null) return;
+            actionButtonsPanel.Children.Clear();
+
+            if (rights.Brands.CanCreate)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("➕ Добавить", Add_Click, 110);
+                addButtonContainer = CreateButtonContainer(button, overlay);
+                actionButtonsPanel.Children.Add(addButtonContainer);
+            }
+
+            if (rights.Brands.CanEdit)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("✏️ Обновить", Update_Click, 110);
+                editButtonContainer = CreateButtonContainer(button, overlay);
+                actionButtonsPanel.Children.Add(editButtonContainer);
+            }
+
+            if (rights.Brands.CanDelete)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("🗑️ Удалить", Delete_Click, 110);
+                deleteButtonContainer = CreateButtonContainer(button, overlay);
+                actionButtonsPanel.Children.Add(deleteButtonContainer);
+            }
+
+            var (clearBtn, clearOverlay) = CreateButtonWithOverlay("🔄 Очистить", ClearForm_Click, 110);
+            clearButtonContainer = CreateButtonContainer(clearBtn, clearOverlay);
+            actionButtonsPanel.Children.Add(clearButtonContainer);
+        }
+
+        private Grid CreateButtonContainer(Button button, Border overlay)
+        {
+            var grid = new Grid
+            {
+                Margin = new Thickness(3),
+                Width = button.Width,
+                Height = button.Height
+            };
+
+            grid.Children.Add(button);
+            grid.Children.Add(overlay);
+
+            return grid;
+        }
+
+        private (Button button, Border overlay) CreateButtonWithOverlay(string text, RoutedEventHandler handler, double width = 90)
+        {
+            var button = new Button
+            {
+                Content = text,
+                Width = width,
+                Height = 34,
+                IsEnabled = false
+            };
+
+            button.Click += handler;
+
+            var overlay = new Border
+            {
+                Background = Brushes.Transparent,
+                IsHitTestVisible = true,
+                ToolTip = GetButtonTooltip(text)
+            };
+
+            button.IsEnabledChanged += (s, e) =>
+            {
+                var btn = s as Button;
+                if (btn != null)
+                {
+                    if (btn.IsEnabled)
+                    {
+                        overlay.Visibility = Visibility.Collapsed;
+                        overlay.ToolTip = null;
+                    }
+                    else
+                    {
+                        overlay.Visibility = Visibility.Visible;
+                        overlay.ToolTip = GetButtonTooltip(btn.Content?.ToString());
+                    }
+                }
+            };
+
+            return (button, overlay);
+        }
+
+        private string GetButtonTooltip(string buttonContent)
+        {
+            if (string.IsNullOrEmpty(buttonContent)) return "";
+
+            if (buttonContent.Contains("Добавить"))
+            {
+                var missing = GetMissingRequiredFields();
+                if (missing.Any())
+                    return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                return "Нажмите для добавления бренда";
+            }
+
+            if (buttonContent.Contains("Обновить"))
+            {
+                if (DataGridBrands.SelectedItem == null)
+                    return "Выберите бренд из таблицы";
+                var missing = GetMissingRequiredFields();
+                if (missing.Any())
+                    return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                return "Нажмите для обновления бренда";
+            }
+
+            if (buttonContent.Contains("Удалить"))
+                return "Выберите бренд из таблицы для удаления";
+
+            if (buttonContent.Contains("Очистить"))
+                return "Очистить все поля формы";
+
+            return "Кнопка недоступна";
+        }
+
+        #endregion
+
+        #region Валидация полей
+
+        private List<string> GetMissingRequiredFields()
+        {
+            var missing = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(GetActualText(TxtBrandName)))
+                missing.Add("Наименование бренда");
+
+            return missing;
+        }
+
+        private bool AreRequiredFieldsFilled()
+        {
+            return !GetMissingRequiredFields().Any();
+        }
+
+        #endregion
+
+        #region Управление состоянием кнопок
+
+        private void UpdateButtonsState()
+        {
+            bool isBrandSelected = DataGridBrands.SelectedItem != null;
+            bool requiredFieldsFilled = AreRequiredFieldsFilled();
+
+            SetButtonState(addButtonContainer, requiredFieldsFilled);
+            SetButtonState(editButtonContainer, isBrandSelected && requiredFieldsFilled);
+            SetButtonState(deleteButtonContainer, isBrandSelected);
+            SetButtonState(clearButtonContainer, true);
+        }
+
+        private void SetButtonState(Grid container, bool isEnabled)
+        {
+            if (container == null) return;
+
+            var button = container.Children.OfType<Button>().FirstOrDefault();
+            if (button != null)
+            {
+                button.IsEnabled = isEnabled;
+            }
         }
 
         #endregion
 
         #region Загрузка данных
 
-        /// <summary>
-        /// Загружает все бренды из базы данных
-        /// </summary>
         private void LoadData()
         {
             DataGridBrands.ItemsSource = context.Бренд.ToList();
         }
 
-        /// <summary>
-        /// Формирует отфильтрованный запрос по поисковому тексту
-        /// </summary>
         private IQueryable<Бренд> GetFilteredQuery()
         {
             var query = context.Бренд.AsQueryable();
@@ -71,9 +244,6 @@ namespace Diplomn.Pages
 
         #region Фильтрация
 
-        /// <summary>
-        /// Применяет фильтры и обновляет таблицу
-        /// </summary>
         private void ApplyFilters()
         {
             DataGridBrands.ItemsSource = GetFilteredQuery().ToList();
@@ -96,9 +266,6 @@ namespace Diplomn.Pages
 
         #region Выбор в таблице
 
-        /// <summary>
-        /// Заполняет форму данными выбранного бренда
-        /// </summary>
         private void DataGridBrands_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (DataGridBrands.SelectedItem is Бренд brand)
@@ -106,15 +273,14 @@ namespace Diplomn.Pages
                 TxtBrandId.Text = brand.Код_бренда.ToString();
                 TxtBrandName.Text = brand.Наименование_бредна;
             }
+
+            UpdateButtonsState();
         }
 
         #endregion
 
         #region Валидация
 
-        /// <summary>
-        /// Проверяет корректность введённых данных бренда
-        /// </summary>
         private bool ValidateBrand(out string errorMessage, int? excludeId = null)
         {
             var errors = new StringBuilder();
@@ -128,7 +294,6 @@ namespace Diplomn.Pages
                 errors.AppendLine("• Название не должно превышать 50 символов");
             else
             {
-                // Проверка уникальности названия
                 var exists = excludeId.HasValue
                     ? context.Бренд.Any(b => b.Наименование_бредна == name && b.Код_бренда != excludeId.Value)
                     : context.Бренд.Any(b => b.Наименование_бредна == name);
@@ -145,9 +310,6 @@ namespace Diplomn.Pages
 
         #region CRUD операции
 
-        /// <summary>
-        /// Добавляет новый бренд в базу данных
-        /// </summary>
         private void Add_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -172,9 +334,6 @@ namespace Diplomn.Pages
             }
         }
 
-        /// <summary>
-        /// Обновляет данные выбранного бренда
-        /// </summary>
         private void Update_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -213,9 +372,6 @@ namespace Diplomn.Pages
             }
         }
 
-        /// <summary>
-        /// Удаляет выбранный бренд с проверкой связанных товаров
-        /// </summary>
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -235,7 +391,6 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                // Нельзя удалить бренд, если есть товары с ним
                 if (context.Товары.Any(p => p.Код_бренда == brandId))
                 {
                     MessageBox.Show("Нельзя удалить бренд — есть связанные товары!",
@@ -265,14 +420,13 @@ namespace Diplomn.Pages
 
         #region Очистка формы
 
-        /// <summary>
-        /// Сбрасывает форму редактирования в исходное состояние
-        /// </summary>
         private void ClearForm()
         {
             TxtBrandId.Text = "";
             TxtBrandName.Text = "";
             DataGridBrands.SelectedItem = null;
+
+            UpdateButtonsState();
         }
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
@@ -281,19 +435,12 @@ namespace Diplomn.Pages
 
         #region Вспомогательные методы
 
-        /// <summary>
-        /// Возвращает реальный текст из TextBox, игнорируя placeholder
-        /// </summary>
         private string GetActualText(TextBox textBox)
         {
             if (textBox == null) return string.Empty;
-
             var placeholder = Addons.PlaceholderBehavior.GetPlaceholderText(textBox);
             var text = textBox.Text?.Trim() ?? string.Empty;
-
-            return (!string.IsNullOrEmpty(placeholder) && text == placeholder)
-                ? string.Empty
-                : text;
+            return (!string.IsNullOrEmpty(placeholder) && text == placeholder) ? string.Empty : text;
         }
 
         #endregion

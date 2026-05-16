@@ -10,8 +10,8 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Media.Media3D;
 
 namespace Diplomn.Pages
 {
@@ -28,6 +28,13 @@ namespace Diplomn.Pages
         private ObservableCollection<ProductViewModel> productsView;
         private AccessManager.AccessRights rights;
         private WrapPanel actionButtonsPanel;
+
+        // Контейнеры для кнопок
+        private Grid addButtonContainer;
+        private Grid editButtonContainer;
+        private Grid deleteButtonContainer;
+        private Grid clearButtonContainer;
+
         #endregion
 
         #region Конструктор
@@ -41,26 +48,218 @@ namespace Diplomn.Pages
             productsView = new ObservableCollection<ProductViewModel>();
             rights = AccessManager.GetAccessRights(user.Должность?.Уровень_доступа ?? 10);
             actionButtonsPanel = FindName("ActionButtonsPanel") as WrapPanel;
-            ButtonHelper.CreateActionButtons(actionButtonsPanel,
-                canCreate: rights.Roles.CanCreate,
-                canEdit: rights.Roles.CanEdit,
-                canDelete: rights.Roles.CanDelete,
-                createHandler: Add_Click,
-                editHandler: Update_Click,
-                deleteHandler: Delete_Click,
-                clearHandler: ClearForm_Click
-            );
+
+            CreateActionButtons();
+            SubscribeToFieldChanges();
+
             LoadLookups();
             LoadData();
+            UpdateButtonsState();
+        }
+
+        #endregion
+
+        #region Подписка на изменения полей
+
+        private void SubscribeToFieldChanges()
+        {
+            TxtProductName.TextChanged += (s, e) => UpdateButtonsState();
+            TxtPrice.TextChanged += (s, e) => UpdateButtonsState();
+            CmbCategory.SelectionChanged += (s, e) => UpdateButtonsState();
+            CmbBrand.SelectionChanged += (s, e) => UpdateButtonsState();
+            CmbManufacturer.SelectionChanged += (s, e) => UpdateButtonsState();
+            CmbMaterial.SelectionChanged += (s, e) => UpdateButtonsState();
+            CmbPacking.SelectionChanged += (s, e) => UpdateButtonsState();
+        }
+
+        #endregion
+
+        #region Создание кнопок
+
+        private void CreateActionButtons()
+        {
+            if (actionButtonsPanel == null) return;
+            actionButtonsPanel.Children.Clear();
+
+            if (rights.Products.CanCreate)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("➕ Добавить", Add_Click, 110);
+                addButtonContainer = CreateButtonContainer(button, overlay);
+                actionButtonsPanel.Children.Add(addButtonContainer);
+            }
+
+            if (rights.Products.CanEdit)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("✏️ Обновить", Update_Click, 110);
+                editButtonContainer = CreateButtonContainer(button, overlay);
+                actionButtonsPanel.Children.Add(editButtonContainer);
+            }
+
+            if (rights.Products.CanDelete)
+            {
+                var (button, overlay) = CreateButtonWithOverlay("🗑️ Удалить", Delete_Click, 110);
+                deleteButtonContainer = CreateButtonContainer(button, overlay);
+                actionButtonsPanel.Children.Add(deleteButtonContainer);
+            }
+
+            var (clearBtn, clearOverlay) = CreateButtonWithOverlay("🔄 Очистить", ClearForm_Click, 110);
+            clearButtonContainer = CreateButtonContainer(clearBtn, clearOverlay);
+            actionButtonsPanel.Children.Add(clearButtonContainer);
+        }
+
+        private Grid CreateButtonContainer(Button button, Border overlay)
+        {
+            var grid = new Grid
+            {
+                Margin = new Thickness(3),
+                Width = button.Width,
+                Height = button.Height
+            };
+
+            grid.Children.Add(button);
+            grid.Children.Add(overlay);
+
+            return grid;
+        }
+
+        private (Button button, Border overlay) CreateButtonWithOverlay(string text, RoutedEventHandler handler, double width = 90)
+        {
+            var button = new Button
+            {
+                Content = text,
+                Width = width,
+                Height = 34,
+                IsEnabled = false
+            };
+
+            button.Click += handler;
+
+            var overlay = new Border
+            {
+                Background = Brushes.Transparent,
+                IsHitTestVisible = true,
+                ToolTip = GetButtonTooltip(text)
+            };
+
+            button.IsEnabledChanged += (s, e) =>
+            {
+                var btn = s as Button;
+                if (btn != null)
+                {
+                    if (btn.IsEnabled)
+                    {
+                        overlay.Visibility = Visibility.Collapsed;
+                        overlay.ToolTip = null;
+                    }
+                    else
+                    {
+                        overlay.Visibility = Visibility.Visible;
+                        overlay.ToolTip = GetButtonTooltip(btn.Content?.ToString());
+                    }
+                }
+            };
+
+            return (button, overlay);
+        }
+
+        private string GetButtonTooltip(string buttonContent)
+        {
+            if (string.IsNullOrEmpty(buttonContent)) return "";
+
+            if (buttonContent.Contains("Добавить"))
+            {
+                var missing = GetMissingRequiredFields();
+                if (missing.Any())
+                    return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                return "Нажмите для добавления товара";
+            }
+
+            if (buttonContent.Contains("Обновить"))
+            {
+                if (ListViewProducts.SelectedItem == null)
+                    return "Выберите товар из списка";
+                var missing = GetMissingRequiredFields();
+                if (missing.Any())
+                    return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                return "Нажмите для обновления товара";
+            }
+
+            if (buttonContent.Contains("Удалить"))
+                return "Выберите товар из списка для удаления";
+
+            if (buttonContent.Contains("Очистить"))
+                return "Очистить все поля формы";
+
+            return "Кнопка недоступна";
+        }
+
+        #endregion
+
+        #region Валидация полей
+
+        private List<string> GetMissingRequiredFields()
+        {
+            var missing = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(GetActualText(TxtProductName)))
+                missing.Add("Наименование товара");
+
+            if (!decimal.TryParse(GetActualText(TxtPrice), out decimal price) || price < 0)
+                missing.Add("Цена (корректное число)");
+
+            if (CmbCategory.SelectedValue == null)
+                missing.Add("Категория");
+
+            if (CmbBrand.SelectedValue == null)
+                missing.Add("Бренд");
+
+            if (CmbManufacturer.SelectedValue == null)
+                missing.Add("Производитель");
+
+            if (CmbMaterial.SelectedValue == null)
+                missing.Add("Материал");
+
+            if (CmbPacking.SelectedValue == null)
+                missing.Add("Фасовка");
+
+            return missing;
+        }
+
+        private bool AreRequiredFieldsFilled()
+        {
+            return !GetMissingRequiredFields().Any();
+        }
+
+        #endregion
+
+        #region Управление состоянием кнопок
+
+        private void UpdateButtonsState()
+        {
+            bool isProductSelected = ListViewProducts.SelectedItem != null;
+            bool requiredFieldsFilled = AreRequiredFieldsFilled();
+
+            SetButtonState(addButtonContainer, requiredFieldsFilled);
+            SetButtonState(editButtonContainer, isProductSelected && requiredFieldsFilled);
+            SetButtonState(deleteButtonContainer, isProductSelected);
+            SetButtonState(clearButtonContainer, true);
+        }
+
+        private void SetButtonState(Grid container, bool isEnabled)
+        {
+            if (container == null) return;
+
+            var button = container.Children.OfType<Button>().FirstOrDefault();
+            if (button != null)
+            {
+                button.IsEnabled = isEnabled;
+            }
         }
 
         #endregion
 
         #region Загрузка данных
 
-        /// <summary>
-        /// Загружает справочники в выпадающие списки и панели фильтров
-        /// </summary>
         private void LoadLookups()
         {
             CmbCategory.ItemsSource = context.Категории.ToList();
@@ -76,9 +275,6 @@ namespace Diplomn.Pages
             PopulateFilterPanel(PanelPacking, context.Фасовка.Select(f => new { f.Код_фасовки, f.Количество }).ToList());
         }
 
-        /// <summary>
-        /// Заполняет панель фильтров чекбоксами
-        /// </summary>
         private void PopulateFilterPanel(Panel panel, IEnumerable<dynamic> items)
         {
             panel.Children.Clear();
@@ -91,15 +287,12 @@ namespace Diplomn.Pages
                     Content = props[1].GetValue(item)?.ToString(),
                     Tag = props[0].GetValue(item),
                     FontSize = 11,
-                    Foreground = TryFindResource("ForegroundBrush") as System.Windows.Media.Brush
+                    Foreground = TryFindResource("ForegroundBrush") as Brush
                 };
                 panel.Children.Add(cb);
             }
         }
 
-        /// <summary>
-        /// Загружает все товары без фильтрации
-        /// </summary>
         private void LoadData()
         {
             var products = context.Товары
@@ -113,9 +306,6 @@ namespace Diplomn.Pages
             UpdateProductsView(products);
         }
 
-        /// <summary>
-        /// Обновляет коллекцию ViewModel для отображения в карточках
-        /// </summary>
         private void UpdateProductsView(List<Товары> products)
         {
             productsView.Clear();
@@ -129,9 +319,6 @@ namespace Diplomn.Pages
 
         #region Фильтрация
 
-        /// <summary>
-        /// Получает ID отмеченных чекбоксов из панели фильтров
-        /// </summary>
         private List<int> GetCheckedIdsFromPanel(Panel panel)
         {
             return panel.Children.OfType<CheckBox>()
@@ -140,23 +327,17 @@ namespace Diplomn.Pages
                 .ToList();
         }
 
-        /// <summary>
-        /// Формирует отфильтрованный запрос к базе данных
-        /// </summary>
         private IQueryable<Товары> GetFilteredQuery()
         {
             var query = context.Товары.AsQueryable();
 
-            // Поиск по наименованию
             var searchText = GetActualText(TxtSearch);
             if (!string.IsNullOrWhiteSpace(searchText))
                 query = query.Where(p => p.Наименование.Contains(searchText));
 
-            // Только в наличии
             if (ChkInStock.IsChecked == true)
                 query = query.Where(p => p.Количество > 0);
 
-            // Фильтр по цене
             var priceMinText = GetActualText(TxtPriceMin);
             if (decimal.TryParse(priceMinText, out decimal pmin))
                 query = query.Where(p => p.Цена_за_ед_продажа >= pmin);
@@ -165,7 +346,6 @@ namespace Diplomn.Pages
             if (decimal.TryParse(priceMaxText, out decimal pmax))
                 query = query.Where(p => p.Цена_за_ед_продажа <= pmax);
 
-            // Фильтр по количеству
             var qtyMinText = GetActualText(TxtQtyMin);
             if (int.TryParse(qtyMinText, out int qmin))
                 query = query.Where(p => p.Количество >= qmin);
@@ -174,7 +354,6 @@ namespace Diplomn.Pages
             if (int.TryParse(qtyMaxText, out int qmax))
                 query = query.Where(p => p.Количество <= qmax);
 
-            // Фильтры по справочникам
             var catIds = GetCheckedIdsFromPanel(PanelCategories);
             if (catIds.Any()) query = query.Where(p => catIds.Contains(p.Код_категория));
 
@@ -193,9 +372,6 @@ namespace Diplomn.Pages
             return query;
         }
 
-        /// <summary>
-        /// Применяет все фильтры и обновляет отображение
-        /// </summary>
         private void ApplyFilters()
         {
             var products = GetFilteredQuery()
@@ -236,9 +412,6 @@ namespace Diplomn.Pages
 
         #region Отчёт в PDF
 
-        /// <summary>
-        /// Сохраняет каталог товаров в PDF-файл
-        /// </summary>
         private void SaveReport_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -267,7 +440,6 @@ namespace Diplomn.Pages
 
                 if (saveFileDialog.ShowDialog() != true) return;
 
-                // Данные магазина
                 const string shopName = "Oculus+";
                 const string shopPhone = "+7 (461) 345 12-34";
                 const string shopEmail = "Oculus@глаза.ру";
@@ -352,7 +524,6 @@ namespace Diplomn.Pages
 
                         document.Add(table);
 
-                        // Итого
                         var tp = new iTextSharp.text.Paragraph($"Всего товаров: {products.Count}", fontSubtitle);
                         tp.Alignment = iTextSharp.text.Element.ALIGN_LEFT;
                         tp.SpacingAfter = 3;
@@ -368,7 +539,6 @@ namespace Diplomn.Pages
                         sump.SpacingAfter = 35;
                         document.Add(sump);
 
-                        // Подпись
                         var signTable = new iTextSharp.text.pdf.PdfPTable(1);
                         signTable.WidthPercentage = 55;
                         signTable.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
@@ -387,7 +557,6 @@ namespace Diplomn.Pages
                         signTable.AddCell(sc2);
                         document.Add(signTable);
 
-                        // Футер
                         var fl = new iTextSharp.text.pdf.draw.LineSeparator(1f, 100f, iTextSharp.text.BaseColor.LIGHT_GRAY, iTextSharp.text.Element.ALIGN_CENTER, 0);
                         var flp = new iTextSharp.text.Paragraph();
                         flp.SpacingBefore = 40;
@@ -424,9 +593,6 @@ namespace Diplomn.Pages
 
         #region Выбор товара и фото
 
-        /// <summary>
-        /// Заполняет форму данными выбранного товара
-        /// </summary>
         private void ListViewProducts_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (ListViewProducts.SelectedItem is ProductViewModel selectedProduct)
@@ -444,6 +610,8 @@ namespace Diplomn.Pages
                 LoadProductPhoto(product);
                 selectedImageData = null;
             }
+
+            UpdateButtonsState();
         }
 
         private void LoadProductPhoto(Товары product)
@@ -486,9 +654,6 @@ namespace Diplomn.Pages
 
         #region Валидация
 
-        /// <summary>
-        /// Проверяет корректность данных товара
-        /// </summary>
         private bool ValidateProduct(out string errorMessage, int? excludeId = null)
         {
             var errors = new StringBuilder();
@@ -680,6 +845,8 @@ namespace Diplomn.Pages
             ProductPhoto.Source = new BitmapImage(new Uri("/Photos/istockproductphoto.png", UriKind.RelativeOrAbsolute));
             selectedImageData = null;
             ListViewProducts.SelectedItem = null;
+
+            UpdateButtonsState();
         }
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();

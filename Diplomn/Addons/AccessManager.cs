@@ -1,5 +1,6 @@
 ﻿using Org.BouncyCastle.Asn1.Cmp;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -114,7 +115,7 @@ namespace Diplomn.Addons
     public static class ButtonHelper
     {
         /// <summary>
-        /// Создаёт кнопки действий на панели
+        /// Создаёт кнопки действий на панели с overlay для tooltip
         /// </summary>
         public static void CreateActionButtons(Panel panel,
             bool canCreate, bool canEdit, bool canDelete,
@@ -130,126 +131,139 @@ namespace Diplomn.Addons
             // Кнопка "Добавить"
             if (canCreate && createHandler != null)
             {
-                panel.Children.Add(CreateButtonWithTooltip("Добавить", createHandler));
+                var (button, overlay) = CreateButtonWithOverlay("Добавить", createHandler);
+                panel.Children.Add(CreateButtonContainer(button, overlay));
             }
 
             // Кнопка "Обновить"
             if (canEdit && editHandler != null)
             {
-                panel.Children.Add(CreateButtonWithTooltip("Обновить", editHandler));
+                var (button, overlay) = CreateButtonWithOverlay("Обновить", editHandler);
+                panel.Children.Add(CreateButtonContainer(button, overlay));
             }
 
             // Кнопка "Удалить"
             if (canDelete && deleteHandler != null)
             {
-                panel.Children.Add(CreateButtonWithTooltip("Удалить", deleteHandler));
+                var (button, overlay) = CreateButtonWithOverlay("Удалить", deleteHandler);
+                panel.Children.Add(CreateButtonContainer(button, overlay));
             }
 
             // Кнопка "Очистить" - всегда доступна
             if (clearHandler != null)
             {
-                panel.Children.Add(CreateButtonWithTooltip("Очистить", clearHandler));
+                var (button, overlay) = CreateButtonWithOverlay("Очистить", clearHandler);
+                panel.Children.Add(CreateButtonContainer(button, overlay));
             }
         }
 
         /// <summary>
-        /// Создаёт кнопку, обернутую в Border для отображения Tooltip даже когда кнопка неактивна
+        /// Создает контейнер Grid, содержащий кнопку и overlay для tooltip
         /// </summary>
-        private static Border CreateButtonWithTooltip(string text, RoutedEventHandler handler,
-            double width = 90, double height = 34, Thickness? margin = null)
+        private static Grid CreateButtonContainer(Button button, Border overlay)
+        {
+            var grid = new Grid
+            {
+                Margin = new Thickness(3),
+                Width = button.Width,
+                Height = button.Height
+            };
+
+            grid.Children.Add(button);
+            grid.Children.Add(overlay);
+
+            return grid;
+        }
+
+        /// <summary>
+        /// Создает кнопку и прозрачный overlay Border для tooltip
+        /// </summary>
+        private static (Button button, Border overlay) CreateButtonWithOverlay(string text, RoutedEventHandler handler, double width = 90, double height = 34)
         {
             var button = new Button
             {
                 Content = text,
                 Width = width,
                 Height = height,
-                IsEnabled = false // По умолчанию неактивна
+                IsEnabled = false
             };
 
             button.Click += handler;
 
-            // Оборачиваем кнопку в Border
-            var border = new Border
+            var overlay = new Border
             {
-                Margin = margin ?? new Thickness(3),
-                Child = button,
-                Tag = button // Сохраняем ссылку на кнопку в Tag
+                Background = System.Windows.Media.Brushes.Transparent,
+                IsHitTestVisible = true,
+                ToolTip = GetDefaultTooltip(text)
             };
 
-            // Подписываемся на изменение состояния кнопки
             button.IsEnabledChanged += (s, e) =>
             {
                 var btn = s as Button;
                 if (btn != null)
                 {
-                    // Находим родительский Border
-                    var parentBorder = FindParentBorder(btn);
-                    if (parentBorder != null)
+                    if (btn.IsEnabled)
                     {
-                        if (btn.IsEnabled)
-                        {
-                            parentBorder.ToolTip = null;
-                        }
-                        else
-                        {
-                            parentBorder.ToolTip = GetTooltipText(btn);
-                        }
+                        overlay.Visibility = System.Windows.Visibility.Collapsed;
+                        overlay.ToolTip = null;
+                    }
+                    else
+                    {
+                        overlay.Visibility = System.Windows.Visibility.Visible;
+                        overlay.ToolTip = GetDefaultTooltip(btn.Content?.ToString());
                     }
                 }
             };
 
-            return border;
+            return (button, overlay);
         }
 
         /// <summary>
-        /// Находит родительский Border для кнопки
+        /// Возвращает текст подсказки по умолчанию для кнопки
         /// </summary>
-        private static Border FindParentBorder(DependencyObject child)
+        private static string GetDefaultTooltip(string buttonContent)
         {
-            var parent = VisualTreeHelper.GetParent(child);
-            while (parent != null && !(parent is Border))
-            {
-                parent = VisualTreeHelper.GetParent(parent);
-            }
-            return parent as Border;
-        }
+            if (string.IsNullOrEmpty(buttonContent)) return "";
 
-        /// <summary>
-        /// Возвращает текст подсказки для кнопки
-        /// </summary>
-        private static string GetTooltipText(Button button)
-        {
-            var content = button.Content?.ToString() ?? "";
+            if (buttonContent.Contains("Добавить"))
+                return "Заполните обязательные поля для активации";
 
-            if (content.Contains("Добавить"))
-                return "Заполните форму и нажмите для добавления нового сотрудника";
+            if (buttonContent.Contains("Обновить"))
+                return "Выберите запись из списка для редактирования";
 
-            if (content.Contains("Обновить"))
-                return "Выберите сотрудника из списка для редактирования";
+            if (buttonContent.Contains("Удалить"))
+                return "Выберите запись из списка для удаления";
 
-            if (content.Contains("Удалить"))
-                return "Выберите сотрудника из списка для удаления";
-
-            if (content.Contains("Очистить"))
+            if (buttonContent.Contains("Очистить"))
                 return "Очистить все поля формы";
 
             return "Кнопка временно недоступна";
         }
 
         /// <summary>
-        /// Обновляет состояние кнопки
+        /// Устанавливает состояние кнопки через контейнер
         /// </summary>
-        public static void UpdateButtonState(Border buttonBorder, bool isEnabled)
+        public static void SetButtonState(Grid container, bool isEnabled, string customTooltip = null)
         {
-            if (buttonBorder?.Child is Button button)
+            if (container == null) return;
+
+            // Находим кнопку в контейнере
+            var button = container.Children.OfType<Button>().FirstOrDefault();
+            if (button != null)
             {
                 button.IsEnabled = isEnabled;
-                // Tooltip обновится автоматически через обработчик IsEnabledChanged
+            }
+
+            // Находим overlay в контейнере
+            var overlay = container.Children.OfType<Border>().FirstOrDefault(b => b.Background == System.Windows.Media.Brushes.Transparent);
+            if (overlay != null && !isEnabled && !string.IsNullOrEmpty(customTooltip))
+            {
+                overlay.ToolTip = customTooltip;
             }
         }
 
         /// <summary>
-        /// Создаёт обычную кнопку (без обертки) для обратной совместимости
+        /// Создаёт кнопку без overlay (для обратной совместимости)
         /// </summary>
         public static Button CreateButton(string text, RoutedEventHandler handler,
             double width = 90, double height = 34, Thickness? margin = null)
