@@ -166,7 +166,7 @@
                     <!-- Код -->
                     <TextBlock Text="Код" FontSize="12" Margin="0,0,0,4"/>
                     <TextBox x:Name="TxtEmployeeId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
-                             addons:PlaceholderBehavior.PlaceholderText="Код сотрудника"/>
+                             addons:PlaceholderBehavior.PlaceholderText="Код сотрудника" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                     <!-- Фамилия -->
                     <TextBlock Text="Фамилия *" FontSize="12" Margin="0,0,0,4"/>

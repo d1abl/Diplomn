@@ -68,7 +68,7 @@
 
                 <TextBlock Text="Код" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtPackingId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
-                         addons:PlaceholderBehavior.PlaceholderText="Код фасовки"/>
+                         addons:PlaceholderBehavior.PlaceholderText="Код фасовки" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                 <TextBlock Text="Количество *" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtPackingQuantity" Height="32" Margin="0,0,0,15"

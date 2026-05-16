@@ -96,7 +96,7 @@
                          IsReadOnly="True" 
                          Height="32" 
                          Margin="0,0,0,12"
-                         addons:PlaceholderBehavior.PlaceholderText="Код бренда"/>
+                         addons:PlaceholderBehavior.PlaceholderText="Код бренда" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                 <TextBlock Text="Наименование *" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtBrandName" 

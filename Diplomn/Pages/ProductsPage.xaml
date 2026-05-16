@@ -241,7 +241,7 @@
                     <!-- Код -->
                     <TextBlock Text="Код товара" FontSize="12" Margin="0,0,0,4"/>
                     <TextBox x:Name="TxtProductId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
-                             addons:PlaceholderBehavior.PlaceholderText="Код товара"/>
+                             addons:PlaceholderBehavior.PlaceholderText="Код товара" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                     <!-- Наименование -->
                     <TextBlock Text="Наименование *" FontSize="12" Margin="0,0,0,4"/>

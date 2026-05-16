@@ -127,6 +127,7 @@
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Height" Value="32" />
         <Setter Property="Margin" Value="0,3" />
+        <Setter Property="IsEditable" Value="True"/>
         <Setter Property="Background" Value="{DynamicResource BackgroundBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
@@ -295,7 +296,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="Padding" Value="5,0" />
         <Setter Property="IsEditable" Value="True"/>
-        <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="IsReadOnly" Value="False"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBox">

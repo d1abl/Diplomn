@@ -377,6 +377,7 @@ namespace Diplomn.Pages
         {
             var sales = GetFilteredAndSortedSales();
             UpdateSalesView(sales);
+            LoadGrandTotal();
         }
 
         private void UpdateSalesView(List<Продажи> sales)

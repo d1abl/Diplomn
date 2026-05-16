@@ -130,7 +130,7 @@
 
                     <TextBlock Text="Код" FontSize="12" Margin="0,0,0,4"/>
                     <TextBox x:Name="TxtSupplierId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
-                             addons:PlaceholderBehavior.PlaceholderText="Код поставщика"/>
+                             addons:PlaceholderBehavior.PlaceholderText="Код поставщика" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                     <TextBlock Text="Наименование *" FontSize="12" Margin="0,0,0,4"/>
                     <TextBox x:Name="TxtSupplierName" Height="32" Margin="0,0,0,12"

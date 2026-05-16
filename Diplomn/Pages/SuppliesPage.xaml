@@ -7,7 +7,7 @@
       mc:Ignorable="d" 
       Title="SuppliesPage">
 
-    <Grid Margin="15">
+    <Grid Margin="25 15 15 15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -137,7 +137,7 @@
                         </ListView.ItemsPanel>
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="3" 
+                                <Border Margin="2" 
                                         Width="160"
                                         Height="130"
                                         Background="{DynamicResource BackgroundBrush}"
@@ -192,68 +192,71 @@
 
                 <!-- Правая панель: информация о поставке -->
                 <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10,0,0,0">
+                    <StackPanel Margin="10,0,50,0" >
                         <TextBlock Text="Информация о поставке" FontWeight="Bold" FontSize="14" Margin="0,0,0,15"/>
 
                         <TextBlock Text="Код поставки:" Margin="0,0,0,3"/>
                         <TextBox x:Name="TxtSupplyId" IsReadOnly="True" Height="30" Margin="0,0,0,10"
-                                 addons:PlaceholderBehavior.PlaceholderText="Код поставки"/>
+                 addons:PlaceholderBehavior.PlaceholderText="Код поставки" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                         <TextBlock Text="Дата оформления:" Margin="0,0,0,3"/>
                         <TextBox x:Name="TxtSupplyDate" IsReadOnly="True" Height="30" Margin="0,0,0,10"
-                                 addons:PlaceholderBehavior.PlaceholderText="Дата оформления"/>
+                 addons:PlaceholderBehavior.PlaceholderText="Дата оформления" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                         <TextBlock Text="Сотрудник:" Margin="0,0,0,3"/>
                         <TextBox x:Name="TxtEmployee" IsReadOnly="True" Height="30" Margin="0,0,0,10"
-                                 addons:PlaceholderBehavior.PlaceholderText="Сотрудник"/>
+                 addons:PlaceholderBehavior.PlaceholderText="Сотрудник" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                         <TextBlock Text="Поставщик:" Margin="0,0,0,3"/>
                         <TextBox x:Name="TxtSupplier" IsReadOnly="True" Height="30" Margin="0,0,0,15"
-                                 addons:PlaceholderBehavior.PlaceholderText="Поставщик"/>
+                 addons:PlaceholderBehavior.PlaceholderText="Поставщик" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
+                        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Состав поставки:" FontWeight="Bold" Margin="0,0,0,8"/>
 
-                        <TextBlock Text="Состав поставки:" FontWeight="Bold" Margin="0,0,0,8"/>
-
-                        <!-- Список товаров в поставке -->
-                        <ListView x:Name="ListViewSupplyItems"
-                                  SelectionMode="Single"
-                                  Height="200"
-                                  Margin="0,0,0,15"
-                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                  Background="Transparent"
-                                  BorderBrush="{DynamicResource BorderBrush}"
-                                  BorderThickness="1" d:ItemsSource="{d:SampleData ItemCount=5}">
-                            <ListView.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Padding="8,5" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Width="40" Height="40" 
-                                                    CornerRadius="3"
-                                                    BorderBrush="{DynamicResource BorderBrush}" 
-                                                    BorderThickness="1"
-                                                    Margin="0,0,10,0">
-                                                <Image Source="{Binding PhotoSource}" Stretch="UniformToFill"/>
+                                <!-- Список товаров в поставке -->
+                                <ListView x:Name="ListViewSupplyItems"
+                                          MinHeight="200"
+                                          MaxHeight="470"
+                                          SelectionMode="Single"
+                                          Margin="0,0,0,15"
+                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                          Background="Transparent"
+                                          BorderBrush="{DynamicResource BorderBrush}"
+                                          BorderThickness="1" d:ItemsSource="{d:SampleData ItemCount=5}">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="8,5" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Grid.Column="0" Width="40" Height="40" 
+                                    CornerRadius="3"
+                                    BorderBrush="{DynamicResource BorderBrush}" 
+                                    BorderThickness="1"
+                                    Margin="0,0,10,0">
+                                                        <Image Source="{Binding PhotoSource}" Stretch="UniformToFill"/>
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock Text="{Binding Товар}" FontWeight="Bold" FontSize="12"/>
+                                                        <TextBlock Text="{Binding PriceQuantityDisplay}" FontSize="11" Opacity="0.7"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Сумма, StringFormat={}{0:N2} ₽}" 
+                                       FontWeight="Bold" VerticalAlignment="Center" Margin="10,0"/>
+                                                </Grid>
                                             </Border>
-                                            <StackPanel Grid.Column="1">
-                                                <TextBlock Text="{Binding Товар}" FontWeight="Bold" FontSize="12"/>
-                                                <TextBlock Text="{Binding PriceQuantityDisplay}" FontSize="11" Opacity="0.7"/>
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="2" Text="{Binding Сумма, StringFormat={}{0:N2} ₽}" 
-                                                       FontWeight="Bold" VerticalAlignment="Center" Margin="10,0"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </StackPanel>
+                        </ScrollViewer>
                         <StackPanel x:Name="TotalPanel" Orientation="Horizontal" HorizontalAlignment="Left" Visibility="Collapsed">
                             <TextBlock Text="Общая сумма:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
                             <TextBlock x:Name="TxtTotal" FontWeight="Bold" FontSize="16" 
-                                       Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+                       Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

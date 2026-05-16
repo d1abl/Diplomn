@@ -69,7 +69,7 @@
 
                 <TextBlock Text="Код" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtRoleId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
-                         addons:PlaceholderBehavior.PlaceholderText="Код должности"/>
+                         addons:PlaceholderBehavior.PlaceholderText="Код должности" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                 <TextBlock Text="Название *" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtRoleName" Height="32" Margin="0,0,0,12"

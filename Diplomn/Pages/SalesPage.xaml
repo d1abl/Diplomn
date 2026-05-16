@@ -8,7 +8,7 @@
       Title="Продажи"
       Background="{DynamicResource BackgroundBrush}">
 
-    <Grid Margin="15">
+    <Grid Margin="25 15 15 15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -136,9 +136,9 @@
                         </ListView.ItemsPanel>
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="3" 
-                                        Width="170"
-                                        Height="120"
+                                <Border Margin="0" 
+                                        Width="130"
+                                        Height="100"
                                         Background="{DynamicResource BackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}" 
                                         BorderThickness="1"
@@ -188,68 +188,69 @@
 
                 <!-- Правая панель: информация о продаже -->
                 <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10,0,0,0">
+                    <StackPanel Margin="10,0,20,0">
                         <TextBlock Text="Информация о продаже" FontWeight="Bold" FontSize="14" Margin="0,0,0,15"
                                    Foreground="{DynamicResource ForegroundBrush}"/>
 
                         <TextBlock Text="Код чека:" FontSize="12" Margin="0,0,0,4"
                                    Foreground="{DynamicResource ForegroundBrush}"/>
                         <TextBox x:Name="TxtSaleId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
-                                 addons:PlaceholderBehavior.PlaceholderText="Код чека"/>
+                                 addons:PlaceholderBehavior.PlaceholderText="Код чека" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                         <TextBlock Text="Дата продажи:" FontSize="12" Margin="0,0,0,4"
                                    Foreground="{DynamicResource ForegroundBrush}"/>
                         <TextBox x:Name="TxtSaleDate" IsReadOnly="True" Height="32" Margin="0,0,0,12"
-                                 addons:PlaceholderBehavior.PlaceholderText="Дата продажи"/>
+                                 addons:PlaceholderBehavior.PlaceholderText="Дата продажи" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                         <TextBlock Text="Сотрудник:" FontSize="12" Margin="0,0,0,4"
                                    Foreground="{DynamicResource ForegroundBrush}"/>
                         <TextBox x:Name="TxtEmployee" IsReadOnly="True" Height="32" Margin="0,0,0,15"
-                                 addons:PlaceholderBehavior.PlaceholderText="Сотрудник"/>
+                                 addons:PlaceholderBehavior.PlaceholderText="Сотрудник" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                         <TextBlock Text="Состав чека:" FontWeight="Bold" FontSize="13" Margin="0,0,0,8"
                                    Foreground="{DynamicResource ForegroundBrush}"/>
-
-                        <!-- Список товаров в чеке -->
-                        <ListView x:Name="ListViewSaleItems"
+                        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                            <!-- Список товаров в чеке -->
+                            <ListView x:Name="ListViewSaleItems"
                                   SelectionMode="Single"
-                                  Height="200"
+                                      MinHeight="200"
+                                      MaxHeight="520"
                                   Margin="0,0,0,15"
                                   ScrollViewer.VerticalScrollBarVisibility="Auto"
                                   Background="Transparent"
                                   BorderBrush="{DynamicResource BorderBrush}"
                                   BorderThickness="1" d:ItemsSource="{d:SampleData ItemCount=5}">
-                            <ListView.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Padding="8,5" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Width="40" Height="40" 
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="8,5" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" Width="40" Height="40" 
                                                     CornerRadius="3"
                                                     BorderBrush="{DynamicResource BorderBrush}" 
                                                     BorderThickness="1"
                                                     Margin="0,0,10,0">
-                                                <Image Source="{Binding PhotoSource}" Stretch="UniformToFill"/>
-                                            </Border>
-                                            <StackPanel Grid.Column="1">
-                                                <TextBlock Text="{Binding Товар}" FontWeight="Bold" FontSize="12"
+                                                    <Image Source="{Binding PhotoSource}" Stretch="UniformToFill"/>
+                                                </Border>
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding Товар}" FontWeight="Bold" FontSize="12"
                                                            Foreground="{DynamicResource ForegroundBrush}"/>
-                                                <TextBlock Text="{Binding PriceQuantityDisplay}" FontSize="11" Opacity="0.7"
+                                                    <TextBlock Text="{Binding PriceQuantityDisplay}" FontSize="11" Opacity="0.7"
                                                            Foreground="{DynamicResource ForegroundBrush}"/>
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="2" Text="{Binding Сумма, StringFormat={}{0:N2} ₽}" 
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding Сумма, StringFormat={}{0:N2} ₽}" 
                                                        FontWeight="Bold" VerticalAlignment="Center" Margin="10,0"
                                                        Foreground="{DynamicResource ForegroundBrush}"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </ScrollViewer>
                         <StackPanel x:Name="TotalPanel" Orientation="Horizontal" HorizontalAlignment="Left" Visibility="Collapsed">
                             <TextBlock Text="Общая сумма:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"
                                        Foreground="{DynamicResource ForegroundBrush}"/>

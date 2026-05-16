@@ -400,6 +400,7 @@ namespace Diplomn.Pages
         {
             var supplies = GetFilteredAndSortedSupplies();
             UpdateSuppliesView(supplies);
+            LoadGrandTotal();
         }
 
         private void UpdateSuppliesView(List<Поставка> supplies)
