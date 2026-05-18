@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace Diplomn.Pages
 {
@@ -26,6 +27,9 @@ namespace Diplomn.Pages
         private Grid editButtonContainer;
         private Grid deleteButtonContainer;
         private Grid clearButtonContainer;
+
+        // Таймер для уведомлений
+        private DispatcherTimer _successTimer;
 
         #endregion
 
@@ -51,7 +55,21 @@ namespace Diplomn.Pages
 
         private void SubscribeToFieldChanges()
         {
-            TxtManufacturerName.TextChanged += (s, e) => UpdateButtonsState();
+            TxtManufacturerName.TextChanged += OnFieldTextChanged;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку ошибок при изменении текста в поле
+        /// </summary>
+        private void OnFieldTextChanged(object sender, EventArgs e)
+        {
+            if (sender is Control control)
+            {
+                control.BorderBrush = SystemColors.ControlDarkBrush;
+                control.BorderThickness = new Thickness(1);
+                control.ToolTip = null;
+            }
+            UpdateButtonsState();
         }
 
         #endregion
@@ -179,6 +197,33 @@ namespace Diplomn.Pages
 
         #region Валидация полей
 
+        /// <summary>
+        /// Подсвечивает поле с ошибкой
+        /// </summary>
+        private void HighlightError(Control control, string errorMessage)
+        {
+            control.BorderBrush = Brushes.Red;
+            control.BorderThickness = new Thickness(2);
+            control.ToolTip = errorMessage;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку всех полей
+        /// </summary>
+        private void ClearAllHighlights()
+        {
+            var controls = new Control[] { TxtManufacturerName };
+            foreach (var control in controls)
+            {
+                if (control != null)
+                {
+                    control.BorderBrush = SystemColors.ControlDarkBrush;
+                    control.BorderThickness = new Thickness(1);
+                    control.ToolTip = null;
+                }
+            }
+        }
+
         private List<string> GetMissingRequiredFields()
         {
             var missing = new List<string>();
@@ -192,6 +237,56 @@ namespace Diplomn.Pages
         private bool AreRequiredFieldsFilled()
         {
             return !GetMissingRequiredFields().Any();
+        }
+
+        /// <summary>
+        /// Проверяет корректность введённых данных
+        /// </summary>
+        private bool ValidateManufacturer(out string errorMessage, int? excludeId = null)
+        {
+            var errors = new List<string>();
+            var errorFields = new Dictionary<Control, string>();
+            var name = GetActualText(TxtManufacturerName);
+
+            // Сбрасываем подсветку
+            ClearAllHighlights();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                errors.Add("• Введите наименование производителя");
+                errorFields[TxtManufacturerName] = "Наименование производителя обязательно для заполнения";
+            }
+            else if (name.Length < 2)
+            {
+                errors.Add("• Название должно быть не короче 2 символов");
+                errorFields[TxtManufacturerName] = "Название производителя должно содержать минимум 2 символа";
+            }
+            else if (name.Length > 50)
+            {
+                errors.Add("• Название не должно превышать 50 символов");
+                errorFields[TxtManufacturerName] = "Название производителя не должно превышать 50 символов";
+            }
+            else
+            {
+                var exists = excludeId.HasValue
+                    ? context.Производитель.Any(m => m.Наименование_произваодителя == name && m.Код_производителя != excludeId.Value)
+                    : context.Производитель.Any(m => m.Наименование_произваодителя == name);
+
+                if (exists)
+                {
+                    errors.Add("• Производитель с таким названием уже существует");
+                    errorFields[TxtManufacturerName] = "Производитель с таким названием уже существует";
+                }
+            }
+
+            // Подсвечиваем поля с ошибками
+            foreach (var field in errorFields)
+            {
+                HighlightError(field.Key, field.Value);
+            }
+
+            errorMessage = string.Join(Environment.NewLine, errors);
+            return errors.Count == 0;
         }
 
         #endregion
@@ -273,37 +368,14 @@ namespace Diplomn.Pages
                 TxtManufacturerId.Text = m.Код_производителя.ToString();
                 TxtManufacturerName.Text = m.Наименование_произваодителя;
             }
-
-            UpdateButtonsState();
-        }
-
-        #endregion
-
-        #region Валидация
-
-        private bool Validate(out string errorMessage, int? excludeId = null)
-        {
-            var errors = new StringBuilder();
-            var name = GetActualText(TxtManufacturerName);
-
-            if (string.IsNullOrWhiteSpace(name))
-                errors.AppendLine("• Введите наименование");
-            else if (name.Length < 2)
-                errors.AppendLine("• Название должно быть не короче 2 символов");
-            else if (name.Length > 50)
-                errors.AppendLine("• Название не должно превышать 50 символов");
             else
             {
-                var exists = excludeId.HasValue
-                    ? context.Производитель.Any(m => m.Наименование_произваодителя == name && m.Код_производителя != excludeId.Value)
-                    : context.Производитель.Any(m => m.Наименование_произваодителя == name);
-
-                if (exists)
-                    errors.AppendLine("• Производитель с таким названием уже существует");
+                ClearForm();
             }
 
-            errorMessage = errors.ToString();
-            return errors.Length == 0;
+            // Сбрасываем подсветку при выборе другого элемента
+            ClearAllHighlights();
+            UpdateButtonsState();
         }
 
         #endregion
@@ -314,9 +386,8 @@ namespace Diplomn.Pages
         {
             try
             {
-                if (!Validate(out var error))
+                if (!ValidateManufacturer(out var error))
                 {
-                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -324,13 +395,14 @@ namespace Diplomn.Pages
                 context.Производитель.Add(item);
                 context.SaveChanges();
 
-                MessageBox.Show("Производитель добавлен!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Производитель «{item.Наименование_произваодителя}» добавлен!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при добавлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -353,22 +425,24 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                if (!Validate(out var error, id))
+                if (!ValidateManufacturer(out var error, id))
                 {
-                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                item.Наименование_произваодителя = GetActualText(TxtManufacturerName);
+                var newName = GetActualText(TxtManufacturerName);
+                var oldName = item.Наименование_произваодителя;
+                item.Наименование_произваодителя = newName;
                 context.SaveChanges();
 
-                MessageBox.Show("Производитель обновлён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Производитель обновлён с «{oldName}» на «{newName}»!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при обновлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -393,25 +467,28 @@ namespace Diplomn.Pages
 
                 if (context.Товары.Any(p => p.Код_производителя == id))
                 {
-                    MessageBox.Show("Нельзя удалить — есть связанные товары!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Нельзя удалить производителя — есть связанные товары!",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                var result = MessageBox.Show($"Удалить «{item.Наименование_произваодителя}»?",
+                var result = MessageBox.Show($"Удалить производителя «{item.Наименование_произваодителя}»?",
                     "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
+                    var name = item.Наименование_произваодителя;
                     context.Производитель.Remove(item);
                     context.SaveChanges();
-                    MessageBox.Show("Удалён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowSuccess($"Производитель «{name}» удалён!");
                     LoadData();
                     ClearForm();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при удалении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -424,11 +501,34 @@ namespace Diplomn.Pages
             TxtManufacturerId.Text = "";
             TxtManufacturerName.Text = "";
             DataGridManufacturers.SelectedItem = null;
+            ClearAllHighlights();
 
             UpdateButtonsState();
         }
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+
+        #endregion
+
+        #region Уведомления
+
+        /// <summary>
+        /// Показывает сообщение об успехе с автоматическим скрытием
+        /// </summary>
+        private void ShowSuccess(string message)
+        {
+            SuccessText.Text = message;
+            SuccessBorder.Visibility = Visibility.Visible;
+
+            _successTimer?.Stop();
+            _successTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _successTimer.Tick += (s, e) =>
+            {
+                SuccessBorder.Visibility = Visibility.Collapsed;
+                _successTimer.Stop();
+            };
+            _successTimer.Start();
+        }
 
         #endregion
 

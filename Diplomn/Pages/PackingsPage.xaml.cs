@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace Diplomn.Pages
 {
@@ -26,6 +27,9 @@ namespace Diplomn.Pages
         private Grid editButtonContainer;
         private Grid deleteButtonContainer;
         private Grid clearButtonContainer;
+
+        // Таймер для уведомлений
+        private DispatcherTimer _successTimer;
 
         #endregion
 
@@ -51,7 +55,21 @@ namespace Diplomn.Pages
 
         private void SubscribeToFieldChanges()
         {
-            TxtPackingQuantity.TextChanged += (s, e) => UpdateButtonsState();
+            TxtPackingQuantity.TextChanged += OnFieldTextChanged;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку ошибок при изменении текста в поле
+        /// </summary>
+        private void OnFieldTextChanged(object sender, EventArgs e)
+        {
+            if (sender is Control control)
+            {
+                control.BorderBrush = SystemColors.ControlDarkBrush;
+                control.BorderThickness = new Thickness(1);
+                control.ToolTip = null;
+            }
+            UpdateButtonsState();
         }
 
         #endregion
@@ -179,6 +197,33 @@ namespace Diplomn.Pages
 
         #region Валидация полей
 
+        /// <summary>
+        /// Подсвечивает поле с ошибкой
+        /// </summary>
+        private void HighlightError(Control control, string errorMessage)
+        {
+            control.BorderBrush = Brushes.Red;
+            control.BorderThickness = new Thickness(2);
+            control.ToolTip = errorMessage;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку всех полей
+        /// </summary>
+        private void ClearAllHighlights()
+        {
+            var controls = new Control[] { TxtPackingQuantity };
+            foreach (var control in controls)
+            {
+                if (control != null)
+                {
+                    control.BorderBrush = SystemColors.ControlDarkBrush;
+                    control.BorderThickness = new Thickness(1);
+                    control.ToolTip = null;
+                }
+            }
+        }
+
         private List<string> GetMissingRequiredFields()
         {
             var missing = new List<string>();
@@ -193,6 +238,61 @@ namespace Diplomn.Pages
         private bool AreRequiredFieldsFilled()
         {
             return !GetMissingRequiredFields().Any();
+        }
+
+        /// <summary>
+        /// Проверяет корректность введённых данных
+        /// </summary>
+        private bool ValidatePacking(out string errorMessage, int? excludeId = null)
+        {
+            var errors = new List<string>();
+            var errorFields = new Dictionary<Control, string>();
+            var quantityText = GetActualText(TxtPackingQuantity);
+
+            // Сбрасываем подсветку
+            ClearAllHighlights();
+
+            if (string.IsNullOrWhiteSpace(quantityText))
+            {
+                errors.Add("• Введите количество");
+                errorFields[TxtPackingQuantity] = "Количество обязательно для заполнения";
+            }
+            else if (!int.TryParse(quantityText, out int qty))
+            {
+                errors.Add("• Количество должно быть целым числом");
+                errorFields[TxtPackingQuantity] = "Количество должно быть целым числом";
+            }
+            else if (qty <= 0)
+            {
+                errors.Add("• Количество должно быть больше 0");
+                errorFields[TxtPackingQuantity] = "Количество должно быть больше 0";
+            }
+            else if (qty > 100000)
+            {
+                errors.Add("• Количество не должно превышать 100 000");
+                errorFields[TxtPackingQuantity] = "Количество не должно превышать 100 000";
+            }
+            else
+            {
+                var exists = excludeId.HasValue
+                    ? context.Фасовка.Any(p => p.Количество == qty && p.Код_фасовки != excludeId.Value)
+                    : context.Фасовка.Any(p => p.Количество == qty);
+
+                if (exists)
+                {
+                    errors.Add("• Фасовка с таким количеством уже существует");
+                    errorFields[TxtPackingQuantity] = "Фасовка с таким количеством уже существует";
+                }
+            }
+
+            // Подсвечиваем поля с ошибками
+            foreach (var field in errorFields)
+            {
+                HighlightError(field.Key, field.Value);
+            }
+
+            errorMessage = string.Join(Environment.NewLine, errors);
+            return errors.Count == 0;
         }
 
         #endregion
@@ -270,39 +370,14 @@ namespace Diplomn.Pages
                 TxtPackingId.Text = packing.Код_фасовки.ToString();
                 TxtPackingQuantity.Text = packing.Количество.ToString();
             }
-
-            UpdateButtonsState();
-        }
-
-        #endregion
-
-        #region Валидация
-
-        private bool Validate(out string errorMessage, int? excludeId = null)
-        {
-            var errors = new StringBuilder();
-            var quantityText = GetActualText(TxtPackingQuantity);
-
-            if (string.IsNullOrWhiteSpace(quantityText))
-                errors.AppendLine("• Введите количество");
-            else if (!int.TryParse(quantityText, out int qty))
-                errors.AppendLine("• Количество должно быть целым числом");
-            else if (qty <= 0)
-                errors.AppendLine("• Количество должно быть больше 0");
-            else if (qty > 100000)
-                errors.AppendLine("• Количество не должно превышать 100 000");
             else
             {
-                var exists = excludeId.HasValue
-                    ? context.Фасовка.Any(p => p.Количество == qty && p.Код_фасовки != excludeId.Value)
-                    : context.Фасовка.Any(p => p.Количество == qty);
-
-                if (exists)
-                    errors.AppendLine("• Фасовка с таким количеством уже существует");
+                ClearForm();
             }
 
-            errorMessage = errors.ToString();
-            return errors.Length == 0;
+            // Сбрасываем подсветку при выборе другого элемента
+            ClearAllHighlights();
+            UpdateButtonsState();
         }
 
         #endregion
@@ -313,23 +388,24 @@ namespace Diplomn.Pages
         {
             try
             {
-                if (!Validate(out var error))
+                if (!ValidatePacking(out var error))
                 {
-                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                var item = new Фасовка { Количество = int.Parse(GetActualText(TxtPackingQuantity)) };
+                var qty = int.Parse(GetActualText(TxtPackingQuantity));
+                var item = new Фасовка { Количество = qty };
                 context.Фасовка.Add(item);
                 context.SaveChanges();
 
-                MessageBox.Show("Фасовка добавлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Фасовка «{qty}» добавлена!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при добавлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -352,22 +428,24 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                if (!Validate(out var error, id))
+                if (!ValidatePacking(out var error, id))
                 {
-                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                item.Количество = int.Parse(GetActualText(TxtPackingQuantity));
+                var newQty = int.Parse(GetActualText(TxtPackingQuantity));
+                var oldQty = item.Количество;
+                item.Количество = newQty;
                 context.SaveChanges();
 
-                MessageBox.Show("Фасовка обновлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Фасовка обновлена с «{oldQty}» на «{newQty}»!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при обновлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -392,7 +470,8 @@ namespace Diplomn.Pages
 
                 if (context.Товары.Any(p => p.Код_фасовки == id))
                 {
-                    MessageBox.Show("Нельзя удалить — есть связанные товары!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Нельзя удалить фасовку — есть связанные товары!",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -401,16 +480,18 @@ namespace Diplomn.Pages
 
                 if (result == MessageBoxResult.Yes)
                 {
+                    var qty = item.Количество;
                     context.Фасовка.Remove(item);
                     context.SaveChanges();
-                    MessageBox.Show("Удалена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowSuccess($"Фасовка «{qty}» удалена!");
                     LoadData();
                     ClearForm();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при удалении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -423,11 +504,34 @@ namespace Diplomn.Pages
             TxtPackingId.Text = "";
             TxtPackingQuantity.Text = "";
             DataGridPackings.SelectedItem = null;
+            ClearAllHighlights();
 
             UpdateButtonsState();
         }
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+
+        #endregion
+
+        #region Уведомления
+
+        /// <summary>
+        /// Показывает сообщение об успехе с автоматическим скрытием
+        /// </summary>
+        private void ShowSuccess(string message)
+        {
+            SuccessText.Text = message;
+            SuccessBorder.Visibility = Visibility.Visible;
+
+            _successTimer?.Stop();
+            _successTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _successTimer.Tick += (s, e) =>
+            {
+                SuccessBorder.Visibility = Visibility.Collapsed;
+                _successTimer.Stop();
+            };
+            _successTimer.Start();
+        }
 
         #endregion
 

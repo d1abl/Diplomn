@@ -13,6 +13,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace Diplomn.Pages
 {
@@ -41,6 +42,9 @@ namespace Diplomn.Pages
         private Border editButtonOverlay;
         private Border deleteButtonOverlay;
         private Border clearButtonOverlay;
+
+        // Таймер для уведомлений
+        private DispatcherTimer _successTimer;
 
         #endregion
 
@@ -336,6 +340,29 @@ namespace Diplomn.Pages
             PassBox.PasswordChanged += (s, e) => UpdateButtonsState();
             CmbPosition.SelectionChanged += (s, e) => UpdateButtonsState();
             TxtPhone.TextChanged += (s, e) => UpdateButtonsState();
+
+            // Добавляем сброс подсветки при изменении полей
+            TxtLastName.TextChanged += OnFieldTextChanged;
+            TxtFirstName.TextChanged += OnFieldTextChanged;
+            TxtMiddleName.TextChanged += OnFieldTextChanged;
+            TxtPhone.TextChanged += OnFieldTextChanged;
+            TxtLogin.TextChanged += OnFieldTextChanged;
+            PassBox.PasswordChanged += (s, e) => OnFieldTextChanged(s, e);
+            CmbPosition.SelectionChanged += (s, e) => OnFieldTextChanged(s, e);
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку ошибок при изменении текста в поле
+        /// </summary>
+        private void OnFieldTextChanged(object sender, EventArgs e)
+        {
+            if (sender is Control control)
+            {
+                control.BorderBrush = SystemColors.ControlDarkBrush;
+                control.BorderThickness = new Thickness(1);
+                control.ToolTip = null;
+            }
+            UpdateButtonsState();
         }
 
         #endregion
@@ -487,6 +514,33 @@ namespace Diplomn.Pages
         #region Валидация полей
 
         /// <summary>
+        /// Подсвечивает поле с ошибкой
+        /// </summary>
+        private void HighlightError(Control control, string errorMessage)
+        {
+            control.BorderBrush = Brushes.Red;
+            control.BorderThickness = new Thickness(2);
+            control.ToolTip = errorMessage;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку всех полей
+        /// </summary>
+        private void ClearAllHighlights()
+        {
+            var controls = new Control[] { TxtLastName, TxtFirstName, TxtMiddleName, TxtPhone, TxtLogin, CmbPosition, PassBox };
+            foreach (var control in controls)
+            {
+                if (control != null)
+                {
+                    control.BorderBrush = SystemColors.ControlDarkBrush;
+                    control.BorderThickness = new Thickness(1);
+                    control.ToolTip = null;
+                }
+            }
+        }
+
+        /// <summary>
         /// Проверяет обязательные поля и возвращает список незаполненных
         /// </summary>
         private List<string> GetMissingRequiredFields()
@@ -550,52 +604,145 @@ namespace Diplomn.Pages
         }
 
         /// <summary>
-        /// Проверяет корректность данных сотрудника
+        /// Проверяет корректность данных сотрудника с подсветкой полей
+        /// </summary>
+        /// <summary>
+        /// Проверяет корректность данных сотрудника с подсветкой полей
         /// </summary>
         private bool ValidateEmployee(out string errorMessage, bool skipPasswordValidation = false)
         {
-            var errors = new StringBuilder();
+            var errors = new List<string>();
+            var errorFields = new Dictionary<Control, string>();
+
             var lastName = GetActualText(TxtLastName);
             var firstName = GetActualText(TxtFirstName);
+            var middleName = GetActualText(TxtMiddleName);
             var phone = GetActualText(TxtPhone);
             var login = GetActualText(TxtLogin);
             var password = GetActualPassword();
 
+            // Сбрасываем подсветку
+            ClearAllHighlights();
+
+            // Фамилия
             if (string.IsNullOrWhiteSpace(lastName))
-                errors.AppendLine("• Фамилия не введена");
+            {
+                errors.Add("• Фамилия не введена");
+                errorFields[TxtLastName] = "Фамилия обязательна для заполнения";
+            }
             else if (!Regex.IsMatch(lastName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
-                errors.AppendLine("• Фамилия содержит недопустимые символы");
+            {
+                errors.Add("• Фамилия содержит недопустимые символы");
+                errorFields[TxtLastName] = "Фамилия может содержать только буквы и дефис";
+            }
             else if (lastName.Length > 30)
-                errors.AppendLine("• Фамилия должна быть не длиннее 30 символов");
+            {
+                errors.Add("• Фамилия должна быть не длиннее 30 символов");
+                errorFields[TxtLastName] = "Фамилия не должна превышать 30 символов";
+            }
+            else if (Regex.Replace(lastName, @"[^A-Za-zА-Яа-яЁё]", "").Length < 2)
+            {
+                errors.Add("• Фамилия должна содержать минимум 2 буквы");
+                errorFields[TxtLastName] = "Фамилия должна содержать минимум 2 буквы";
+            }
 
+            // Имя
             if (string.IsNullOrWhiteSpace(firstName))
-                errors.AppendLine("• Имя не введено");
+            {
+                errors.Add("• Имя не введено");
+                errorFields[TxtFirstName] = "Имя обязательно для заполнения";
+            }
             else if (!Regex.IsMatch(firstName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
-                errors.AppendLine("• Имя содержит недопустимые символы");
+            {
+                errors.Add("• Имя содержит недопустимые символы");
+                errorFields[TxtFirstName] = "Имя может содержать только буквы и дефис";
+            }
             else if (firstName.Length > 30)
-                errors.AppendLine("• Имя должно быть не длиннее 30 символов");
+            {
+                errors.Add("• Имя должно быть не длиннее 30 символов");
+                errorFields[TxtFirstName] = "Имя не должно превышать 30 символов";
+            }
+            else if (Regex.Replace(firstName, @"[^A-Za-zА-Яа-яЁё]", "").Length < 2)
+            {
+                errors.Add("• Имя должно содержать минимум 2 буквы");
+                errorFields[TxtFirstName] = "Имя должно содержать минимум 2 буквы";
+            }
 
+            // Отчество (опционально)
+            if (!string.IsNullOrWhiteSpace(middleName))
+            {
+                if (!Regex.IsMatch(middleName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
+                {
+                    errors.Add("• Отчество содержит недопустимые символы");
+                    errorFields[TxtMiddleName] = "Отчество может содержать только буквы и дефис";
+                }
+                else if (middleName.Length > 30)
+                {
+                    errors.Add("• Отчество должно быть не длиннее 30 символов");
+                    errorFields[TxtMiddleName] = "Отчество не должно превышать 30 символов";
+                }
+            }
+
+            // Должность
             if (CmbPosition.SelectedValue == null)
-                errors.AppendLine("• Должность не выбрана");
+            {
+                errors.Add("• Должность не выбрана");
+                errorFields[CmbPosition] = "Выберите должность сотрудника";
+            }
 
+            // Логин
             if (string.IsNullOrWhiteSpace(login))
-                errors.AppendLine("• Логин не введён");
+            {
+                errors.Add("• Логин не введён");
+                errorFields[TxtLogin] = "Логин обязателен для заполнения";
+            }
+            else if (login.Length < 3)
+            {
+                errors.Add("• Логин должен быть не менее 3 символов");
+                errorFields[TxtLogin] = "Логин должен содержать минимум 3 символа";
+            }
+            else if (login.Length > 50)
+            {
+                errors.Add("• Логин не должен превышать 50 символов");
+                errorFields[TxtLogin] = "Логин не должен превышать 50 символов";
+            }
+            else if (!Regex.IsMatch(login, @"^[A-Za-z0-9_@.-]+$"))
+            {
+                errors.Add("• Логин содержит недопустимые символы");
+                errorFields[TxtLogin] = "Логин может содержать только буквы, цифры и символы _ @ . -";
+            }
 
+            // Пароль (проверяется только если не пропущен)
             if (!skipPasswordValidation)
             {
                 if (string.IsNullOrWhiteSpace(password))
-                    errors.AppendLine("• Пароль не введён");
+                {
+                    errors.Add("• Пароль не введён");
+                    errorFields[PassBox] = "Пароль обязателен для заполнения";
+                }
                 else if (password.Length < 12)
-                    errors.AppendLine("• Пароль должен быть не менее 12 символов");
+                {
+                    errors.Add("• Пароль должен быть не менее 12 символов");
+                    errorFields[PassBox] = "Пароль должен содержать минимум 12 символов";
+                }
             }
 
+            // Телефон
             if (!string.IsNullOrWhiteSpace(phone) && !Regex.IsMatch(phone, @"^\+?\d{11}$"))
-                errors.AppendLine("• Телефон должен содержать 11 цифр");
+            {
+                errors.Add("• Телефон должен содержать 11 цифр (например: +79001234567)");
+                errorFields[TxtPhone] = "Телефон должен содержать 11 цифр (например: +79001234567)";
+            }
 
-            errorMessage = errors.ToString();
-            return errors.Length == 0;
+            // Подсвечиваем поля с ошибками
+            foreach (var field in errorFields)
+            {
+                HighlightError(field.Key, field.Value);
+            }
+
+            errorMessage = string.Join(Environment.NewLine, errors);
+            return errors.Count == 0;
         }
-
         #endregion
 
         #region Управление состоянием кнопок
@@ -680,7 +827,13 @@ namespace Diplomn.Pages
                 LoadEmployeePhoto(employee);
                 selectedImageData = null;
             }
+            else
+            {
+                ClearForm();
+            }
 
+            // Сбрасываем подсветку при выборе другого элемента
+            ClearAllHighlights();
             UpdateButtonsState();
         }
 
@@ -741,22 +894,26 @@ namespace Diplomn.Pages
             {
                 if (!ValidateEmployee(out var error))
                 {
-                    MessageBox.Show(error, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    // Не показываем MessageBox, поля уже подсвечены
                     return;
                 }
 
                 var login = GetActualText(TxtLogin);
                 var phone = GetActualText(TxtPhone);
 
+                // Проверка уникальности логина
                 if (context.Сотрудники.Any(s => s.Логин == login))
                 {
-                    MessageBox.Show("Логин уже используется!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    HighlightError(TxtLogin, "Этот логин уже используется другим сотрудником");
+                    TxtLogin.Focus();
                     return;
                 }
 
+                // Проверка уникальности телефона
                 if (!string.IsNullOrWhiteSpace(phone) && context.Сотрудники.Any(s => s.Телефон == phone))
                 {
-                    MessageBox.Show("Телефон уже используется!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    HighlightError(TxtPhone, "Этот телефон уже используется другим сотрудником");
+                    TxtPhone.Focus();
                     return;
                 }
 
@@ -775,13 +932,14 @@ namespace Diplomn.Pages
                 context.Сотрудники.Add(employee);
                 context.SaveChanges();
 
-                MessageBox.Show("Сотрудник добавлен!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Сотрудник «{employee.Фамилия} {employee.Имя}» добавлен!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при добавлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -798,13 +956,6 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                var skipPassword = string.IsNullOrEmpty(GetActualPassword());
-                if (!ValidateEmployee(out var error, skipPassword))
-                {
-                    MessageBox.Show(error, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
                 var employeeId = int.Parse(TxtEmployeeId.Text);
                 var employee = context.Сотрудники.Find(employeeId);
 
@@ -814,21 +965,37 @@ namespace Diplomn.Pages
                     return;
                 }
 
+                // Получаем введенный пароль
+                var password = GetActualPassword();
+
+                // Если пароль не введен (пустой) или совпадает с текущим - пропускаем валидацию пароля
+                var skipPasswordValidation = string.IsNullOrEmpty(password) || password == employee.Пароль;
+
+                if (!ValidateEmployee(out var error, skipPasswordValidation))
+                {
+                    return;
+                }
+
                 var login = GetActualText(TxtLogin);
                 var phone = GetActualText(TxtPhone);
 
+                // Проверка уникальности логина
                 if (context.Сотрудники.Any(s => s.Логин == login && s.Код_сотрудника != employeeId))
                 {
-                    MessageBox.Show("Логин уже используется!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    HighlightError(TxtLogin, "Этот логин уже используется другим сотрудником");
+                    TxtLogin.Focus();
                     return;
                 }
 
+                // Проверка уникальности телефона
                 if (!string.IsNullOrWhiteSpace(phone) && context.Сотрудники.Any(s => s.Телефон == phone && s.Код_сотрудника != employeeId))
                 {
-                    MessageBox.Show("Телефон уже используется!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    HighlightError(TxtPhone, "Этот телефон уже используется другим сотрудником");
+                    TxtPhone.Focus();
                     return;
                 }
 
+                var oldName = $"{employee.Фамилия} {employee.Имя}";
                 employee.Фамилия = GetActualText(TxtLastName);
                 employee.Имя = GetActualText(TxtFirstName);
                 employee.Отчество = GetActualText(TxtMiddleName);
@@ -836,8 +1003,9 @@ namespace Diplomn.Pages
                 employee.Код_должности = (int)CmbPosition.SelectedValue;
                 employee.Логин = login;
 
-                if (!string.IsNullOrEmpty(GetActualPassword()))
-                    employee.Пароль = GetActualPassword();
+                // Пароль меняем только если он введен и отличается от текущего
+                if (!string.IsNullOrEmpty(password) && password != employee.Пароль)
+                    employee.Пароль = password;
 
                 if (selectedImageData != null)
                     employee.Аватарка = selectedImageData;
@@ -849,8 +1017,8 @@ namespace Diplomn.Pages
                     currentUser.Имя = employee.Имя;
                     currentUser.Отчество = employee.Отчество;
                     currentUser.Телефон = employee.Телефон;
-                    if (!string.IsNullOrEmpty(GetActualPassword()))
-                        currentUser.Пароль = GetActualPassword();
+                    if (!string.IsNullOrEmpty(password) && password != currentUser.Пароль)
+                        currentUser.Пароль = password;
                     if (selectedImageData != null)
                         currentUser.Аватарка = selectedImageData;
 
@@ -860,16 +1028,16 @@ namespace Diplomn.Pages
 
                 context.SaveChanges();
 
-                MessageBox.Show("Сотрудник обновлён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Сотрудник обновлён с «{oldName}» на «{employee.Фамилия} {employee.Имя}»!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при обновлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
         /// <summary>
         /// Удаляет выбранного сотрудника
         /// </summary>
@@ -903,16 +1071,18 @@ namespace Diplomn.Pages
 
                 if (result == MessageBoxResult.Yes)
                 {
+                    var employeeName = $"{employee.Фамилия} {employee.Имя}";
                     context.Сотрудники.Remove(employee);
                     context.SaveChanges();
-                    MessageBox.Show("Сотрудник удалён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowSuccess($"Сотрудник «{employeeName}» удалён!");
                     LoadData();
                     ClearForm();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при удалении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -933,11 +1103,34 @@ namespace Diplomn.Pages
             EmployeePhoto.Source = new BitmapImage(new Uri("/Photos/istockavatar.png", UriKind.RelativeOrAbsolute));
             selectedImageData = null;
             ListViewEmployees.SelectedItem = null;
+            ClearAllHighlights();
 
             UpdateButtonsState();
         }
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+
+        #endregion
+
+        #region Уведомления
+
+        /// <summary>
+        /// Показывает сообщение об успехе с автоматическим скрытием
+        /// </summary>
+        private void ShowSuccess(string message)
+        {
+            SuccessText.Text = message;
+            SuccessBorder.Visibility = Visibility.Visible;
+
+            _successTimer?.Stop();
+            _successTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _successTimer.Tick += (s, e) =>
+            {
+                SuccessBorder.Visibility = Visibility.Collapsed;
+                _successTimer.Stop();
+            };
+            _successTimer.Start();
+        }
 
         #endregion
 
@@ -1024,9 +1217,19 @@ namespace Diplomn.Pages
             {
                 var level = OriginalEmployee.Должность?.Уровень_доступа;
                 if (!level.HasValue) return "🔒 Уровень доступа: не определён";
-                return level.Value == 1 ? $"👑 Администратор (ур. {level})" :
-                       level.Value <= 3 ? $"⭐ Менеджер (ур. {level})" :
-                                          $"🔒 Сотрудник (ур. {level})";
+
+                switch (level.Value)
+                {
+                    case 1: return $"👑 Администратор (ур. {level})";
+                    case 2: return $"⭐ Старший менеджер (ур. {level})";
+                    case 4: return $"📊 Менеджер по продажам (ур. {level})";
+                    case 5: return $"📦 Менеджер по закупкам (ур. {level})";
+                    case 7: return $"💬 Продавец-консультант (ур. {level})";
+                    case 8: return $"💰 Кассир (ур. {level})";
+                    case 9: return $"📦 Кладовщик (ур. {level})";
+                    case 10: return $"📚 Стажёр (ур. {level})";
+                    default: return level.Value <= 3 ? $"⭐ Менеджер (ур. {level})" : $"🔒 Сотрудник (ур. {level})";
+                }
             }
         }
 

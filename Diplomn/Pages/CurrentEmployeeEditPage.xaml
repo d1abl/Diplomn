@@ -99,13 +99,13 @@
                     <!-- Должность (только чтение) -->
                     <TextBlock Text="Должность" FontSize="12" Margin="0,0,0,4"/>
                     <TextBox x:Name="TxtEmployeePosition" Height="34" Margin="0,0,0,14"
-                             IsReadOnly="True" Opacity="0.6"
+                             IsReadOnly="True" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"
                              addons:PlaceholderBehavior.PlaceholderText="Должность"/>
 
                     <!-- Логин (только чтение) -->
                     <TextBlock Text="Логин" FontSize="12" Margin="0,0,0,4"/>
                     <TextBox x:Name="TxtLogin" Height="34" Margin="0,0,0,14"
-                             IsReadOnly="True" Opacity="0.6"
+                             IsReadOnly="True" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"
                              addons:PlaceholderBehavior.PlaceholderText="Логин"/>
 
                     <!-- Пароль -->
@@ -124,7 +124,18 @@
                             Background="{DynamicResource BackgroundBrush}" 
                             Foreground="{DynamicResource ForegroundBrush}"
                             HorizontalAlignment="Stretch"
-                            Margin="0,10,0,0"/>
+                            Margin="0,0,0,10"/>
+                    <Border x:Name="SuccessBorder" 
+                        Background="{DynamicResource SuccessBrush}" 
+                        CornerRadius="4" 
+                        Padding="12,10" 
+                        Visibility="Collapsed">
+                        <TextBlock x:Name="SuccessText" 
+                               Foreground="{DynamicResource ForegroundBrush}" 
+                               HorizontalAlignment="Center" 
+                               TextWrapping="Wrap"
+                               FontSize="13"/>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
         </Grid>

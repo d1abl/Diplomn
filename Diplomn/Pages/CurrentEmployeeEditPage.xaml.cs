@@ -1,6 +1,7 @@
 ﻿using Diplomn.Addons;
 using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -8,7 +9,9 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace Diplomn.Pages
 {
@@ -33,6 +36,13 @@ namespace Diplomn.Pages
             context = new BDEntities();
             currentUser = user;
             LoadData();
+
+            // Подписываемся на изменения в полях для сброса подсветки ошибок
+            TxtLastName.TextChanged += OnFieldTextChanged;
+            TxtFirstName.TextChanged += OnFieldTextChanged;
+            TxtMiddleName.TextChanged += OnFieldTextChanged;
+            TxtPhone.TextChanged += OnFieldTextChanged;
+            PassBox.PasswordChanged += OnFieldTextChanged;
         }
 
         #endregion
@@ -127,12 +137,37 @@ namespace Diplomn.Pages
         #region Валидация
 
         /// <summary>
+        /// Сбрасывает подсветку ошибок при изменении текста в поле
+        /// </summary>
+        private void OnFieldTextChanged(object sender, EventArgs e)
+        {
+            if (sender is Control control)
+            {
+                control.BorderBrush = SystemColors.ControlDarkBrush;
+                control.BorderThickness = new Thickness(1);
+                control.ToolTip = null;
+            }
+        }
+
+        /// <summary>
+        /// Подсвечивает поле с ошибкой
+        /// </summary>
+        private void HighlightError(Control control, string errorMessage)
+        {
+            control.BorderBrush = Brushes.Red;
+            control.BorderThickness = new Thickness(2);
+            control.ToolTip = errorMessage;
+        }
+
+        /// <summary>
         /// Проверяет корректность введённых данных
         /// </summary>
         /// <param name="skipPasswordValidation">Пропустить проверку пароля (если не менялся)</param>
         private bool ValidateEmployee(out string errorMessage, bool skipPasswordValidation = false)
         {
-            var errors = new StringBuilder();
+            var errors = new List<string>();
+            var errorFields = new Dictionary<Control, string>();
+            bool hasErrors = false;
 
             var lastName = GetActualText(TxtLastName);
             var firstName = GetActualText(TxtFirstName);
@@ -140,59 +175,137 @@ namespace Diplomn.Pages
             var phone = GetActualText(TxtPhone);
             var password = GetActualPassword();
 
+            // Сбрасываем предыдущую подсветку
+            ClearAllHighlights();
+
             // Фамилия
             if (string.IsNullOrWhiteSpace(lastName))
-                errors.AppendLine("• Фамилия не введена");
+            {
+                errors.Add("• Фамилия не введена");
+                errorFields[TxtLastName] = "Фамилия обязательна для заполнения";
+                hasErrors = true;
+            }
             else
             {
                 if (!Regex.IsMatch(lastName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
-                    errors.AppendLine("• Фамилия содержит недопустимые символы");
+                {
+                    errors.Add("• Фамилия содержит недопустимые символы");
+                    errorFields[TxtLastName] = "Фамилия содержит недопустимые символы (разрешены только буквы и дефис)";
+                    hasErrors = true;
+                }
                 else if (lastName.Length > 30)
-                    errors.AppendLine("• Фамилия должна быть не длиннее 30 символов");
+                {
+                    errors.Add("• Фамилия должна быть не длиннее 30 символов");
+                    errorFields[TxtLastName] = "Фамилия должна быть не длиннее 30 символов";
+                    hasErrors = true;
+                }
                 else if (Regex.Replace(lastName, @"[^A-Za-zА-Яа-яЁё]", "").Length < 2)
-                    errors.AppendLine("• Фамилия должна содержать минимум 2 буквы");
+                {
+                    errors.Add("• Фамилия должна содержать минимум 2 буквы");
+                    errorFields[TxtLastName] = "Фамилия должна содержать минимум 2 буквы";
+                    hasErrors = true;
+                }
             }
 
             // Имя
             if (string.IsNullOrWhiteSpace(firstName))
-                errors.AppendLine("• Имя не введено");
+            {
+                errors.Add("• Имя не введено");
+                errorFields[TxtFirstName] = "Имя обязательно для заполнения";
+                hasErrors = true;
+            }
             else
             {
                 if (!Regex.IsMatch(firstName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
-                    errors.AppendLine("• Имя содержит недопустимые символы");
+                {
+                    errors.Add("• Имя содержит недопустимые символы");
+                    errorFields[TxtFirstName] = "Имя содержит недопустимые символы (разрешены только буквы и дефис)";
+                    hasErrors = true;
+                }
                 else if (firstName.Length > 30)
-                    errors.AppendLine("• Имя должно быть не длиннее 30 символов");
+                {
+                    errors.Add("• Имя должно быть не длиннее 30 символов");
+                    errorFields[TxtFirstName] = "Имя должно быть не длиннее 30 символов";
+                    hasErrors = true;
+                }
                 else if (Regex.Replace(firstName, @"[^A-Za-zА-Яа-яЁё]", "").Length < 2)
-                    errors.AppendLine("• Имя должно содержать минимум 2 буквы");
+                {
+                    errors.Add("• Имя должно содержать минимум 2 буквы");
+                    errorFields[TxtFirstName] = "Имя должно содержать минимум 2 буквы";
+                    hasErrors = true;
+                }
             }
 
             // Отчество (опционально, но с проверкой если введено)
             if (!string.IsNullOrWhiteSpace(middleName))
             {
                 if (!Regex.IsMatch(middleName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
-                    errors.AppendLine("• Отчество содержит недопустимые символы");
+                {
+                    errors.Add("• Отчество содержит недопустимые символы");
+                    errorFields[TxtMiddleName] = "Отчество содержит недопустимые символы (разрешены только буквы и дефис)";
+                    hasErrors = true;
+                }
                 else if (middleName.Length > 30)
-                    errors.AppendLine("• Отчество должно быть не длиннее 30 символов");
+                {
+                    errors.Add("• Отчество должно быть не длиннее 30 символов");
+                    errorFields[TxtMiddleName] = "Отчество должно быть не длиннее 30 символов";
+                    hasErrors = true;
+                }
             }
 
             // Пароль (проверяется только если не пропущен)
             if (!skipPasswordValidation)
             {
                 if (string.IsNullOrWhiteSpace(password))
-                    errors.AppendLine("• Пароль не введён");
+                {
+                    errors.Add("• Пароль не введён");
+                    errorFields[PassBox] = "Пароль обязателен для заполнения";
+                    hasErrors = true;
+                }
                 else if (password.Length < 12)
-                    errors.AppendLine("• Пароль должен быть не менее 12 символов");
+                {
+                    errors.Add("• Пароль должен быть не менее 12 символов");
+                    errorFields[PassBox] = "Пароль должен содержать минимум 12 символов";
+                    hasErrors = true;
+                }
             }
 
             // Телефон (опционально)
             if (!string.IsNullOrWhiteSpace(phone))
             {
                 if (!Regex.IsMatch(phone, @"^\+?\d{11}$"))
-                    errors.AppendLine("• Телефон должен содержать 11 цифр");
+                {
+                    errors.Add("• Телефон должен содержать 11 цифр (например: +79001234567)");
+                    errorFields[TxtPhone] = "Телефон должен содержать 11 цифр (например: +79001234567)";
+                    hasErrors = true;
+                }
             }
 
-            errorMessage = errors.ToString();
-            return errors.Length == 0;
+            // Подсвечиваем все поля с ошибками
+            foreach (var field in errorFields)
+            {
+                HighlightError(field.Key, field.Value);
+            }
+
+            errorMessage = string.Join(Environment.NewLine, errors);
+            return !hasErrors;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку всех полей
+        /// </summary>
+        private void ClearAllHighlights()
+        {
+            var controls = new Control[] { TxtLastName, TxtFirstName, TxtMiddleName, TxtPhone, PassBox };
+            foreach (var control in controls)
+            {
+                if (control != null)
+                {
+                    control.BorderBrush = SystemColors.ControlDarkBrush;
+                    control.BorderThickness = new Thickness(1);
+                    control.ToolTip = null;
+                }
+            }
         }
 
         #endregion
@@ -206,14 +319,15 @@ namespace Diplomn.Pages
         {
             try
             {
-                // Если пароль не введён — не проверяем его
+                // Получаем введенный пароль
                 var password = GetActualPassword();
-                var skipPasswordValidation = string.IsNullOrEmpty(password);
+
+                // Если введенный пароль совпадает с паролем из БД - пропускаем валидацию
+                var skipPasswordValidation = !string.IsNullOrEmpty(password) && password == currentUser.Пароль;
 
                 if (!ValidateEmployee(out var errorMessage, skipPasswordValidation))
                 {
-                    MessageBox.Show(errorMessage, "Ошибка валидации",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    // Не показываем MessageBox, поля уже подсвечены
                     return;
                 }
 
@@ -236,8 +350,8 @@ namespace Diplomn.Pages
 
                     if (phoneExists)
                     {
-                        MessageBox.Show("Этот телефон уже используется другим сотрудником!",
-                            "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        HighlightError(TxtPhone, "Этот телефон уже используется другим сотрудником");
+                        TxtPhone.Focus();
                         return;
                     }
                 }
@@ -248,8 +362,8 @@ namespace Diplomn.Pages
                 employee.Отчество = GetActualText(TxtMiddleName);
                 employee.Телефон = phone;
 
-                // Пароль меняем только если был введён новый
-                if (!string.IsNullOrEmpty(password))
+                // Пароль меняем только если он отличается от текущего
+                if (!string.IsNullOrEmpty(password) && password != currentUser.Пароль)
                     employee.Пароль = password;
 
                 // Фото меняем только если было выбрано новое
@@ -264,7 +378,7 @@ namespace Diplomn.Pages
                 currentUser.Отчество = employee.Отчество;
                 currentUser.Телефон = employee.Телефон;
 
-                if (!string.IsNullOrEmpty(password))
+                if (!string.IsNullOrEmpty(password) && password != currentUser.Пароль)
                     currentUser.Пароль = password;
 
                 if (selectedImageData != null)
@@ -274,12 +388,9 @@ namespace Diplomn.Pages
                 var mainWindow = Application.Current.Windows.OfType<MainWindow>().FirstOrDefault();
                 mainWindow?.SetCurrentUser(currentUser);
 
-                MessageBox.Show("Данные успешно обновлены!", "Успех",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                // Показываем сообщение об успехе
+                ShowSuccess("Данные успешно обновлены!");
 
-                // Возвращаемся на предыдущую страницу
-                if (NavigationService.CanGoBack)
-                    NavigationService.GoBack();
             }
             catch (Exception ex)
             {
@@ -321,6 +432,32 @@ namespace Diplomn.Pages
                 ? string.Empty
                 : password;
         }
+
+        #region Уведомления
+
+        private DispatcherTimer _successTimer;
+        private DispatcherTimer _errorTimer;
+
+        /// <summary>
+        /// Показывает сообщение об успехе с автоматическим скрытием
+        /// </summary>
+        private void ShowSuccess(string message)
+        {
+            SuccessText.Text = message;
+            SuccessBorder.Visibility = Visibility.Visible;
+            //ErrorBorder.Visibility = Visibility.Collapsed;
+
+            _successTimer?.Stop();
+            _successTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _successTimer.Tick += (s, e) =>
+            {
+                SuccessBorder.Visibility = Visibility.Collapsed;
+                _successTimer.Stop();
+            };
+            _successTimer.Start();
+        }
+
+        #endregion
 
         #endregion
     }

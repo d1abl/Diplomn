@@ -9,6 +9,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Заголовок -->
@@ -53,7 +54,8 @@
                 </Border>
 
                 <DataGrid Grid.Row="1" x:Name="DataGridManufacturers"
-                          SelectionChanged="DataGridManufacturers_SelectionChanged">
+                          SelectionChanged="DataGridManufacturers_SelectionChanged"
+                          AutoGenerateColumns="False">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Код" Binding="{Binding Код_производителя}" Width="60"/>
                         <DataGridTextColumn Header="Наименование" Binding="{Binding Наименование_произваодителя}" Width="*"/>
@@ -71,7 +73,9 @@
 
                 <TextBlock Text="Код" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtManufacturerId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
-                         addons:PlaceholderBehavior.PlaceholderText="Код производителя" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
+                         addons:PlaceholderBehavior.PlaceholderText="Код производителя" 
+                         Focusable="False" Cursor="Arrow" Opacity="0.4" 
+                         ToolTip="Заполняется автоматически"/>
 
                 <TextBlock Text="Наименование *" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtManufacturerName" Height="32" Margin="0,0,0,15"
@@ -80,5 +84,20 @@
                 <WrapPanel x:Name="ActionButtonsPanel" HorizontalAlignment="Center" Margin="0,10,0,0"/>
             </StackPanel>
         </Grid>
+
+        <!-- Блок уведомлений -->
+        <Border x:Name="SuccessBorder" 
+                Grid.Row="2"
+                Background="{DynamicResource SuccessBrush}" 
+                CornerRadius="4" 
+                Padding="12,10" 
+                Margin="0,15,0,0"
+                Visibility="Collapsed">
+            <TextBlock x:Name="SuccessText" 
+                       Foreground="{DynamicResource ForegroundBrush}" 
+                       HorizontalAlignment="Center" 
+                       TextWrapping="Wrap"
+                       FontSize="13"/>
+        </Border>
     </Grid>
 </Page>

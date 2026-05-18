@@ -9,6 +9,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" BorderBrush="{DynamicResource BorderBrush}" 
@@ -51,7 +52,8 @@
                 </Border>
 
                 <DataGrid Grid.Row="1" x:Name="DataGridRoles"
-                          SelectionChanged="DataGridRoles_SelectionChanged">
+                          SelectionChanged="DataGridRoles_SelectionChanged"
+                          AutoGenerateColumns="False">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Код" Binding="{Binding Код_должности}" Width="60"/>
                         <DataGridTextColumn Header="Название" Binding="{Binding Название}" Width="180"/>
@@ -69,7 +71,9 @@
 
                 <TextBlock Text="Код" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtRoleId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
-                         addons:PlaceholderBehavior.PlaceholderText="Код должности" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
+                         addons:PlaceholderBehavior.PlaceholderText="Код должности" 
+                         Focusable="False" Cursor="Arrow" Opacity="0.4" 
+                         ToolTip="Заполняется автоматически"/>
 
                 <TextBlock Text="Название *" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtRoleName" Height="32" Margin="0,0,0,12"
@@ -89,8 +93,13 @@
                         <TextBlock FontSize="11" Opacity="0.7" Margin="0,0,0,2"
                                    Foreground="{DynamicResource ForegroundBrush}">
                             • 1 — Администратор<LineBreak/>
-                            • 2-3 — Менеджер<LineBreak/>
-                            • 4-10 — Сотрудник
+                            • 2 — Старший менеджер<LineBreak/>
+                            • 4 — Менеджер по продажам<LineBreak/>
+                            • 5 — Менеджер по закупкам<LineBreak/>
+                            • 7 — Продавец-консультант<LineBreak/>
+                            • 8 — Кассир<LineBreak/>
+                            • 9 — Кладовщик<LineBreak/>
+                            • 10 — Стажёр
                         </TextBlock>
                     </StackPanel>
                 </Border>
@@ -98,5 +107,20 @@
                 <WrapPanel x:Name="ActionButtonsPanel" HorizontalAlignment="Center" Margin="0,10,0,0"/>
             </StackPanel>
         </Grid>
+
+        <!-- Блок уведомлений -->
+        <Border x:Name="SuccessBorder" 
+                Grid.Row="2"
+                Background="{DynamicResource SuccessBrush}" 
+                CornerRadius="4" 
+                Padding="12,10" 
+                Margin="0,15,0,0"
+                Visibility="Collapsed">
+            <TextBlock x:Name="SuccessText" 
+                       Foreground="{DynamicResource ForegroundBrush}" 
+                       HorizontalAlignment="Center" 
+                       TextWrapping="Wrap"
+                       FontSize="13"/>
+        </Border>
     </Grid>
 </Page>

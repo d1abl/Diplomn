@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace Diplomn.Pages
 {
@@ -26,6 +27,9 @@ namespace Diplomn.Pages
         private Grid editButtonContainer;
         private Grid deleteButtonContainer;
         private Grid clearButtonContainer;
+
+        // Таймеры для уведомлений
+        private DispatcherTimer _successTimer;
 
         #endregion
 
@@ -51,7 +55,21 @@ namespace Diplomn.Pages
 
         private void SubscribeToFieldChanges()
         {
-            TxtBrandName.TextChanged += (s, e) => UpdateButtonsState();
+            TxtBrandName.TextChanged += OnFieldTextChanged;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку ошибок при изменении текста в поле
+        /// </summary>
+        private void OnFieldTextChanged(object sender, EventArgs e)
+        {
+            if (sender is Control control)
+            {
+                control.BorderBrush = SystemColors.ControlDarkBrush;
+                control.BorderThickness = new Thickness(1);
+                control.ToolTip = null;
+            }
+            UpdateButtonsState();
         }
 
         #endregion
@@ -156,15 +174,8 @@ namespace Diplomn.Pages
                 return "Нажмите для добавления бренда";
             }
 
-            if (buttonContent.Contains("Обновить"))
-            {
-                if (DataGridBrands.SelectedItem == null)
-                    return "Выберите бренд из таблицы";
-                var missing = GetMissingRequiredFields();
-                if (missing.Any())
-                    return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
-                return "Нажмите для обновления бренда";
-            }
+            if (buttonContent.Contains("Обновить"))            
+                    return "Выберите бренд из таблицы";            
 
             if (buttonContent.Contains("Удалить"))
                 return "Выберите бренд из таблицы для удаления";
@@ -179,6 +190,33 @@ namespace Diplomn.Pages
 
         #region Валидация полей
 
+        /// <summary>
+        /// Подсвечивает поле с ошибкой
+        /// </summary>
+        private void HighlightError(Control control, string errorMessage)
+        {
+            control.BorderBrush = Brushes.Red;
+            control.BorderThickness = new Thickness(2);
+            control.ToolTip = errorMessage;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку всех полей
+        /// </summary>
+        private void ClearAllHighlights()
+        {
+            var controls = new Control[] { TxtBrandName };
+            foreach (var control in controls)
+            {
+                if (control != null)
+                {
+                    control.BorderBrush = SystemColors.ControlDarkBrush;
+                    control.BorderThickness = new Thickness(1);
+                    control.ToolTip = null;
+                }
+            }
+        }
+
         private List<string> GetMissingRequiredFields()
         {
             var missing = new List<string>();
@@ -192,6 +230,56 @@ namespace Diplomn.Pages
         private bool AreRequiredFieldsFilled()
         {
             return !GetMissingRequiredFields().Any();
+        }
+
+        /// <summary>
+        /// Проверяет корректность введённых данных
+        /// </summary>
+        private bool ValidateBrand(out string errorMessage, int? excludeId = null)
+        {
+            var errors = new List<string>();
+            var errorFields = new Dictionary<Control, string>();
+            var name = GetActualText(TxtBrandName);
+
+            // Сбрасываем подсветку
+            ClearAllHighlights();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                errors.Add("• Введите наименование бренда");
+                errorFields[TxtBrandName] = "Наименование бренда обязательно для заполнения";
+            }
+            else if (name.Length < 2)
+            {
+                errors.Add("• Название должно быть не короче 2 символов");
+                errorFields[TxtBrandName] = "Название бренда должно содержать минимум 2 символа";
+            }
+            else if (name.Length > 50)
+            {
+                errors.Add("• Название не должно превышать 50 символов");
+                errorFields[TxtBrandName] = "Название бренда не должно превышать 50 символов";
+            }
+            else
+            {
+                var exists = excludeId.HasValue
+                    ? context.Бренд.Any(b => b.Наименование_бредна == name && b.Код_бренда != excludeId.Value)
+                    : context.Бренд.Any(b => b.Наименование_бредна == name);
+
+                if (exists)
+                {
+                    errors.Add("• Бренд с таким названием уже существует");
+                    errorFields[TxtBrandName] = "Бренд с таким названием уже существует";
+                }
+            }
+
+            // Подсвечиваем поля с ошибками
+            foreach (var field in errorFields)
+            {
+                HighlightError(field.Key, field.Value);
+            }
+
+            errorMessage = string.Join(Environment.NewLine, errors);
+            return errors.Count == 0;
         }
 
         #endregion
@@ -273,37 +361,14 @@ namespace Diplomn.Pages
                 TxtBrandId.Text = brand.Код_бренда.ToString();
                 TxtBrandName.Text = brand.Наименование_бредна;
             }
-
-            UpdateButtonsState();
-        }
-
-        #endregion
-
-        #region Валидация
-
-        private bool ValidateBrand(out string errorMessage, int? excludeId = null)
-        {
-            var errors = new StringBuilder();
-            var name = GetActualText(TxtBrandName);
-
-            if (string.IsNullOrWhiteSpace(name))
-                errors.AppendLine("• Введите наименование бренда");
-            else if (name.Length < 2)
-                errors.AppendLine("• Название должно быть не короче 2 символов");
-            else if (name.Length > 50)
-                errors.AppendLine("• Название не должно превышать 50 символов");
             else
             {
-                var exists = excludeId.HasValue
-                    ? context.Бренд.Any(b => b.Наименование_бредна == name && b.Код_бренда != excludeId.Value)
-                    : context.Бренд.Any(b => b.Наименование_бредна == name);
-
-                if (exists)
-                    errors.AppendLine("• Бренд с таким названием уже существует");
+                ClearForm();
             }
 
-            errorMessage = errors.ToString();
-            return errors.Length == 0;
+            // Сбрасываем подсветку при выборе другого элемента
+            ClearAllHighlights();
+            UpdateButtonsState();
         }
 
         #endregion
@@ -316,7 +381,7 @@ namespace Diplomn.Pages
             {
                 if (!ValidateBrand(out var error))
                 {
-                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    // Не показываем MessageBox, поля уже подсвечены
                     return;
                 }
 
@@ -324,13 +389,14 @@ namespace Diplomn.Pages
                 context.Бренд.Add(brand);
                 context.SaveChanges();
 
-                MessageBox.Show("Бренд добавлен!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Бренд «{brand.Наименование_бредна}» добавлен!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при добавлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -355,20 +421,22 @@ namespace Diplomn.Pages
 
                 if (!ValidateBrand(out var error, brandId))
                 {
-                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                brand.Наименование_бредна = GetActualText(TxtBrandName);
+                var newName = GetActualText(TxtBrandName);
+                var oldName = brand.Наименование_бредна;
+                brand.Наименование_бредна = newName;
                 context.SaveChanges();
 
-                MessageBox.Show("Бренд обновлён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Бренд обновлён с {oldName} на «{newName}»!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при обновлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -403,16 +471,18 @@ namespace Diplomn.Pages
 
                 if (result == MessageBoxResult.Yes)
                 {
+                    var brandName = brand.Наименование_бредна;
                     context.Бренд.Remove(brand);
                     context.SaveChanges();
-                    MessageBox.Show("Бренд удалён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowSuccess($"Бренд «{brandName}» удалён!");
                     LoadData();
                     ClearForm();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при удалении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -425,11 +495,34 @@ namespace Diplomn.Pages
             TxtBrandId.Text = "";
             TxtBrandName.Text = "";
             DataGridBrands.SelectedItem = null;
+            ClearAllHighlights();
 
             UpdateButtonsState();
         }
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+
+        #endregion
+
+        #region Уведомления
+
+        /// <summary>
+        /// Показывает сообщение об успехе с автоматическим скрытием
+        /// </summary>
+        private void ShowSuccess(string message)
+        {
+            SuccessText.Text = message;
+            SuccessBorder.Visibility = Visibility.Visible;
+
+            _successTimer?.Stop();
+            _successTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            _successTimer.Tick += (s, e) =>
+            {
+                SuccessBorder.Visibility = Visibility.Collapsed;
+                _successTimer.Stop();
+            };
+            _successTimer.Start();
+        }
 
         #endregion
 

@@ -6,6 +6,8 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace Diplomn.Pages
 {
@@ -25,6 +27,9 @@ namespace Diplomn.Pages
         private Grid editButtonContainer;
         private Grid deleteButtonContainer;
         private Grid clearButtonContainer;
+
+        // Таймер для уведомлений
+        private DispatcherTimer _successTimer;
 
         #endregion
 
@@ -51,8 +56,22 @@ namespace Diplomn.Pages
 
         private void SubscribeToFieldChanges()
         {
-            TxtRoleName.TextChanged += (s, e) => UpdateButtonsState();
-            TxtAccessLevel.TextChanged += (s, e) => UpdateButtonsState();
+            TxtRoleName.TextChanged += OnFieldTextChanged;
+            TxtAccessLevel.TextChanged += OnFieldTextChanged;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку ошибок при изменении текста в поле
+        /// </summary>
+        private void OnFieldTextChanged(object sender, EventArgs e)
+        {
+            if (sender is Control control)
+            {
+                control.BorderBrush = SystemColors.ControlDarkBrush;
+                control.BorderThickness = new Thickness(1);
+                control.ToolTip = null;
+            }
+            UpdateButtonsState();
         }
 
         #endregion
@@ -64,29 +83,28 @@ namespace Diplomn.Pages
             if (actionButtonsPanel == null) return;
             actionButtonsPanel.Children.Clear();
 
-            // Создаем кнопки вручную для контроля над контейнерами
             if (rights.Roles.CanCreate)
             {
-                var (button, overlay) = CreateButtonWithOverlay("Добавить", Add_Click);
+                var (button, overlay) = CreateButtonWithOverlay("➕ Добавить", Add_Click, 110);
                 addButtonContainer = CreateButtonContainer(button, overlay);
                 actionButtonsPanel.Children.Add(addButtonContainer);
             }
 
             if (rights.Roles.CanEdit)
             {
-                var (button, overlay) = CreateButtonWithOverlay("Обновить", Update_Click);
+                var (button, overlay) = CreateButtonWithOverlay("✏️ Обновить", Update_Click, 110);
                 editButtonContainer = CreateButtonContainer(button, overlay);
                 actionButtonsPanel.Children.Add(editButtonContainer);
             }
 
             if (rights.Roles.CanDelete)
             {
-                var (button, overlay) = CreateButtonWithOverlay("Удалить", Delete_Click);
+                var (button, overlay) = CreateButtonWithOverlay("🗑️ Удалить", Delete_Click, 110);
                 deleteButtonContainer = CreateButtonContainer(button, overlay);
                 actionButtonsPanel.Children.Add(deleteButtonContainer);
             }
 
-            var (clearBtn, clearOverlay) = CreateButtonWithOverlay("Очистить", ClearForm_Click);
+            var (clearBtn, clearOverlay) = CreateButtonWithOverlay("🔄 Очистить", ClearForm_Click, 110);
             clearButtonContainer = CreateButtonContainer(clearBtn, clearOverlay);
             actionButtonsPanel.Children.Add(clearButtonContainer);
         }
@@ -120,7 +138,7 @@ namespace Diplomn.Pages
 
             var overlay = new Border
             {
-                Background = System.Windows.Media.Brushes.Transparent,
+                Background = Brushes.Transparent,
                 IsHitTestVisible = true,
                 ToolTip = GetButtonTooltip(text)
             };
@@ -181,6 +199,33 @@ namespace Diplomn.Pages
 
         #region Валидация полей
 
+        /// <summary>
+        /// Подсвечивает поле с ошибкой
+        /// </summary>
+        private void HighlightError(Control control, string errorMessage)
+        {
+            control.BorderBrush = Brushes.Red;
+            control.BorderThickness = new Thickness(2);
+            control.ToolTip = errorMessage;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку всех полей
+        /// </summary>
+        private void ClearAllHighlights()
+        {
+            var controls = new Control[] { TxtRoleName, TxtAccessLevel };
+            foreach (var control in controls)
+            {
+                if (control != null)
+                {
+                    control.BorderBrush = SystemColors.ControlDarkBrush;
+                    control.BorderThickness = new Thickness(1);
+                    control.ToolTip = null;
+                }
+            }
+        }
+
         private List<string> GetMissingRequiredFields()
         {
             var missing = new List<string>();
@@ -200,6 +245,73 @@ namespace Diplomn.Pages
             return !GetMissingRequiredFields().Any();
         }
 
+        /// <summary>
+        /// Проверяет корректность введённых данных
+        /// </summary>
+        private bool ValidateRole(out string errorMessage, int? excludeId = null)
+        {
+            var errors = new List<string>();
+            var errorFields = new Dictionary<Control, string>();
+            var name = GetActualText(TxtRoleName);
+            var levelText = GetActualText(TxtAccessLevel);
+
+            // Сбрасываем подсветку
+            ClearAllHighlights();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                errors.Add("• Введите название должности");
+                errorFields[TxtRoleName] = "Название должности обязательно для заполнения";
+            }
+            else if (name.Length < 2)
+            {
+                errors.Add("• Название должно быть не короче 2 символов");
+                errorFields[TxtRoleName] = "Название должности должно содержать минимум 2 символа";
+            }
+            else if (name.Length > 50)
+            {
+                errors.Add("• Название не должно превышать 50 символов");
+                errorFields[TxtRoleName] = "Название должности не должно превышать 50 символов";
+            }
+            else
+            {
+                var exists = excludeId.HasValue
+                    ? context.Должность.Any(r => r.Название == name && r.Код_должности != excludeId.Value)
+                    : context.Должность.Any(r => r.Название == name);
+
+                if (exists)
+                {
+                    errors.Add("• Должность с таким названием уже существует");
+                    errorFields[TxtRoleName] = "Должность с таким названием уже существует";
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(levelText))
+            {
+                errors.Add("• Введите уровень доступа");
+                errorFields[TxtAccessLevel] = "Уровень доступа обязателен для заполнения";
+            }
+            else if (!int.TryParse(levelText, out int level))
+            {
+                errors.Add("• Уровень доступа должен быть числом");
+                errorFields[TxtAccessLevel] = "Уровень доступа должен быть целым числом";
+            }
+            else if (level < 1 || level > 10)
+            {
+                errors.Add("• Уровень доступа должен быть от 1 до 10");
+                errorFields[TxtAccessLevel] = "Уровень доступа должен быть в диапазоне от 1 до 10";
+            }
+
+            // Подсвечиваем поля с ошибками
+            foreach (var field in errorFields)
+            {
+                HighlightError(field.Key, field.Value);
+            }
+
+            errorMessage = string.Join(Environment.NewLine, errors);
+            return errors.Count == 0;
+        }
+
         #endregion
 
         #region Управление состоянием кнопок
@@ -209,16 +321,9 @@ namespace Diplomn.Pages
             bool isRoleSelected = DataGridRoles.SelectedItem != null;
             bool requiredFieldsFilled = AreRequiredFieldsFilled();
 
-            // Кнопка "Добавить" активна только когда заполнены все обязательные поля
             SetButtonState(addButtonContainer, requiredFieldsFilled);
-
-            // Кнопка "Обновить" активна когда выбрана должность и заполнены поля
             SetButtonState(editButtonContainer, isRoleSelected && requiredFieldsFilled);
-
-            // Кнопка "Удалить" активна когда выбрана должность
             SetButtonState(deleteButtonContainer, isRoleSelected);
-
-            // Кнопка "Очистить" всегда активна
             SetButtonState(clearButtonContainer, true);
         }
 
@@ -283,40 +388,14 @@ namespace Diplomn.Pages
                 TxtRoleName.Text = role.Название;
                 TxtAccessLevel.Text = role.Уровень_доступа.ToString();
             }
-
-            UpdateButtonsState();
-        }
-
-        #endregion
-
-        #region Валидация
-
-        private bool Validate(out string errorMessage, int? excludeId = null)
-        {
-            var errors = new StringBuilder();
-            var name = GetActualText(TxtRoleName);
-            var levelText = GetActualText(TxtAccessLevel);
-
-            if (string.IsNullOrWhiteSpace(name))
-                errors.AppendLine("• Введите название должности");
-
-            if (!int.TryParse(levelText, out int level))
-                errors.AppendLine("• Уровень доступа должен быть числом");
-            else if (level < 1 || level > 10)
-                errors.AppendLine("• Уровень доступа должен быть от 1 до 10");
-
-            if (!string.IsNullOrWhiteSpace(name))
+            else
             {
-                var exists = excludeId.HasValue
-                    ? context.Должность.Any(r => r.Название == name && r.Код_должности != excludeId.Value)
-                    : context.Должность.Any(r => r.Название == name);
-
-                if (exists)
-                    errors.AppendLine("• Должность с таким названием уже существует");
+                ClearForm();
             }
 
-            errorMessage = errors.ToString();
-            return errors.Length == 0;
+            // Сбрасываем подсветку при выборе другого элемента
+            ClearAllHighlights();
+            UpdateButtonsState();
         }
 
         #endregion
@@ -327,9 +406,8 @@ namespace Diplomn.Pages
         {
             try
             {
-                if (!Validate(out var error))
+                if (!ValidateRole(out var error))
                 {
-                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -342,13 +420,14 @@ namespace Diplomn.Pages
                 context.Должность.Add(role);
                 context.SaveChanges();
 
-                MessageBox.Show("Должность добавлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Должность «{role.Название}» добавлена!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при добавлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -371,23 +450,25 @@ namespace Diplomn.Pages
                     return;
                 }
 
-                if (!Validate(out var error, id))
+                if (!ValidateRole(out var error, id))
                 {
-                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                role.Название = GetActualText(TxtRoleName);
+                var newName = GetActualText(TxtRoleName);
+                var oldName = role.Название;
+                role.Название = newName;
                 role.Уровень_доступа = int.Parse(GetActualText(TxtAccessLevel));
                 context.SaveChanges();
 
-                MessageBox.Show("Должность обновлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Должность обновлена с «{oldName}» на «{newName}»!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при обновлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -412,7 +493,7 @@ namespace Diplomn.Pages
 
                 if (context.Сотрудники.Any(s => s.Код_должности == id))
                 {
-                    MessageBox.Show("Нельзя удалить — есть сотрудники с этой должностью!\nСначала переназначьте их.",
+                    MessageBox.Show("Нельзя удалить должность — есть сотрудники с этой должностью!\nСначала переназначьте их.",
                         "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
@@ -422,16 +503,18 @@ namespace Diplomn.Pages
 
                 if (result == MessageBoxResult.Yes)
                 {
+                    var roleName = role.Название;
                     context.Должность.Remove(role);
                     context.SaveChanges();
-                    MessageBox.Show("Удалена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowSuccess($"Должность «{roleName}» удалена!");
                     LoadData();
                     ClearForm();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при удалении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -445,10 +528,34 @@ namespace Diplomn.Pages
             TxtRoleName.Text = "";
             TxtAccessLevel.Text = "";
             DataGridRoles.SelectedItem = null;
+            ClearAllHighlights();
+
             UpdateButtonsState();
         }
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+
+        #endregion
+
+        #region Уведомления
+
+        /// <summary>
+        /// Показывает сообщение об успехе с автоматическим скрытием
+        /// </summary>
+        private void ShowSuccess(string message)
+        {
+            SuccessText.Text = message;
+            SuccessBorder.Visibility = Visibility.Visible;
+
+            _successTimer?.Stop();
+            _successTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _successTimer.Tick += (s, e) =>
+            {
+                SuccessBorder.Visibility = Visibility.Collapsed;
+                _successTimer.Stop();
+            };
+            _successTimer.Start();
+        }
 
         #endregion
 

@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace Diplomn.Pages
 {
@@ -27,6 +28,9 @@ namespace Diplomn.Pages
         private Grid editButtonContainer;
         private Grid deleteButtonContainer;
         private Grid clearButtonContainer;
+
+        // Таймер для уведомлений
+        private DispatcherTimer _successTimer;
 
         #endregion
 
@@ -52,7 +56,22 @@ namespace Diplomn.Pages
 
         private void SubscribeToFieldChanges()
         {
-            TxtCategoryName.TextChanged += (s, e) => UpdateButtonsState();
+            TxtCategoryName.TextChanged += OnFieldTextChanged;
+            TxtDescription.TextChanged += OnFieldTextChanged;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку ошибок при изменении текста в поле
+        /// </summary>
+        private void OnFieldTextChanged(object sender, EventArgs e)
+        {
+            if (sender is Control control)
+            {
+                control.BorderBrush = SystemColors.ControlDarkBrush;
+                control.BorderThickness = new Thickness(1);
+                control.ToolTip = null;
+            }
+            UpdateButtonsState();
         }
 
         #endregion
@@ -180,6 +199,33 @@ namespace Diplomn.Pages
 
         #region Валидация полей
 
+        /// <summary>
+        /// Подсвечивает поле с ошибкой
+        /// </summary>
+        private void HighlightError(Control control, string errorMessage)
+        {
+            control.BorderBrush = Brushes.Red;
+            control.BorderThickness = new Thickness(2);
+            control.ToolTip = errorMessage;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку всех полей
+        /// </summary>
+        private void ClearAllHighlights()
+        {
+            var controls = new Control[] { TxtCategoryName };
+            foreach (var control in controls)
+            {
+                if (control != null)
+                {
+                    control.BorderBrush = SystemColors.ControlDarkBrush;
+                    control.BorderThickness = new Thickness(1);
+                    control.ToolTip = null;
+                }
+            }
+        }
+
         private List<string> GetMissingRequiredFields()
         {
             var missing = new List<string>();
@@ -193,6 +239,61 @@ namespace Diplomn.Pages
         private bool AreRequiredFieldsFilled()
         {
             return !GetMissingRequiredFields().Any();
+        }
+
+        /// <summary>
+        /// Проверяет корректность введённых данных
+        /// </summary>
+        private bool ValidateCategory(out string errorMessage, int? excludeId = null)
+        {
+            var errors = new List<string>();
+            var errorFields = new Dictionary<Control, string>();
+            var name = GetActualText(TxtCategoryName);
+
+            // Сбрасываем подсветку
+            ClearAllHighlights();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                errors.Add("• Введите название категории");
+                errorFields[TxtCategoryName] = "Название категории обязательно для заполнения";
+            }
+            else if (name.Length < 2)
+            {
+                errors.Add("• Название должно быть не короче 2 символов");
+                errorFields[TxtCategoryName] = "Название категории должно содержать минимум 2 символа";
+            }
+            else if (name.Length > 40)
+            {
+                errors.Add("• Название не должно превышать 40 символов");
+                errorFields[TxtCategoryName] = "Название категории не должно превышать 40 символов";
+            }
+            else if (!Regex.IsMatch(name, @"^[A-Za-zА-Яа-яЁё\-\s]+$"))
+            {
+                errors.Add("• Название содержит недопустимые символы");
+                errorFields[TxtCategoryName] = "Название категории может содержать только буквы, дефис и пробелы";
+            }
+            else
+            {
+                var exists = excludeId.HasValue
+                    ? context.Категории.Any(c => c.Категория == name && c.Код_категория != excludeId.Value)
+                    : context.Категории.Any(c => c.Категория == name);
+
+                if (exists)
+                {
+                    errors.Add("• Категория с таким названием уже существует");
+                    errorFields[TxtCategoryName] = "Категория с таким названием уже существует";
+                }
+            }
+
+            // Подсвечиваем поля с ошибками
+            foreach (var field in errorFields)
+            {
+                HighlightError(field.Key, field.Value);
+            }
+
+            errorMessage = string.Join(Environment.NewLine, errors);
+            return errors.Count == 0;
         }
 
         #endregion
@@ -276,39 +377,14 @@ namespace Diplomn.Pages
                 TxtCategoryName.Text = category.Категория;
                 TxtDescription.Text = category.Описание_категории;
             }
-
-            UpdateButtonsState();
-        }
-
-        #endregion
-
-        #region Валидация
-
-        private bool ValidateCategory(out string errorMessage, int? excludeId = null)
-        {
-            var errors = new StringBuilder();
-            var name = GetActualText(TxtCategoryName);
-
-            if (string.IsNullOrWhiteSpace(name))
-                errors.AppendLine("• Введите название категории");
-            else if (name.Length < 2)
-                errors.AppendLine("• Название должно быть не короче 2 символов");
-            else if (name.Length > 40)
-                errors.AppendLine("• Название не должно превышать 40 символов");
-            else if (!Regex.IsMatch(name, @"^[A-Za-zА-Яа-яЁё\-\s]+$"))
-                errors.AppendLine("• Название содержит недопустимые символы");
             else
             {
-                var exists = excludeId.HasValue
-                    ? context.Категории.Any(c => c.Категория == name && c.Код_категория != excludeId.Value)
-                    : context.Категории.Any(c => c.Категория == name);
-
-                if (exists)
-                    errors.AppendLine("• Категория с таким названием уже существует");
+                ClearForm();
             }
 
-            errorMessage = errors.ToString();
-            return errors.Length == 0;
+            // Сбрасываем подсветку при выборе другого элемента
+            ClearAllHighlights();
+            UpdateButtonsState();
         }
 
         #endregion
@@ -321,7 +397,7 @@ namespace Diplomn.Pages
             {
                 if (!ValidateCategory(out var error))
                 {
-                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    // Не показываем MessageBox, поля уже подсвечены
                     return;
                 }
 
@@ -334,13 +410,14 @@ namespace Diplomn.Pages
                 context.Категории.Add(category);
                 context.SaveChanges();
 
-                MessageBox.Show("Категория добавлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Категория «{category.Категория}» добавлена!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при добавлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -365,21 +442,23 @@ namespace Diplomn.Pages
 
                 if (!ValidateCategory(out var error, categoryId))
                 {
-                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                category.Категория = GetActualText(TxtCategoryName);
+                var newName = GetActualText(TxtCategoryName);
+                var oldName = category.Категория;
+                category.Категория = newName;
                 category.Описание_категории = GetActualText(TxtDescription);
                 context.SaveChanges();
 
-                MessageBox.Show("Категория обновлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Категория обновлена с «{oldName}» на «{newName}»!");
                 LoadData();
                 ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при обновлении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -414,16 +493,18 @@ namespace Diplomn.Pages
 
                 if (result == MessageBoxResult.Yes)
                 {
+                    var categoryName = category.Категория;
                     context.Категории.Remove(category);
                     context.SaveChanges();
-                    MessageBox.Show("Категория удалена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowSuccess($"Категория «{categoryName}» удалена!");
                     LoadData();
                     ClearForm();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при удалении: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -437,11 +518,34 @@ namespace Diplomn.Pages
             TxtCategoryName.Text = "";
             TxtDescription.Text = "";
             DataGridCategories.SelectedItem = null;
+            ClearAllHighlights();
 
             UpdateButtonsState();
         }
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+
+        #endregion
+
+        #region Уведомления
+
+        /// <summary>
+        /// Показывает сообщение об успехе с автоматическим скрытием
+        /// </summary>
+        private void ShowSuccess(string message)
+        {
+            SuccessText.Text = message;
+            SuccessBorder.Visibility = Visibility.Visible;
+
+            _successTimer?.Stop();
+            _successTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _successTimer.Tick += (s, e) =>
+            {
+                SuccessBorder.Visibility = Visibility.Collapsed;
+                _successTimer.Stop();
+            };
+            _successTimer.Start();
+        }
 
         #endregion
 
