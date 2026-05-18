@@ -48,7 +48,7 @@
                            Foreground="{DynamicResource ForegroundBrush}"/>
                 <TextBox x:Name="LoginBox"  Text="admin"
                          Height="38" 
-                         Margin="0,0,0,15"
+                         Margin="0,0,0,15" Foreground="{DynamicResource ForegroundBrush}"
                          FontSize="14"
                          addons:PlaceholderBehavior.PlaceholderText="Введите логин"/>
 
@@ -60,7 +60,7 @@
                            Foreground="{DynamicResource ForegroundBrush}"/>
                 <PasswordBox x:Name="PassBox" Password="admin123"
                              Height="38" 
-                             Margin="0,0,0,25"
+                             Margin="0,0,0,25" Foreground="{DynamicResource ForegroundBrush}"
                              FontSize="14"
                              addons:PlaceholderBehavior.HasEye="True"
                              addons:PlaceholderBehavior.PlaceholderText="Введите пароль"/>
@@ -78,8 +78,7 @@
                             Click="LoginBtn_Click" 
                             Height="40" 
                             Margin="0,0,5,0"
-                            Background="{DynamicResource AccentBrush}" 
-                            Foreground="White" 
+                            Background="{DynamicResource BackgroundBrush}" 
                             FontWeight="Bold"
                             FontSize="14"/>
 

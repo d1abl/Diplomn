@@ -650,10 +650,10 @@ namespace Diplomn.Pages
                     }
                 }
 
-                var result = MessageBox.Show($"Каталог товаров сохранён!\n\n{saveFileDialog.FileName}\nВсего: {products.Count}\nВ наличии: {inStock}\n\nОткрыть PDF?",
-                    "Каталог сохранён", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                //var result = MessageBox.Show($"Каталог товаров сохранён!\n\n{saveFileDialog.FileName}\nВсего: {products.Count}\nВ наличии: {inStock}\n\nОткрыть PDF?",
+                //    "Каталог сохранён", MessageBoxButton.YesNo, MessageBoxImage.Information);
 
-                if (result == MessageBoxResult.Yes)
+                //if (result == MessageBoxResult.Yes)
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = saveFileDialog.FileName, UseShellExecute = true });
             }
             catch (Exception ex)

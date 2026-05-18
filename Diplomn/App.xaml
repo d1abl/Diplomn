@@ -8,7 +8,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <!-- Default theme -->
-                <ResourceDictionary Source="/Themes/BaseTheme.xaml" />
+                <ResourceDictionary Source="/Themes/Theme2.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

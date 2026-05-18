@@ -345,7 +345,7 @@
                     <!-- Количество на складе -->
                     <TextBlock Text="Количество на складе" FontSize="12" Margin="0,0,0,4"/>
                     <TextBox x:Name="TxtQuantity" Height="32" IsReadOnly="True" 
-                             Text="0" Margin="0,0,0,15"
+                             Text="0" Margin="0,0,0,15" Foreground="{DynamicResource ForegroundBrush}"
                              addons:PlaceholderBehavior.PlaceholderText="Количество на складе"/>
 
                     <!-- Кнопки действий -->

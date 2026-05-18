@@ -54,6 +54,13 @@ namespace Diplomn.Addons
                 typeof(PlaceholderBehavior),
                 new PropertyMetadata(null));
 
+        private static readonly DependencyProperty OriginalFontStyleProperty =
+            DependencyProperty.RegisterAttached(
+                "OriginalFontStyle",
+                typeof(FontStyle),
+                typeof(PlaceholderBehavior),
+                new PropertyMetadata(FontStyles.Normal));
+
         private static readonly DependencyProperty EyeGridProperty =
             DependencyProperty.RegisterAttached(
                 "EyeGrid",
@@ -61,7 +68,6 @@ namespace Diplomn.Addons
                 typeof(PlaceholderBehavior),
                 new PropertyMetadata(null));
 
-        // ИСПРАВЛЕНО: Изменён тип на Button
         private static readonly DependencyProperty EyeButtonProperty =
             DependencyProperty.RegisterAttached(
                 "EyeButton",
@@ -70,14 +76,33 @@ namespace Diplomn.Addons
                 new PropertyMetadata(null));
         #endregion
 
+        #region Вспомогательные методы для получения динамических цветов
+
+        private static Brush GetPlaceholderBrush()
+        {
+            var brush = Application.Current.TryFindResource("PlaceholderBrush") as Brush;
+            return brush ?? new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88));
+        }
+
+        private static Brush GetAccentBrush()
+        {
+            var brush = Application.Current.TryFindResource("AccentBrush") as Brush;
+            return brush ?? new SolidColorBrush(Color.FromRgb(0x00, 0x7B, 0xFF));
+        }
+
+        #endregion
+
         #region Placeholder Logic
         private static void OnPlaceholderTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is Control control)
             {
+                // Сохраняем динамический Foreground, а не текущий (который может быть плейсхолдером)
                 if (control.GetValue(OriginalForegroundProperty) == null)
                 {
-                    control.SetValue(OriginalForegroundProperty, control.Foreground);
+                    var dynamicForeground = GetForegroundBrush();
+                    control.SetValue(OriginalForegroundProperty, dynamicForeground);
+                    control.SetValue(OriginalFontStyleProperty, control.FontStyle);
                 }
 
                 control.Loaded += (s, args) => UpdatePlaceholder(control);
@@ -90,7 +115,6 @@ namespace Diplomn.Addons
                 }
                 else if (control is PasswordBox passwordBox)
                 {
-                    // Всегда подписываемся на события, независимо от наличия глаза
                     passwordBox.PasswordChanged += (s, args) => UpdatePlaceholder(control);
                     passwordBox.GotFocus += (s, args) => RemovePlaceholder(control);
                     passwordBox.LostFocus += (s, args) => ShowPlaceholderIfNeeded(control);
@@ -104,7 +128,6 @@ namespace Diplomn.Addons
                 }
             }
         }
-
         private static void UpdatePlaceholder(Control control)
         {
             if (control == null || string.IsNullOrEmpty(GetPlaceholderText(control)))
@@ -178,7 +201,10 @@ namespace Diplomn.Addons
             if (control.GetValue(OriginalForegroundProperty) == null)
             {
                 control.SetValue(OriginalForegroundProperty, control.Foreground);
+                control.SetValue(OriginalFontStyleProperty, control.FontStyle);
             }
+
+            var placeholderBrush = GetPlaceholderBrush();
 
             if (control is TextBox textBox)
             {
@@ -186,34 +212,50 @@ namespace Diplomn.Addons
                 {
                     textBox.Text = placeholderText;
                 }
-                textBox.Foreground = Brushes.Gray;
+                textBox.Foreground = placeholderBrush;
                 textBox.FontStyle = FontStyles.Italic;
             }
             else if (control is PasswordBox passwordBox)
             {
-                passwordBox.Foreground = Brushes.Gray;
+                passwordBox.Foreground = placeholderBrush;
                 passwordBox.FontStyle = FontStyles.Italic;
             }
             else if (control is ComboBox comboBox)
             {
                 comboBox.Tag = placeholderText;
-                comboBox.Foreground = Brushes.Gray;
+                comboBox.Foreground = placeholderBrush;
                 comboBox.FontStyle = FontStyles.Italic;
             }
         }
+
         private static void RestoreForeground(Control control)
         {
             var originalForeground = control.GetValue(OriginalForegroundProperty) as Brush;
-            if (originalForeground != null)
+
+            // Если оригинальный цвет не сохранен или это цвет плейсхолдера - используем динамический ресурс
+            if (originalForeground == null || originalForeground == GetPlaceholderBrush())
+            {
+                var dynamicForeground = Application.Current.TryFindResource("ForegroundBrush") as Brush;
+                control.Foreground = dynamicForeground ?? Brushes.Black;
+            }
+            else
             {
                 control.Foreground = originalForeground;
             }
-            control.FontStyle = FontStyles.Normal;
+
+            var originalFontStyle = (FontStyle)control.GetValue(OriginalFontStyleProperty);
+            control.FontStyle = originalFontStyle;
 
             if (control is ComboBox comboBox)
             {
                 comboBox.Tag = null;
             }
+        }
+
+        private static Brush GetForegroundBrush()
+        {
+            var brush = Application.Current.TryFindResource("ForegroundBrush") as Brush;
+            return brush ?? Brushes.Black;
         }
         #endregion
 
@@ -268,7 +310,7 @@ namespace Diplomn.Addons
             var originalBorderBrush = passwordBox.BorderBrush;
             var originalBorderThickness = passwordBox.BorderThickness;
 
-            // Внешний Border (единственный)
+            // Внешний Border
             var border = new Border
             {
                 Background = originalBackground,
@@ -288,25 +330,25 @@ namespace Diplomn.Addons
             border.VerticalAlignment = originalVerticalAlignment;
             border.HorizontalAlignment = originalHorizontalAlignment;
 
-            // Сбрасываем свойства PasswordBox, чтобы не было двойных границ
+            // Сбрасываем свойства PasswordBox
             passwordBox.Height = double.NaN;
             passwordBox.Width = double.NaN;
             passwordBox.Margin = new Thickness(0);
             passwordBox.VerticalAlignment = VerticalAlignment.Stretch;
             passwordBox.HorizontalAlignment = HorizontalAlignment.Stretch;
             passwordBox.Background = Brushes.Transparent;
-            passwordBox.BorderThickness = new Thickness(0); // Убираем border у PasswordBox
+            passwordBox.BorderThickness = new Thickness(0);
             passwordBox.ClearValue(PasswordBox.BorderBrushProperty);
             Grid.SetColumn(passwordBox, 0);
 
-            // Видимый TextBox для отображения пароля
+            // Видимый TextBox
             var visibleTextBox = new TextBox
             {
                 FontFamily = passwordBox.FontFamily,
                 FontSize = passwordBox.FontSize,
                 Foreground = passwordBox.Foreground,
                 Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0), // Убираем border
+                BorderThickness = new Thickness(0),
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(5, 0, 0, 0),
                 Padding = new Thickness(0, 0, 0, 0),
@@ -315,12 +357,15 @@ namespace Diplomn.Addons
             };
             Grid.SetColumn(visibleTextBox, 0);
 
+            var placeholderBrush = GetPlaceholderBrush();
+            var accentBrush = GetAccentBrush();
+
             // Placeholder для PasswordBox
             var placeholderText = GetPlaceholderText(passwordBox);
             var placeholderBlock = new TextBlock
             {
                 Text = placeholderText ?? string.Empty,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)),
+                Foreground = placeholderBrush,
                 FontStyle = FontStyles.Italic,
                 FontFamily = passwordBox.FontFamily,
                 FontSize = passwordBox.FontSize,
@@ -337,7 +382,7 @@ namespace Diplomn.Addons
             var visiblePlaceholder = new TextBlock
             {
                 Text = placeholderText ?? string.Empty,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)),
+                Foreground = placeholderBrush,
                 FontStyle = FontStyles.Italic,
                 FontFamily = passwordBox.FontFamily,
                 FontSize = passwordBox.FontSize,
@@ -365,7 +410,7 @@ namespace Diplomn.Addons
                 Focusable = false
             };
 
-            // Стиль для кнопки без выделения
+            // Стиль для кнопки
             var buttonStyle = new Style(typeof(Button));
             buttonStyle.Setters.Add(new Setter(Button.BackgroundProperty, Brushes.Transparent));
             buttonStyle.Setters.Add(new Setter(Button.BorderBrushProperty, Brushes.Transparent));
@@ -399,17 +444,13 @@ namespace Diplomn.Addons
             bool isPasswordVisible = false;
 
             // Обработчики ховера для Border
-            var accentBrush = Application.Current.TryFindResource("AccentBrush") as Brush;
             var normalBorderBrush = originalBorderBrush;
             var normalThickness = originalBorderThickness;
             var focusedThickness = new Thickness(2);
 
             border.MouseEnter += (s, args) =>
             {
-                if (accentBrush != null)
-                {
-                    border.BorderBrush = accentBrush;
-                }
+                border.BorderBrush = accentBrush;
             };
 
             border.MouseLeave += (s, args) =>
@@ -508,11 +549,8 @@ namespace Diplomn.Addons
             passwordBox.GotFocus += (s, args) =>
             {
                 placeholderBlock.Visibility = Visibility.Collapsed;
-                if (accentBrush != null)
-                {
-                    border.BorderBrush = accentBrush;
-                    border.BorderThickness = focusedThickness;
-                }
+                border.BorderBrush = accentBrush;
+                border.BorderThickness = focusedThickness;
             };
 
             passwordBox.LostFocus += (s, args) =>
@@ -533,11 +571,8 @@ namespace Diplomn.Addons
             visibleTextBox.GotFocus += (s, args) =>
             {
                 visiblePlaceholder.Visibility = Visibility.Collapsed;
-                if (accentBrush != null)
-                {
-                    border.BorderBrush = accentBrush;
-                    border.BorderThickness = focusedThickness;
-                }
+                border.BorderBrush = accentBrush;
+                border.BorderThickness = focusedThickness;
             };
 
             visibleTextBox.LostFocus += (s, args) =>
@@ -561,10 +596,7 @@ namespace Diplomn.Addons
             grid.Children.Add(placeholderBlock);
             grid.Children.Add(eyeButton);
 
-            // Grid в Border
             border.Child = grid;
-
-            // Border в родительский контейнер
             parent.Children.Insert(index, border);
 
             passwordBox.SetValue(EyeGridProperty, grid);
