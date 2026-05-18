@@ -28,6 +28,8 @@ namespace Diplomn.Pages
         private int? editingSupplyCode = null;
         private const int MaxEditMonths = 1;
 
+        #region Поля Кнопок
+
         // Контейнеры для кнопок в режиме просмотра
         private Grid btnNewSupplyContainer;
         private Grid btnEditSupplyContainer;
@@ -38,6 +40,14 @@ namespace Diplomn.Pages
         // Контейнеры для кнопок в режиме создания/редактирования
         private Grid btnSaveNewSupplyContainer;
         private Grid btnCancelNewSupplyContainer;
+        #endregion
+
+        #region Поля сортировки
+        private enum SortMode { None, DateAsc, DateDesc, AmountAsc, AmountDesc }
+        private SortMode currentDateSort = SortMode.DateDesc;
+        private SortMode currentAmountSort = SortMode.None;
+
+        #endregion
 
         #endregion
 
@@ -83,6 +93,7 @@ namespace Diplomn.Pages
                 LoadAllSupplies();
                 LoadGrandTotal();
             };
+
         }
 
         #endregion
@@ -366,26 +377,41 @@ namespace Diplomn.Pages
         private void LoadEmployees()
         {
             var employees = context.Сотрудники.ToList();
-            var list = new List<dynamic> { new { Код_сотрудника = 0, FullName = "Все сотрудники" } };
+            PanelEmployees.Children.Clear();
             foreach (var emp in employees)
-                list.Add(new { Код_сотрудника = emp.Код_сотрудника, FullName = $"{emp.Фамилия} {emp.Имя}" });
-
-            CmbEmployee.ItemsSource = list;
-            CmbEmployee.SelectedValuePath = "Код_сотрудника";
-            CmbEmployee.DisplayMemberPath = "FullName";
-            CmbEmployee.SelectedIndex = 0;
+            {
+                var cb = new CheckBox
+                {
+                    Margin = new Thickness(2, 1, 2, 1),
+                    Content = $"{emp.Фамилия} {emp.Имя?.Substring(0,1)}. {emp?.Отчество.Substring(0,1)}.",
+                    Tag = emp.Код_сотрудника,
+                    FontSize = 11,
+                    Foreground = TryFindResource("ForegroundBrush") as Brush,
+                    MaxWidth = 250,
+                    VerticalAlignment = VerticalAlignment.Top
+                };
+                PanelEmployees.Children.Add(cb);
+            }
         }
 
         private void LoadSuppliers()
         {
             var suppliers = context.Поставщики.ToList();
-            var list = new List<Поставщики> { new Поставщики { Код_поставщика = 0, Наименование_поставщика = "Все поставщики" } };
-            list.AddRange(suppliers);
-
-            CmbSupplier.ItemsSource = list;
-            CmbSupplier.SelectedValuePath = "Код_поставщика";
-            CmbSupplier.DisplayMemberPath = "Наименование_поставщика";
-            CmbSupplier.SelectedIndex = 0;
+            PanelSuppliers.Children.Clear();
+            foreach (var sup in suppliers)
+            {
+                var cb = new CheckBox
+                {
+                    Margin = new Thickness(2, 1, 2, 1),
+                    Content = sup.Наименование_поставщика,
+                    Tag = sup.Код_поставщика,
+                    FontSize = 11,
+                    Foreground = TryFindResource("ForegroundBrush") as Brush,
+                    MaxWidth = 250,
+                    VerticalAlignment = VerticalAlignment.Top
+                };
+                PanelSuppliers.Children.Add(cb);
+            }
         }
 
         private void LoadAllSupplies()
@@ -436,6 +462,34 @@ namespace Diplomn.Pages
 
         #region Фильтрация и запросы
 
+        private void ToggleDateSort_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (currentDateSort == SortMode.None || currentDateSort == SortMode.DateAsc)
+            { currentDateSort = SortMode.DateDesc; DateSortArrow.Text = "↑"; }
+            else if (currentDateSort == SortMode.DateDesc)
+            { currentDateSort = SortMode.DateAsc; DateSortArrow.Text = "↓"; }
+            currentAmountSort = SortMode.None; AmountSortArrow.Text = "";
+            UpdateSortButtonsVisual(); ApplyFilters();
+        }
+
+        private void ToggleAmountSort_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (currentAmountSort == SortMode.None || currentAmountSort == SortMode.AmountAsc)
+            { currentAmountSort = SortMode.AmountDesc; AmountSortArrow.Text = "↑"; }
+            else if (currentAmountSort == SortMode.AmountDesc)
+            { currentAmountSort = SortMode.AmountAsc; AmountSortArrow.Text = "↓"; }
+            currentDateSort = SortMode.None; DateSortArrow.Text = "";
+            UpdateSortButtonsVisual(); ApplyFilters();
+        }
+
+        private void UpdateSortButtonsVisual()
+        {
+            var activeBrush = TryFindResource("AccentBrush") as Brush ?? Brushes.Blue;
+            var inactiveBrush = TryFindResource("BorderBrush") as Brush ?? Brushes.Gray;
+            BtnSortByDate.BorderBrush = currentDateSort != SortMode.None ? activeBrush : inactiveBrush;
+            BtnSortByAmount.BorderBrush = currentAmountSort != SortMode.None ? activeBrush : inactiveBrush;
+        }
+
         private IQueryable<Поставка> GetBaseQuery()
         {
             var query = context.Поставка
@@ -450,30 +504,31 @@ namespace Diplomn.Pages
                 var matchingIds = context.Состав_поставки
                     .Include(i => i.Товары)
                     .Where(i => i.Товары.Наименование.ToLower().Contains(term))
-                    .Select(i => i.Код_поставки)
-                    .Distinct()
-                    .ToList();
-
+                    .Select(i => i.Код_поставки).Distinct().ToList();
                 query = query.Where(s => matchingIds.Contains(s.Код_поставки));
             }
 
+            // Фильтр по дате ОТ
             if (DateFrom.SelectedDate.HasValue)
             {
-                var dateFrom = DateFrom.SelectedDate.Value.Date; // Вычисляем здесь
-                query = query.Where(s => DbFunctions.TruncateTime(s.Дата_оформления_постивки) >= dateFrom);
+                var dateFrom = DateFrom.SelectedDate.Value;
+                query = query.Where(s => s.Дата_оформления_постивки >= dateFrom);
             }
 
+            // Фильтр по дате ДО
             if (DateTo.SelectedDate.HasValue)
             {
-                var dateTo = DateTo.SelectedDate.Value.Date.AddDays(1); // Вычисляем здесь
-                query = query.Where(s => DbFunctions.TruncateTime(s.Дата_оформления_постивки) < dateTo);
+                var dateTo = DateTo.SelectedDate.Value.AddDays(1); // Вычисляем ДО передачи в LINQ
+                query = query.Where(s => s.Дата_оформления_постивки < dateTo);
             }
 
-            if (CmbEmployee.SelectedValue != null && int.TryParse(CmbEmployee.SelectedValue.ToString(), out int empId) && empId > 0)
-                query = query.Where(s => s.Код_сотрудника == empId);
+            var empIds = PanelEmployees.Children.OfType<CheckBox>()
+                .Where(cb => cb.IsChecked == true && cb.Tag is int).Select(cb => (int)cb.Tag).ToList();
+            if (empIds.Any()) query = query.Where(s => empIds.Contains(s.Код_сотрудника));
 
-            if (CmbSupplier.SelectedValue != null && int.TryParse(CmbSupplier.SelectedValue.ToString(), out int supId) && supId > 0)
-                query = query.Where(s => s.Код_поставщика == supId);
+            var supIds = PanelSuppliers.Children.OfType<CheckBox>()
+                .Where(cb => cb.IsChecked == true && cb.Tag is int).Select(cb => (int)cb.Tag).ToList();
+            if (supIds.Any()) query = query.Where(s => supIds.Contains(s.Код_поставщика));
 
             return query;
         }
@@ -481,26 +536,19 @@ namespace Diplomn.Pages
         private List<Поставка> GetFilteredAndSortedSupplies()
         {
             var query = GetBaseQuery();
-
-            if (RbSortByDateAsc.IsChecked == true)
-                query = query.OrderBy(s => s.Дата_оформления_постивки);
-            else if (RbSortByAmount.IsChecked == true || RbSortByAmountAsc.IsChecked == true)
+            if (currentDateSort == SortMode.DateAsc) query = query.OrderBy(s => s.Дата_оформления_постивки);
+            else if (currentDateSort == SortMode.DateDesc) query = query.OrderByDescending(s => s.Дата_оформления_постивки);
+            else if (currentAmountSort != SortMode.None)
             {
-                var supplies = query.ToList();
-                var ids = supplies.Select(s => s.Код_поставки).ToList();
-                var totals = context.Состав_поставки
-                    .Where(i => ids.Contains(i.Код_поставки))
-                    .GroupBy(i => i.Код_поставки)
-                    .Select(g => new { Id = g.Key, Total = g.Sum(i => (decimal?)i.Количество * i.Цена_за_ед_покупка) ?? 0 })
+                var supplies = query.ToList(); var ids = supplies.Select(s => s.Код_поставки).ToList();
+                var totals = context.Состав_поставки.Where(i => ids.Contains(i.Код_поставки))
+                    .GroupBy(i => i.Код_поставки).Select(g => new { Id = g.Key, Total = g.Sum(i => (decimal?)i.Количество * i.Цена_за_ед_покупка) ?? 0 })
                     .ToDictionary(x => x.Id, x => x.Total);
-
-                return RbSortByAmount.IsChecked == true
+                return currentAmountSort == SortMode.AmountDesc
                     ? supplies.OrderByDescending(s => totals.TryGetValue(s.Код_поставки, out var t) ? t : 0).ToList()
                     : supplies.OrderBy(s => totals.TryGetValue(s.Код_поставки, out var t) ? t : 0).ToList();
             }
-            else
-                query = query.OrderByDescending(s => s.Дата_оформления_постивки);
-
+            else query = query.OrderByDescending(s => s.Дата_оформления_постивки);
             return query.ToList();
         }
 
@@ -516,19 +564,31 @@ namespace Diplomn.Pages
         private void ApplyFilters() => LoadFilteredSupplies();
         private void ApplyFilters_Click(object sender, RoutedEventArgs e) => ApplyFilters();
 
+        private void FilterEmployees_TextChanged(object sender, TextChangedEventArgs e) => FilterPanelItems(PanelEmployees, sender as TextBox);
+        private void FilterSuppliers_TextChanged(object sender, TextChangedEventArgs e) => FilterPanelItems(PanelSuppliers, sender as TextBox);
+
+        private void FilterPanelItems(Panel panel, TextBox searchTextBox)
+        {
+            if (panel == null) return;
+            var search = GetActualText(searchTextBox)?.ToLower() ?? "";
+            foreach (UIElement child in panel.Children)
+            {
+                if (child is CheckBox checkBox)
+                    checkBox.Visibility = string.IsNullOrWhiteSpace(search) ? Visibility.Visible :
+                        (checkBox.Content?.ToString()?.ToLower() ?? "").Contains(search) ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+
         private void ClearFilters_Click(object sender, RoutedEventArgs e)
         {
-            TxtSearch.Text = "";
-            DateFrom.SelectedDate = null;
-            DateTo.SelectedDate = null;
-            CmbEmployee.SelectedIndex = 0;
-            CmbSupplier.SelectedIndex = 0;
-            RbSortByDate.IsChecked = true;
-            LoadAllSupplies();
-            LoadGrandTotal();
-            ClearSupplyDetails();
-            ListViewSupplies.SelectedItem = null;
-            UpdateViewModeButtonsState();
+            TxtSearch.Text = ""; DateFrom.SelectedDate = null; DateTo.SelectedDate = null;
+            TxtSearchEmployee.Text = ""; TxtSearchSupplier.Text = "";
+            foreach (var child in PanelEmployees.Children) if (child is CheckBox cb) { cb.IsChecked = false; cb.Visibility = Visibility.Visible; }
+            foreach (var child in PanelSuppliers.Children) if (child is CheckBox cb) { cb.IsChecked = false; cb.Visibility = Visibility.Visible; }
+            currentDateSort = SortMode.DateDesc; currentAmountSort = SortMode.None;
+            DateSortArrow.Text = "↑"; AmountSortArrow.Text = ""; UpdateSortButtonsVisual();
+            LoadAllSupplies(); LoadGrandTotal(); ClearSupplyDetails();
+            ListViewSupplies.SelectedItem = null; UpdateViewModeButtonsState();
         }
 
         private void SortChanged(object sender, RoutedEventArgs e) { if (this.IsLoaded) ApplyFilters(); }
@@ -540,7 +600,6 @@ namespace Diplomn.Pages
             UpdateProductsView(products);
         }
         private void ApplyProductFilters_Click(object sender, RoutedEventArgs e) => ApplyProductFilters();
-        private void ClearProductFilters_Click(object sender, RoutedEventArgs e) { TxtProductSearch.Text = ""; ApplyProductFilters(); }
         private void TxtProductSearch_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) ApplyProductFilters(); }
 
         #endregion
@@ -596,7 +655,8 @@ namespace Diplomn.Pages
         private void NewSupply_Click(object sender, RoutedEventArgs e)
         {
             editingSupplyCode = null;
-            BtnSaveNewSupply.Content = "💾 Оформить поставку";
+            var saveBtn = GetButtonFromContainer(btnSaveNewSupplyContainer);
+            if (saveBtn != null) saveBtn.Content = "💾 Оформить поставку";
 
             SuppliesViewGrid.Visibility = Visibility.Collapsed;
             NewSupplyGrid.Visibility = Visibility.Visible;
@@ -612,6 +672,7 @@ namespace Diplomn.Pages
 
             LoadNewSupplySuppliers();
             LoadProducts();
+            LoadNewSupplyLookups();
             UpdateNewSupplyModeButtonsState();
         }
 
@@ -625,7 +686,8 @@ namespace Diplomn.Pages
             if (!CanEditSupply(code, out errorMsg)) { MessageBox.Show(errorMsg, "Редактирование невозможно", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
 
             editingSupplyCode = code;
-            BtnSaveNewSupply.Content = "💾 Сохранить изменения";
+            var saveBtn = GetButtonFromContainer(btnSaveNewSupplyContainer);
+            if (saveBtn != null) saveBtn.Content = "💾 Оформить поставку";
 
             SuppliesViewGrid.Visibility = Visibility.Collapsed;
             NewSupplyGrid.Visibility = Visibility.Visible;
@@ -672,6 +734,7 @@ namespace Diplomn.Pages
 
             TxtProductSearch.Text = "";
             LoadProducts();
+            LoadNewSupplyLookups();
             UpdateNewSupplyModeButtonsState();
         }
 
@@ -685,11 +748,68 @@ namespace Diplomn.Pages
             CmbNewSupplySupplier.SelectionChanged += (s, e) => UpdateNewSupplyModeButtonsState();
         }
 
-        private void LoadProducts()
+        private void LoadNewSupplyLookups()
         {
-            var products = context.Товары.Include("Категории").ToList();
-            UpdateProductsView(products);
+            PopulateFilterPanel(PanelNewSupplyCategories, context.Категории.ToList(), "Категория", "Код_категория");
+            PopulateFilterPanel(PanelNewSupplyBrands, context.Бренд.ToList(), "Наименование_бредна", "Код_бренда");
+            PopulateFilterPanel(PanelNewSupplyManufacturers, context.Производитель.ToList(), "Наименование_произваодителя", "Код_производителя");
+            PopulateFilterPanel(PanelNewSupplyMaterials, context.Материал.ToList(), "Наименование_материала", "Код_материала");
+            PopulateFilterPanel(PanelNewSupplyPacking, context.Фасовка.ToList(), "Количество", "Код_фасовки");
         }
+
+        private void PopulateFilterPanel(Panel panel, IEnumerable<object> items, string dp, string vp)
+        {
+            panel.Children.Clear();
+            foreach (var item in items)
+            {
+                var cb = new CheckBox
+                {
+                    Margin = new Thickness(2, 1, 2, 1),
+                    FontSize = 11,
+                    MaxWidth = 180,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Content = item.GetType().GetProperty(dp)?.GetValue(item)?.ToString() ?? "",
+                    Tag = item.GetType().GetProperty(vp)?.GetValue(item),
+                    Foreground = TryFindResource("ForegroundBrush") as Brush
+                };
+                panel.Children.Add(cb);
+            }
+        }
+
+        private List<int> GetCheckedIdsFromPanel(Panel panel) => panel.Children.OfType<CheckBox>()
+            .Where(cb => cb.IsChecked == true && cb.Tag != null && int.TryParse(cb.Tag.ToString(), out _)).Select(cb => (int)cb.Tag).ToList();
+
+        private IQueryable<Товары> GetNewSupplyFilteredQuery()
+        {
+            var query = context.Товары.AsQueryable();
+            string st = GetActualText(TxtProductSearch);
+            if (!string.IsNullOrWhiteSpace(st)) query = query.Where(p => p.Наименование.ToLower().Contains(st.ToLower()));
+            if (ChkNewSupplyInStock.IsChecked == true) query = query.Where(p => p.Количество > 0);
+            if (decimal.TryParse(GetActualText(TxtNewSupplyPriceMin), out decimal pmin)) query = query.Where(p => p.Цена_за_ед_продажа >= pmin);
+            if (decimal.TryParse(GetActualText(TxtNewSupplyPriceMax), out decimal pmax)) query = query.Where(p => p.Цена_за_ед_продажа <= pmax);
+            var ids = GetCheckedIdsFromPanel(PanelNewSupplyCategories); if (ids.Any()) query = query.Where(p => ids.Contains(p.Код_категория));
+            ids = GetCheckedIdsFromPanel(PanelNewSupplyBrands); if (ids.Any()) query = query.Where(p => ids.Contains(p.Код_бренда));
+            ids = GetCheckedIdsFromPanel(PanelNewSupplyManufacturers); if (ids.Any()) query = query.Where(p => ids.Contains(p.Код_производителя));
+            ids = GetCheckedIdsFromPanel(PanelNewSupplyMaterials); if (ids.Any()) query = query.Where(p => ids.Contains(p.Код_материала));
+            ids = GetCheckedIdsFromPanel(PanelNewSupplyPacking); if (ids.Any()) query = query.Where(p => ids.Contains(p.Код_фасовки));
+            return query;
+        }
+
+        private void LoadProducts() { var p = GetNewSupplyFilteredQuery().Include("Категории").ToList(); UpdateProductsView(p); }
+        private void ClearProductFilters_Click(object sender, RoutedEventArgs e) { ClearProductFilters(); LoadProducts(); }
+        private void ClearProductFilters()
+        {
+            TxtProductSearch.Text = ""; TxtNewSupplyPriceMin.Text = ""; TxtNewSupplyPriceMax.Text = ""; ChkNewSupplyInStock.IsChecked = false;
+            TxtNewSupplySearchCategories.Text = ""; TxtNewSupplySearchBrands.Text = ""; TxtNewSupplySearchManufacturers.Text = ""; TxtNewSupplySearchMaterials.Text = ""; TxtNewSupplySearchPacking.Text = "";
+            foreach (var p in new[] { PanelNewSupplyCategories, PanelNewSupplyBrands, PanelNewSupplyManufacturers, PanelNewSupplyMaterials, PanelNewSupplyPacking })
+                foreach (var c in p.Children) if (c is CheckBox cb) { cb.IsChecked = false; cb.Visibility = Visibility.Visible; }
+        }
+
+        private void NewSupplyFilterCategories_TextChanged(object sender, TextChangedEventArgs e) => FilterPanelItems(PanelNewSupplyCategories, sender as TextBox);
+        private void NewSupplyFilterBrands_TextChanged(object sender, TextChangedEventArgs e) => FilterPanelItems(PanelNewSupplyBrands, sender as TextBox);
+        private void NewSupplyFilterManufacturers_TextChanged(object sender, TextChangedEventArgs e) => FilterPanelItems(PanelNewSupplyManufacturers, sender as TextBox);
+        private void NewSupplyFilterMaterials_TextChanged(object sender, TextChangedEventArgs e) => FilterPanelItems(PanelNewSupplyMaterials, sender as TextBox);
+        private void NewSupplyFilterPacking_TextChanged(object sender, TextChangedEventArgs e) => FilterPanelItems(PanelNewSupplyPacking, sender as TextBox);
 
         private void UpdateProductsView(List<Товары> products)
         {
@@ -822,8 +942,9 @@ namespace Diplomn.Pages
                     }
                     context.SaveChanges();
                     MessageBox.Show($"Поставка №{supply.Код_поставки} оформлена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    PrintSupply(supply.Код_поставки);
                 }
-
+                
                 SwitchToViewMode();
             }
             catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
@@ -832,7 +953,8 @@ namespace Diplomn.Pages
         private void SwitchToViewMode()
         {
             editingSupplyCode = null;
-            BtnSaveNewSupply.Content = "💾 Оформить поставку";
+            var saveBtn = GetButtonFromContainer(btnSaveNewSupplyContainer);
+            if (saveBtn != null) saveBtn.Content = "💾 Оформить поставку";
 
             SuppliesViewGrid.Visibility = Visibility.Visible;
             NewSupplyGrid.Visibility = Visibility.Collapsed;
@@ -900,14 +1022,30 @@ namespace Diplomn.Pages
         {
             try
             {
-                var sfd = new SaveFileDialog { Filter = "PDF файл (*.pdf)|*.pdf", Title = "Сохранить поставку", FileName = $"Поставка_{code}_{DateTime.Now:yyyy-MM-dd_HH-mm}" };
+                var sfd = new SaveFileDialog
+                {
+                    Filter = "PDF файл (*.pdf)|*.pdf",
+                    Title = "Сохранить поставку",
+                    FileName = $"Поставка_{code}_{DateTime.Now:yyyy-MM-dd_HH-mm}"
+                };
                 if (sfd.ShowDialog() != true) return;
 
-                var supply = context.Поставка.Include(s => s.Сотрудники).Include(s => s.Поставщики).FirstOrDefault(s => s.Код_поставки == code);
+                var supply = context.Поставка
+                    .Include(s => s.Сотрудники)
+                    .Include(s => s.Поставщики)
+                    .FirstOrDefault(s => s.Код_поставки == code);
                 if (supply == null) return;
 
-                var items = context.Состав_поставки.Include(i => i.Товары).Where(i => i.Код_поставки == code).ToList()
-                    .Select(i => new { Товар = i.Товары.Наименование, Количество = i.Количество, Цена = i.Цена_за_ед_покупка, Сумма = i.Количество * i.Цена_за_ед_покупка }).ToList();
+                var items = context.Состав_поставки
+                    .Include(i => i.Товары)
+                    .Where(i => i.Код_поставки == code)
+                    .ToList()
+                    .Select(i => new {
+                        Товар = i.Товары.Наименование,
+                        Количество = i.Количество,
+                        Цена = i.Цена_за_ед_покупка,
+                        Сумма = i.Количество * i.Цена_за_ед_покупка
+                    }).ToList();
                 var total = items.Sum(i => i.Сумма);
 
                 using (var doc = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 40, 40, 50, 50))
@@ -916,34 +1054,70 @@ namespace Diplomn.Pages
                     doc.Open();
                     var fp = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
                     var bf = iTextSharp.text.pdf.BaseFont.CreateFont(fp, iTextSharp.text.pdf.BaseFont.IDENTITY_H, iTextSharp.text.pdf.BaseFont.EMBEDDED);
+
                     var ft = new iTextSharp.text.Font(bf, 14, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
                     var f = new iTextSharp.text.Font(bf, 10);
+                    var fBold = new iTextSharp.text.Font(bf, 10, iTextSharp.text.Font.BOLD);
 
-                    doc.Add(new iTextSharp.text.Paragraph("Oculus+", new iTextSharp.text.Font(bf, 22, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102))) { Alignment = iTextSharp.text.Element.ALIGN_CENTER, SpacingAfter = 15 });
-                    doc.Add(new iTextSharp.text.Paragraph($"ПОСТАВКА №{code}", ft) { Alignment = iTextSharp.text.Element.ALIGN_CENTER, SpacingAfter = 20 });
-                    doc.Add(new iTextSharp.text.Paragraph($"Дата: {supply.Дата_оформления_постивки:dd.MM.yyyy HH:mm}", f) { SpacingAfter = 3 });
-                    doc.Add(new iTextSharp.text.Paragraph($"Поставщик: {supply.Поставщики?.Наименование_поставщика}", f) { SpacingAfter = 15 });
+                    // Шапка отчёта (как в улучшенном варианте)
+                    AddReportHeader(doc, bf, "ПОСТАВКА");
 
+                    // Информация о поставке
+                    var infoTable = new iTextSharp.text.pdf.PdfPTable(2) { WidthPercentage = 100 };
+                    infoTable.SetWidths(new float[] { 50, 50 });
+                    infoTable.SpacingAfter = 20;
+
+                    AddInfoCell(infoTable, $"Поставка №: {code}", fBold, iTextSharp.text.Element.ALIGN_LEFT);
+                    AddInfoCell(infoTable, $"Дата: {supply.Дата_оформления_постивки:dd.MM.yyyy HH:mm}", f, iTextSharp.text.Element.ALIGN_RIGHT);
+                    AddInfoCell(infoTable, $"Сотрудник: {(supply.Сотрудники != null ? $"{supply.Сотрудники.Фамилия} {supply.Сотрудники.Имя}" : "—")}", f, iTextSharp.text.Element.ALIGN_LEFT, 2);
+                    AddInfoCell(infoTable, $"Поставщик: {supply.Поставщики?.Наименование_поставщика ?? "—"}", f, iTextSharp.text.Element.ALIGN_LEFT, 2);
+
+                    doc.Add(infoTable);
+
+                    // Таблица товаров
                     var table = new iTextSharp.text.pdf.PdfPTable(4) { WidthPercentage = 100 };
                     table.SetWidths(new float[] { 40, 15, 20, 25 });
+
+                    // Заголовки таблицы
                     foreach (var h in new[] { "Товар", "Кол-во", "Цена", "Сумма" })
                     {
-                        var hc = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(h, new iTextSharp.text.Font(bf, 9, iTextSharp.text.Font.BOLD, iTextSharp.text.BaseColor.WHITE))) { BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102), HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, Padding = 5 };
+                        var hc = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(h, new iTextSharp.text.Font(bf, 9, iTextSharp.text.Font.BOLD, iTextSharp.text.BaseColor.WHITE)))
+                        {
+                            BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102),
+                            HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER,
+                            Padding = 5
+                        };
                         table.AddCell(hc);
                     }
+
                     bool alt = false;
                     foreach (var item in items)
                     {
                         var cells = new[] { item.Товар, item.Количество.ToString(), $"{item.Цена:N2} ₽", $"{item.Сумма:N2} ₽" };
                         for (int i = 0; i < cells.Length; i++)
-                        { var c = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cells[i], f)) { Padding = 5 }; if (alt) c.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250); if (i > 0) c.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT; table.AddCell(c); }
+                        {
+                            var c = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cells[i], f)) { Padding = 5 };
+                            if (alt) c.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250);
+                            if (i > 0) c.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
+                            table.AddCell(c);
+                        }
                         alt = !alt;
                     }
                     doc.Add(table);
+
                     doc.Add(new iTextSharp.text.Paragraph($"ИТОГО: {total:N2} ₽", ft) { Alignment = iTextSharp.text.Element.ALIGN_RIGHT, SpacingBefore = 15 });
+
+                    // Футер
+                    AddReportFooter(doc, bf);
+
                     doc.Close();
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = sfd.FileName,
+                        UseShellExecute = true
+                    });
                 }
-                MessageBox.Show($"Поставка №{code} сохранена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                //MessageBox.Show($"Поставка №{code} сохранена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
         }
@@ -959,7 +1133,11 @@ namespace Diplomn.Pages
                 if (sfd.ShowDialog() != true) return;
 
                 var ids = supplies.Select(s => s.Код_поставки).ToList();
-                var totals = context.Состав_поставки.Where(i => ids.Contains(i.Код_поставки)).GroupBy(i => i.Код_поставки).Select(g => new { Id = g.Key, Total = g.Sum(i => (decimal?)i.Количество * i.Цена_за_ед_покупка) ?? 0 }).ToDictionary(x => x.Id, x => x.Total);
+                var totals = context.Состав_поставки
+                    .Where(i => ids.Contains(i.Код_поставки))
+                    .GroupBy(i => i.Код_поставки)
+                    .Select(g => new { Id = g.Key, Total = g.Sum(i => (decimal?)i.Количество * i.Цена_за_ед_покупка) ?? 0 })
+                    .ToDictionary(x => x.Id, x => x.Total);
                 var grandTotal = totals.Values.Sum();
 
                 using (var doc = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 40, 40, 50, 50))
@@ -968,32 +1146,83 @@ namespace Diplomn.Pages
                     doc.Open();
                     var fp = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
                     var bf = iTextSharp.text.pdf.BaseFont.CreateFont(fp, iTextSharp.text.pdf.BaseFont.IDENTITY_H, iTextSharp.text.pdf.BaseFont.EMBEDDED);
+
                     var fTitle = new iTextSharp.text.Font(bf, 16, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
                     var fSub = new iTextSharp.text.Font(bf, 11);
                     var fth = new iTextSharp.text.Font(bf, 9, iTextSharp.text.Font.BOLD, iTextSharp.text.BaseColor.WHITE);
                     var ftc = new iTextSharp.text.Font(bf, 9);
+                    var fSign = new iTextSharp.text.Font(bf, 10);
 
+                    // Заголовок отчёта
                     doc.Add(new iTextSharp.text.Paragraph("ОТЧЁТ О ПОСТАВКАХ", fTitle) { Alignment = iTextSharp.text.Element.ALIGN_CENTER, SpacingAfter = 25 });
+
+                    // Таблица
                     var table = new iTextSharp.text.pdf.PdfPTable(5) { WidthPercentage = 100 };
                     table.SetWidths(new float[] { 12, 22, 25, 25, 16 });
                     foreach (var h in new[] { "Код", "Дата", "Сотрудник", "Поставщик", "Сумма" })
-                    { var hc = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(h, fth)) { BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102), HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, Padding = 5 }; table.AddCell(hc); }
+                    {
+                        var hc = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(h, fth))
+                        {
+                            BackgroundColor = new iTextSharp.text.BaseColor(0, 51, 102),
+                            HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER,
+                            Padding = 5
+                        };
+                        table.AddCell(hc);
+                    }
+
                     bool alt = false;
                     foreach (var s in supplies)
                     {
                         var total = totals.TryGetValue(s.Код_поставки, out var t) ? t : 0;
-                        var cells = new[] { s.Код_поставки.ToString(), s.Дата_оформления_постивки.ToString("dd.MM.yyyy HH:mm"), $"{s.Сотрудники?.Фамилия} {s.Сотрудники?.Имя}", s.Поставщики?.Наименование_поставщика ?? "-", $"{total:N2} ₽" };
-                        for (int i = 0; i < cells.Length; i++) { var c = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cells[i], ftc)) { Padding = 5 }; if (alt) c.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250); if (i == 0 || i == 4) c.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER; table.AddCell(c); }
+                        var cells = new[] {
+                    s.Код_поставки.ToString(),
+                    s.Дата_оформления_постивки.ToString("dd.MM.yyyy HH:mm"),
+                    $"{s.Сотрудники?.Фамилия} {s.Сотрудники?.Имя}",
+                    s.Поставщики?.Наименование_поставщика ?? "-",
+                    $"{total:N2} ₽"
+                };
+                        for (int i = 0; i < cells.Length; i++)
+                        {
+                            var c = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(cells[i], ftc)) { Padding = 5 };
+                            if (alt) c.BackgroundColor = new iTextSharp.text.BaseColor(240, 245, 250);
+                            if (i == 0 || i == 4) c.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
+                            table.AddCell(c);
+                        }
                         alt = !alt;
                     }
                     doc.Add(table);
+
+                    // Итоги
                     doc.Add(new iTextSharp.text.Paragraph($"Всего поставок: {supplies.Count} | Общая сумма: {grandTotal:N2} ₽", fSub) { SpacingBefore = 10, SpacingAfter = 35 });
+
+                    // Подпись (как в улучшенном варианте)
+                    string initials = $"{currentUser.Фамилия} {currentUser.Имя?.Substring(0, 1)}.";
+                    if (!string.IsNullOrWhiteSpace(currentUser.Отчество)) initials += $"{currentUser.Отчество?.Substring(0, 1)}.";
+
+                    var signTable = new iTextSharp.text.pdf.PdfPTable(1) { WidthPercentage = 55, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT };
+                    var signCell = new iTextSharp.text.pdf.PdfPCell { Border = iTextSharp.text.Rectangle.NO_BORDER, PaddingBottom = 3 };
+                    signCell.AddElement(new iTextSharp.text.Paragraph($"{currentUser.Должность?.Название ?? "Сотрудник"} {initials} _______________  {DateTime.Now:dd.MM.yyyy}", fSign));
+                    signTable.AddCell(signCell);
+
+                    var signLineCell = new iTextSharp.text.pdf.PdfPCell { Border = iTextSharp.text.Rectangle.NO_BORDER, PaddingLeft = 145 };
+                    signLineCell.AddElement(new iTextSharp.text.Paragraph("(Подпись)", new iTextSharp.text.Font(bf, 9)));
+                    signTable.AddCell(signLineCell);
+                    doc.Add(signTable);
+
+                    // Футер
+                    AddReportFooter(doc, bf);
                     doc.Close();
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = sfd.FileName,
+                        UseShellExecute = true
+                    });
                 }
-                MessageBox.Show($"Отчёт сохранён!\n{supplies.Count} поставок\nОбщая сумма: {grandTotal:N2} ₽", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                //MessageBox.Show($"Отчёт сохранён!\n{supplies.Count} поставок\nОбщая сумма: {grandTotal:N2} ₽", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
         }
+
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) { ClearSupplyDetails(); ListViewSupplies.SelectedItem = null; UpdateViewModeButtonsState(); }
 
@@ -1001,12 +1230,11 @@ namespace Diplomn.Pages
         {
             try
             {
-                var query = context.Состав_поставки.AsQueryable(); // или Состав_продажи
-
+                var query = context.Состав_поставки.AsQueryable();
                 if (DateFrom.SelectedDate.HasValue)
                 {
                     var dateFrom = DateFrom.SelectedDate.Value;
-                    query = query.Where(i => i.Поставка.Дата_оформления_постивки >= dateFrom); // или i.Продажи.Дата_продажи
+                    query = query.Where(i => i.Поставка.Дата_оформления_постивки >= dateFrom);
                 }
 
                 if (DateTo.SelectedDate.HasValue)
@@ -1014,13 +1242,14 @@ namespace Diplomn.Pages
                     var dateTo = DateTo.SelectedDate.Value.AddDays(1);
                     query = query.Where(i => i.Поставка.Дата_оформления_постивки < dateTo);
                 }
-                if (CmbEmployee.SelectedValue != null && int.TryParse(CmbEmployee.SelectedValue.ToString(), out int empId) && empId > 0) query = query.Where(i => i.Поставка.Код_сотрудника == empId);
-                if (CmbSupplier.SelectedValue != null && int.TryParse(CmbSupplier.SelectedValue.ToString(), out int supId) && supId > 0) query = query.Where(i => i.Поставка.Код_поставщика == supId);
+                var empIds = PanelEmployees.Children.OfType<CheckBox>().Where(cb => cb.IsChecked == true && cb.Tag is int).Select(cb => (int)cb.Tag).ToList();
+                if (empIds.Any()) query = query.Where(i => empIds.Contains(i.Поставка.Код_сотрудника));
+                var supIds = PanelSuppliers.Children.OfType<CheckBox>().Where(cb => cb.IsChecked == true && cb.Tag is int).Select(cb => (int)cb.Tag).ToList();
+                if (supIds.Any()) query = query.Where(i => supIds.Contains(i.Поставка.Код_поставщика));
                 TxtGrandTotal.Text = $"{query.Sum(i => (decimal?)i.Количество * i.Цена_за_ед_покупка) ?? 0:N2} ₽";
             }
             catch { TxtGrandTotal.Text = "0.00 ₽"; }
         }
-
         #endregion
 
         #region Вспомогательные методы
@@ -1052,6 +1281,48 @@ namespace Diplomn.Pages
             return null;
         }
 
+        // Вспомогательные методы для построения отчётов
+        private void AddReportHeader(iTextSharp.text.Document doc, iTextSharp.text.pdf.BaseFont bf, string title)
+        {
+            var fontShopName = new iTextSharp.text.Font(bf, 22, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
+            var fontTitle = new iTextSharp.text.Font(bf, 14, iTextSharp.text.Font.BOLD, new iTextSharp.text.BaseColor(0, 51, 102));
+
+            doc.Add(new iTextSharp.text.Paragraph("Oculus+", fontShopName) { Alignment = iTextSharp.text.Element.ALIGN_CENTER, SpacingAfter = 15 });
+            doc.Add(new iTextSharp.text.Paragraph(title, fontTitle) { Alignment = iTextSharp.text.Element.ALIGN_CENTER, SpacingAfter = 20 });
+        }
+
+        private void AddReportFooter(iTextSharp.text.Document doc, iTextSharp.text.pdf.BaseFont bf)
+        {
+            const string shopName = "Oculus+";
+            const string shopPhone = "+7 (461) 345 12-34";
+            const string shopEmail = "Oculus@глаза.ру";
+            const string shopWebsite = "Oculus.ру";
+            const string shopHours = "9:00 – 17:00 ежедневно";
+            var fontFooter = new iTextSharp.text.Font(bf, 9, iTextSharp.text.Font.NORMAL, iTextSharp.text.BaseColor.GRAY);
+
+            // Добавляем линию-разделитель
+            var lineSeparator = new iTextSharp.text.pdf.draw.LineSeparator(1f, 100f, iTextSharp.text.BaseColor.LIGHT_GRAY, iTextSharp.text.Element.ALIGN_CENTER, 0);
+            var lineParagraph = new iTextSharp.text.Paragraph();
+            lineParagraph.SpacingBefore = 40;
+            lineParagraph.Add(new iTextSharp.text.Chunk(lineSeparator));
+            doc.Add(lineParagraph);
+
+            // Текст футера
+            doc.Add(new iTextSharp.text.Paragraph($"{shopName}  |  Часы работы: {shopHours}", fontFooter) { Alignment = iTextSharp.text.Element.ALIGN_CENTER, SpacingBefore = 8, SpacingAfter = 2 });
+            doc.Add(new iTextSharp.text.Paragraph($"{shopPhone}  |  {shopEmail}  |  {shopWebsite}", fontFooter) { Alignment = iTextSharp.text.Element.ALIGN_CENTER, SpacingBefore = 2, SpacingAfter = 2 });
+            doc.Add(new iTextSharp.text.Paragraph($"Отчёт сформирован: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter) { Alignment = iTextSharp.text.Element.ALIGN_CENTER, SpacingBefore = 2 });
+        }
+        private void AddInfoCell(iTextSharp.text.pdf.PdfPTable table, string text, iTextSharp.text.Font font, int alignment, int colSpan = 1)
+        {
+            var cell = new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Paragraph(text, font))
+            {
+                Border = iTextSharp.text.Rectangle.NO_BORDER,
+                HorizontalAlignment = alignment,
+                Colspan = colSpan,
+                Padding = 3
+            };
+            table.AddCell(cell);
+        }
         #endregion
     }
 

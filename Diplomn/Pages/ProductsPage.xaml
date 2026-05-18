@@ -51,7 +51,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="TxtSearch" Height="32"
                                  addons:PlaceholderBehavior.PlaceholderText="Поиск по наименованию..."
-                                 KeyDown="TxtSearch_KeyDown"/>
+                                 KeyDown="TxtSearch_KeyDown" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
                             <Button Content="🔍" Width="36" Height="32" Click="ApplyFilters_Click"/>
                             <Button Content="✕" Width="36" Height="32" Click="ClearFilters_Click" Margin="4,0,0,0"/>
@@ -65,67 +65,120 @@
                           Foreground="{DynamicResource ForegroundBrush}">
                     <Border Padding="8">
                         <StackPanel>
-                            <!-- В наличии -->
-                            <CheckBox x:Name="ChkInStock" Content="Только в наличии" 
-                                      Margin="0,0,0,10" FontSize="12"
-                                      Foreground="{DynamicResource ForegroundBrush}"/>
-
-                            <!-- Цена -->
-                            <TextBlock Text="Цена (от — до)" FontSize="11" Margin="0,0,0,4"
-                                       Foreground="{DynamicResource ForegroundBrush}"/>
-                            <Grid Margin="0,0,0,10">
+                            <!-- В наличии, Цена и Количество в одной строке -->
+                            <Grid Margin="0,-10,0,0">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBox x:Name="TxtPriceMin" Height="28"
-                                         addons:PlaceholderBehavior.PlaceholderText="От"/>
-                                <TextBlock Grid.Column="1" Text="—" VerticalAlignment="Center" Margin="8,0"
-                                           Foreground="{DynamicResource ForegroundBrush}"/>
-                                <TextBox Grid.Column="2" x:Name="TxtPriceMax" Height="28"
-                                         addons:PlaceholderBehavior.PlaceholderText="До"/>
-                            </Grid>
 
-                            <!-- Количество -->
-                            <TextBlock Text="Количество (от — до)" FontSize="11" Margin="0,0,0,4"
-                                       Foreground="{DynamicResource ForegroundBrush}"/>
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox x:Name="TxtQtyMin" Height="28"
-                                         addons:PlaceholderBehavior.PlaceholderText="От"/>
-                                <TextBlock Grid.Column="1" Text="—" VerticalAlignment="Center" Margin="8,0"
-                                           Foreground="{DynamicResource ForegroundBrush}"/>
-                                <TextBox Grid.Column="2" x:Name="TxtQtyMax" Height="28"
-                                         addons:PlaceholderBehavior.PlaceholderText="До"/>
+                                <!-- В наличии - левая колонка -->
+                                <CheckBox x:Name="ChkInStock" Content="В наличии" 
+              VerticalAlignment="Center"
+              FontSize="12"
+              Foreground="{DynamicResource ForegroundBrush}"/>
+
+                                <!-- Цена - средняя колонка -->
+                                <StackPanel Grid.Column="1" Margin="15,0">
+                                    <TextBlock Text="Цена (от — до)" FontSize="11" Margin="0,0,0,4"
+                   Foreground="{DynamicResource ForegroundBrush}"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TxtPriceMin" Height="28"
+                     addons:PlaceholderBehavior.PlaceholderText="От"/>
+                                        <TextBlock Grid.Column="1" Text="—" VerticalAlignment="Center" Margin="8,0"
+                       Foreground="{DynamicResource ForegroundBrush}"/>
+                                        <TextBox Grid.Column="2" x:Name="TxtPriceMax" Height="28"
+                     addons:PlaceholderBehavior.PlaceholderText="До"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Количество - правая колонка -->
+                                <StackPanel Grid.Column="2" Margin="15,0,0,0">
+                                    <TextBlock Text="Количество (от — до)" FontSize="11" Margin="0,0,0,4"
+                   Foreground="{DynamicResource ForegroundBrush}"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TxtQtyMin" Height="28"
+                     addons:PlaceholderBehavior.PlaceholderText="От"/>
+                                        <TextBlock Grid.Column="1" Text="—" VerticalAlignment="Center" Margin="8,0"
+                       Foreground="{DynamicResource ForegroundBrush}"/>
+                                        <TextBox Grid.Column="2" x:Name="TxtQtyMax" Height="28"
+                     addons:PlaceholderBehavior.PlaceholderText="До"/>
+                                    </Grid>
+                                </StackPanel>
                             </Grid>
 
                             <!-- Категории, бренды и т.д. -->
-                            <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
+                            <ScrollViewer MaxHeight="221" VerticalScrollBarVisibility="Auto">
                                 <StackPanel>
-                                    <Expander Header="Категории" IsExpanded="False" Margin="0,0,0,3"
-                                              Foreground="{DynamicResource ForegroundBrush}">
-                                        <WrapPanel x:Name="PanelCategories"/>
+                                    <!-- Категории -->
+                                    <Expander Header="Категории" IsExpanded="False" Margin="0,0,0,5"
+          Foreground="{DynamicResource ForegroundBrush}">
+                                        <StackPanel>
+                                            <TextBox x:Name="TxtSearchCategories" Height="28" Margin="0,0,0,5"
+                 addons:PlaceholderBehavior.PlaceholderText="Поиск категории..."
+                 TextChanged="FilterCategories_TextChanged"/>
+                                            <UniformGrid x:Name="PanelCategories" Columns="5" 
+                     HorizontalAlignment="Stretch"/>
+                                        </StackPanel>
                                     </Expander>
-                                    <Expander Header="Бренды" IsExpanded="False" Margin="0,0,0,3"
-                                              Foreground="{DynamicResource ForegroundBrush}">
-                                        <WrapPanel x:Name="PanelBrands"/>
+
+                                    <!-- Бренды -->
+                                    <Expander Header="Бренды" IsExpanded="False" Margin="0,0,0,5"
+          Foreground="{DynamicResource ForegroundBrush}">
+                                        <StackPanel>
+                                            <TextBox x:Name="TxtSearchBrands" Height="28" Margin="0,0,0,5"
+                 addons:PlaceholderBehavior.PlaceholderText="Поиск бренда..."
+                 TextChanged="FilterBrands_TextChanged"/>
+                                            <UniformGrid x:Name="PanelBrands" Columns="5" 
+                     HorizontalAlignment="Stretch"/>
+                                        </StackPanel>
                                     </Expander>
-                                    <Expander Header="Производители" IsExpanded="False" Margin="0,0,0,3"
-                                              Foreground="{DynamicResource ForegroundBrush}">
-                                        <WrapPanel x:Name="PanelManufacturers"/>
+
+                                    <!-- Производители -->
+                                    <Expander Header="Производители" IsExpanded="False" Margin="0,0,0,5"
+          Foreground="{DynamicResource ForegroundBrush}">
+                                        <StackPanel>
+                                            <TextBox x:Name="TxtSearchManufacturers" Height="28" Margin="0,0,0,5"
+                 addons:PlaceholderBehavior.PlaceholderText="Поиск производителя..."
+                 TextChanged="FilterManufacturers_TextChanged"/>
+                                            <UniformGrid x:Name="PanelManufacturers" Columns="5" 
+                     HorizontalAlignment="Stretch"/>
+                                        </StackPanel>
                                     </Expander>
-                                    <Expander Header="Материалы" IsExpanded="False" Margin="0,0,0,3"
-                                              Foreground="{DynamicResource ForegroundBrush}">
-                                        <WrapPanel x:Name="PanelMaterials"/>
+
+                                    <!-- Материалы -->
+                                    <Expander Header="Материалы" IsExpanded="False" Margin="0,0,0,5"
+          Foreground="{DynamicResource ForegroundBrush}">
+                                        <StackPanel>
+                                            <TextBox x:Name="TxtSearchMaterials" Height="28" Margin="0,0,0,5"
+                 addons:PlaceholderBehavior.PlaceholderText="Поиск материала..."
+                 TextChanged="FilterMaterials_TextChanged"/>
+                                            <UniformGrid x:Name="PanelMaterials" Columns="5" 
+                     HorizontalAlignment="Stretch"/>
+                                        </StackPanel>
                                     </Expander>
+
+                                    <!-- Фасовка -->
                                     <Expander Header="Фасовка" IsExpanded="False"
-                                              Foreground="{DynamicResource ForegroundBrush}">
-                                        <WrapPanel x:Name="PanelPacking"/>
+          Foreground="{DynamicResource ForegroundBrush}">
+                                        <StackPanel>
+                                            <TextBox x:Name="TxtSearchPacking" Height="28" Margin="0,0,0,5"
+                 addons:PlaceholderBehavior.PlaceholderText="Поиск фасовки..."
+                 TextChanged="FilterPacking_TextChanged"/>
+                                            <UniformGrid x:Name="PanelPacking" Columns="5" 
+                     HorizontalAlignment="Stretch"/>
+                                        </StackPanel>
                                     </Expander>
                                 </StackPanel>
                             </ScrollViewer>

@@ -4,135 +4,16 @@
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="BaseTheme.xaml"/>
     </ResourceDictionary.MergedDictionaries>
-    
-    <!-- Основные цвета темной темы -->
+
+    <!-- Style 2 resources -->
     <SolidColorBrush x:Key="BackgroundBrush" Color="#282828" />
-    <SolidColorBrush x:Key="ForegroundBrush" Color="#CDD6F4" />
+    <SolidColorBrush x:Key="ForegroundBrush" Color="Violet" />
     <SolidColorBrush x:Key="BorderBrush" Color="#45475A" />
     <SolidColorBrush x:Key="AccentBrush" Color="#89B4FA" />
     <SolidColorBrush x:Key="DangerBrush" Color="#F38BA8" />
     <SolidColorBrush x:Key="SuccessBrush" Color="#A6E3A1" />
     <SolidColorBrush x:Key="PlaceholderBrush" Color="#6C7086" />
-    <!-- Цвета для ScrollBar -->
     <SolidColorBrush x:Key="ScrollBarThumb" Color="#585B70" />
     <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#6C7086" />
     <SolidColorBrush x:Key="ScrollBarThumbPressed" Color="#89B4FA" />
-
-    <!-- Стиль для ScrollBar -->
-    <Style TargetType="ScrollBar">
-        <Setter Property="Width" Value="10" />
-        <Setter Property="Height" Value="Auto" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="ScrollBar">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <!-- Кнопка вверх -->
-                        <RepeatButton Grid.Row="0"
-                                      Command="ScrollBar.LineUpCommand"
-                                      Height="16"
-                                      Background="Transparent"
-                                      BorderThickness="0"
-                                      Foreground="{StaticResource PlaceholderBrush}">
-                            <RepeatButton.Template>
-                                <ControlTemplate TargetType="RepeatButton">
-                                    <Border x:Name="BtnBorder" Background="Transparent" CornerRadius="4">
-                                        <TextBlock Text="▲" FontSize="8" 
-                                                   HorizontalAlignment="Center" 
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{TemplateBinding Foreground}"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="BtnBorder" Property="Background" Value="{StaticResource ScrollBarThumb}"/>
-                                            <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </RepeatButton.Template>
-                        </RepeatButton>
-
-                        <!-- Трек -->
-                        <Track x:Name="PART_Track" Grid.Row="1">
-                            <Track.Resources>
-                                <Style TargetType="Thumb">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Border x:Name="ThumbBorder"
-                                                        Background="{StaticResource ScrollBarThumb}"
-                                                        CornerRadius="5"
-                                                        Margin="2,4" />
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="ThumbBorder" 
-                                                                Property="Background" 
-                                                                Value="{StaticResource ScrollBarThumbHover}" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsDragging" Value="True">
-                                                        <Setter TargetName="ThumbBorder" 
-                                                                Property="Background" 
-                                                                Value="{StaticResource ScrollBarThumbPressed}" />
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </Track.Resources>
-                            <Track.DecreaseRepeatButton>
-                                <RepeatButton Command="ScrollBar.PageUpCommand" 
-                                              Background="Transparent" 
-                                              BorderThickness="0" />
-                            </Track.DecreaseRepeatButton>
-                            <Track.IncreaseRepeatButton>
-                                <RepeatButton Command="ScrollBar.PageDownCommand" 
-                                              Background="Transparent" 
-                                              BorderThickness="0" />
-                            </Track.IncreaseRepeatButton>
-                            <Track.Thumb>
-                                <Thumb />
-                            </Track.Thumb>
-                        </Track>
-
-                        <!-- Кнопка вниз -->
-                        <RepeatButton Grid.Row="2"
-                                      Command="ScrollBar.LineDownCommand"
-                                      Height="16"
-                                      Background="Transparent"
-                                      BorderThickness="0"
-                                      Foreground="{StaticResource PlaceholderBrush}">
-                            <RepeatButton.Template>
-                                <ControlTemplate TargetType="RepeatButton">
-                                    <Border x:Name="BtnBorder" Background="Transparent" CornerRadius="4">
-                                        <TextBlock Text="▼" FontSize="8" 
-                                                   HorizontalAlignment="Center" 
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{TemplateBinding Foreground}"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="BtnBorder" Property="Background" Value="{StaticResource ScrollBarThumb}"/>
-                                            <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </RepeatButton.Template>
-                        </RepeatButton>
-                    </Grid>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="Orientation" Value="Horizontal">
-                            <Setter Property="Width" Value="Auto" />
-                            <Setter Property="Height" Value="10" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
 </ResourceDictionary>

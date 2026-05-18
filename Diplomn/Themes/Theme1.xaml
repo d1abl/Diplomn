@@ -4,8 +4,15 @@
         <ResourceDictionary Source="BaseTheme.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
-    <!-- Style 1 resources -->
-    <SolidColorBrush x:Key="BackgroundBrush" Color="#FFF1F5E6" />
-    <SolidColorBrush x:Key="ForegroundBrush" Color="#FF2B5A6C" />
-    <SolidColorBrush x:Key="BorderBrush" Color="#FF2B313F" />
+    <!-- Style 1 resources (Светлая тема) -->
+    <SolidColorBrush x:Key="BackgroundBrush" Color="#F1F5E6" />
+    <SolidColorBrush x:Key="ForegroundBrush" Color="#2B5A6C" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#2B313F" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#4A9EAA" />
+    <SolidColorBrush x:Key="DangerBrush" Color="#E57373" />
+    <SolidColorBrush x:Key="SuccessBrush" Color="#81C784" />
+    <SolidColorBrush x:Key="PlaceholderBrush" Color="#8F9E8F" />
+    <SolidColorBrush x:Key="ScrollBarThumb" Color="#B8C5A8" />
+    <SolidColorBrush x:Key="ScrollBarThumbHover" Color="#A0B08A" />
+    <SolidColorBrush x:Key="ScrollBarThumbPressed" Color="#4A9EAA" />
 </ResourceDictionary>

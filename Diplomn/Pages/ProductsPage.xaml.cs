@@ -260,6 +260,11 @@ namespace Diplomn.Pages
 
         #region Загрузка данных
 
+        #region Загрузка справочников и фильтров
+
+        /// <summary>
+        /// Загружает справочники в выпадающие списки и панели фильтров
+        /// </summary>
         private void LoadLookups()
         {
             CmbCategory.ItemsSource = context.Категории.ToList();
@@ -268,31 +273,99 @@ namespace Diplomn.Pages
             CmbMaterial.ItemsSource = context.Материал.ToList();
             CmbPacking.ItemsSource = context.Фасовка.ToList();
 
-            PopulateFilterPanel(PanelCategories, context.Категории.Select(c => new { c.Код_категория, c.Категория }).ToList());
-            PopulateFilterPanel(PanelBrands, context.Бренд.Select(b => new { b.Код_бренда, b.Наименование_бредна }).ToList());
-            PopulateFilterPanel(PanelManufacturers, context.Производитель.Select(m => new { m.Код_производителя, m.Наименование_произваодителя }).ToList());
-            PopulateFilterPanel(PanelMaterials, context.Материал.Select(m => new { m.Код_материала, m.Наименование_материала }).ToList());
-            PopulateFilterPanel(PanelPacking, context.Фасовка.Select(f => new { f.Код_фасовки, f.Количество }).ToList());
+            // Загружаем все элементы в панели фильтров
+            PopulateFilterPanel(PanelCategories, context.Категории.ToList(), "Категория", "Код_категория");
+            PopulateFilterPanel(PanelBrands, context.Бренд.ToList(), "Наименование_бредна", "Код_бренда");
+            PopulateFilterPanel(PanelManufacturers, context.Производитель.ToList(), "Наименование_произваодителя", "Код_производителя");
+            PopulateFilterPanel(PanelMaterials, context.Материал.ToList(), "Наименование_материала", "Код_материала");
+            PopulateFilterPanel(PanelPacking, context.Фасовка.ToList(), "Количество", "Код_фасовки");
         }
 
-        private void PopulateFilterPanel(Panel panel, IEnumerable<dynamic> items)
+        /// <summary>
+        /// Заполняет панель фильтров чекбоксами (универсальный метод)
+        /// </summary>
+        private void PopulateFilterPanel(Panel panel, IEnumerable<object> items, string displayProperty, string valueProperty)
         {
             panel.Children.Clear();
+
             foreach (var item in items)
             {
-                var props = item.GetType().GetProperties();
+                var displayValue = item.GetType().GetProperty(displayProperty)?.GetValue(item)?.ToString() ?? "";
+                var tagValue = item.GetType().GetProperty(valueProperty)?.GetValue(item);
+
                 var cb = new CheckBox
                 {
-                    Margin = new Thickness(2),
-                    Content = props[1].GetValue(item)?.ToString(),
-                    Tag = props[0].GetValue(item),
+                    Margin = new Thickness(2, 1, 2, 1),
+                    Content = displayValue,
+                    Tag = tagValue,
                     FontSize = 11,
-                    Foreground = TryFindResource("ForegroundBrush") as Brush
+                    Foreground = TryFindResource("ForegroundBrush") as Brush,
+                    MaxWidth = 180,
+                    VerticalAlignment = VerticalAlignment.Top
                 };
+
                 panel.Children.Add(cb);
             }
         }
 
+        /// <summary>
+        /// Фильтрует чекбоксы в панели по тексту поиска
+        /// </summary>
+        private void FilterPanelItems(Panel panel, TextBox searchTextBox)
+        {
+            if (panel == null) return;
+
+            // Используем GetActualText для игнорирования плейсхолдера
+            var search = GetActualText(searchTextBox)?.ToLower() ?? "";
+
+            foreach (UIElement child in panel.Children)
+            {
+                if (child is CheckBox checkBox)
+                {
+                    if (string.IsNullOrWhiteSpace(search))
+                    {
+                        // Показываем все элементы
+                        checkBox.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        // Показываем только совпадающие
+                        var content = checkBox.Content?.ToString()?.ToLower() ?? "";
+                        checkBox.Visibility = content.Contains(search)
+                            ? Visibility.Visible
+                            : Visibility.Collapsed;
+                    }
+                }
+            }
+        }
+
+        // Обработчики поиска для каждой категории
+        private void FilterCategories_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            FilterPanelItems(PanelCategories, sender as TextBox);
+        }
+
+        private void FilterBrands_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            FilterPanelItems(PanelBrands, sender as TextBox);
+        }
+
+        private void FilterManufacturers_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            FilterPanelItems(PanelManufacturers, sender as TextBox);
+        }
+
+        private void FilterMaterials_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            FilterPanelItems(PanelMaterials, sender as TextBox);
+        }
+
+        private void FilterPacking_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            FilterPanelItems(PanelPacking, sender as TextBox);
+        }
+
+        #endregion
         private void LoadData()
         {
             var products = context.Товары

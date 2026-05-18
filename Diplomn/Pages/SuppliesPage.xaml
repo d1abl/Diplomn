@@ -41,7 +41,7 @@
                     </Grid.RowDefinitions>
 
                     <!-- Поиск и кнопки -->
-                    <Border Grid.Row="0" Padding="5" Margin="0,0,0,8">
+                    <Border Grid.Row="0" Padding="5" Margin="0,0,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -63,64 +63,105 @@
                     </Border>
 
                     <!-- Фильтры -->
-                    <Expander Grid.Row="1" Header="⚙ Фильтры и сортировка" IsExpanded="False" Margin="0,0,0,8">
-                        <Border Padding="8">
+                    <Expander Grid.Row="1" Header="⚙ Фильтры и сортировка" IsExpanded="False" Margin="0,-10,0,10"
+          Foreground="{DynamicResource ForegroundBrush}">
+                        <Border Padding="8" Background="{DynamicResource BackgroundBrush}">
                             <StackPanel>
-                                <!-- Фильтр по дате -->
-                                <TextBlock Text="Дата поставки" FontSize="11" FontWeight="Bold" Margin="0,0,0,5"/>
-                                <Grid Margin="0,0,0,10">
+
+                                <StackPanel Margin="0,5,10,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>                                       
+                                        
+                                        <!-- Фильтр по дате -->
+                                    <TextBlock Grid.Column="0" Text="Дата поставки (от — до)" FontSize="11" Margin="0,-15,0,0"
+                           Foreground="{DynamicResource ForegroundBrush}"/>
+                                        <Grid Grid.Column="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <DatePicker x:Name="DateFrom" Height="28"/>
+                                        <TextBlock Grid.Column="1" Text="—" VerticalAlignment="Center" Margin="6,0"
+                               Foreground="{DynamicResource ForegroundBrush}"/>
+                                        <DatePicker Grid.Column="2" x:Name="DateTo" Height="28"/>
+                                    </Grid>
+                                    
+                                    <!-- Сортировка -->
+                                        <TextBlock Grid.Column="1" Text="Сортировка" FontSize="11" FontWeight="Bold" Margin="10,-15,0,0"
+                           Foreground="{DynamicResource ForegroundBrush}"/>
+                                        <Grid Grid.Column="1" Margin="10 0 -10 0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border x:Name="BtnSortByDate" Height="30" CornerRadius="4" Padding="6,3" Margin="0,0,0,0" Grid.Column="0"
+                            Background="{DynamicResource BackgroundBrush}" 
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            Cursor="Hand" MouseLeftButtonDown="ToggleDateSort_Click">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="📅 По дате" FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource ForegroundBrush}" Margin="0,0,4,0"/>
+                                                <TextBlock x:Name="DateSortArrow" Text="↑" FontSize="11" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                            <Border x:Name="BtnSortByAmount" CornerRadius="4" Padding="6,3" Margin="10,0,0,0" Grid.Column="1"
+                            Background="{DynamicResource BackgroundBrush}" 
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            Cursor="Hand" MouseLeftButtonDown="ToggleAmountSort_Click">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="💰 По сумме" FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource ForegroundBrush}" Margin="0,0,4,0"/>
+                                                <TextBlock x:Name="AmountSortArrow" Text="" FontSize="11" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Сотрудник и Поставщик -->
+                                <Grid Margin="0,0,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Margin="0,0,5,0">
-                                        <TextBlock Text="От" FontSize="10" Margin="0,0,0,2"/>
-                                        <DatePicker x:Name="DateFrom" Height="28"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                                        <TextBlock Text="До" FontSize="10" Margin="0,0,0,2"/>
-                                        <DatePicker x:Name="DateTo" Height="28"/>
-                                    </StackPanel>
+
+                                    <!-- Фильтр по сотруднику -->
+                                    <Border  Grid.Column="0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,10,5,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Сотрудник" FontSize="11" Margin="0,0,0,4"
+                               Foreground="{DynamicResource ForegroundBrush}"/>
+                                            <TextBox x:Name="TxtSearchEmployee" Height="28"
+                             addons:PlaceholderBehavior.PlaceholderText="Поиск сотрудника..."
+                             TextChanged="FilterEmployees_TextChanged"/>
+                                            <UniformGrid x:Name="PanelEmployees" Columns="2" 
+                                 HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Фильтр по поставщику -->
+                                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8"  Grid.Column="1" Margin="5,10 0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Поставщик" FontSize="11" Margin="0,0,0,4"
+                               Foreground="{DynamicResource ForegroundBrush}"/>
+                                            <TextBox x:Name="TxtSearchSupplier" Height="28"
+                             addons:PlaceholderBehavior.PlaceholderText="Поиск поставщика..."
+                             TextChanged="FilterSuppliers_TextChanged"/>
+                                            <UniformGrid x:Name="PanelSuppliers" Columns="1" 
+                                 HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
                                 </Grid>
-
-                                <!-- Фильтр по сотруднику -->
-                                <TextBlock Text="Сотрудник" FontSize="11" FontWeight="Bold" Margin="0,0,0,5"/>
-                                <ComboBox x:Name="CmbEmployee" Height="28" Margin="0,0,0,10" Style="{DynamicResource PlaceholderComboBox}"
-                                          DisplayMemberPath="FullName"
-                                          SelectedValuePath="Код_сотрудника"/>
-
-                                <!-- Фильтр по поставщику -->
-                                <TextBlock Text="Поставщик" FontSize="11" FontWeight="Bold" Margin="0,0,0,5"/>
-                                <ComboBox x:Name="CmbSupplier" Height="28" Margin="0,0,0,10" Style="{DynamicResource PlaceholderComboBox}"
-                                          DisplayMemberPath="Наименование_поставщика"
-                                          SelectedValuePath="Код_поставщика"/>
-
-                                <!-- Сортировка -->
-                                <TextBlock Text="Сортировка" FontSize="11" FontWeight="Bold" Margin="0,0,0,5"/>
-                                <StackPanel Margin="0,0,0,5">
-                                    <RadioButton x:Name="RbSortByDate" Content="По дате (новые сначала)" 
-                                                 IsChecked="True" Margin="0,2,0,2" FontSize="11"
-                                                 Checked="SortChanged"/>
-                                    <RadioButton x:Name="RbSortByDateAsc" Content="По дате (старые сначала)" 
-                                                 Margin="0,2,0,2" FontSize="11"
-                                                 Checked="SortChanged"/>
-                                    <RadioButton x:Name="RbSortByAmount" Content="По сумме (по убыванию)" 
-                                                 Margin="0,2,0,2" FontSize="11"
-                                                 Checked="SortChanged"/>
-                                    <RadioButton x:Name="RbSortByAmountAsc" Content="По сумме (по возрастанию)" 
-                                                 Margin="0,2,0,2" FontSize="11"
-                                                 Checked="SortChanged"/>
-                                    <RadioButton x:Name="RbSortByCode" Content="По коду поставки (по убыванию)" 
-                                                 Margin="0,2,0,2" FontSize="11"
-                                                 Checked="SortChanged"/>
-                                    <RadioButton x:Name="RbSortByCodeAsc" Content="По коду поставки (по возрастанию)" 
-                                                 Margin="0,2,0,2" FontSize="11"
-                                                 Checked="SortChanged"/>
-                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </Expander>
-
+                    
                     <!-- Карточки поставок -->
                     <ListView Grid.Row="2" x:Name="ListViewSupplies"
                               SelectionMode="Single"
@@ -276,6 +317,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
@@ -286,9 +328,9 @@
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="TxtProductSearch" Height="32" 
+                                <TextBox x:Name="TxtProductSearch" Height="32" Grid.Column="0"
                                      ToolTip="Поиск по наименованию (Enter для поиска)"
                                      KeyDown="TxtProductSearch_KeyDown"
                                      addons:PlaceholderBehavior.PlaceholderText="Поиск по наименованию товара"/>
@@ -298,19 +340,102 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-
-                    <!-- Выбор поставщика для новой поставки -->
-                    <Border Grid.Row="2" Padding="5" Margin="0,0,0,8">
-                        <StackPanel>
-                            <TextBlock Text="Поставщик:" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
-                            <ComboBox x:Name="CmbNewSupplySupplier" Height="30" Style="{DynamicResource PlaceholderComboBox}"
+                            <!-- Выбор поставщика для новой поставки -->
+                            <Border Grid.Row="2" Padding="5" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <TextBlock Text="Поставщик:" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                    <ComboBox x:Name="CmbNewSupplySupplier" Height="30" Style="{DynamicResource PlaceholderComboBox}"
                                       DisplayMemberPath="Наименование_поставщика"
                                       SelectedValuePath="Код_поставщика"/>
-                        </StackPanel>
-                    </Border>
+                                </StackPanel>
+                            </Border>
 
+                    <!-- Фильтры каталога -->
+                    <Expander Grid.Row="3" Header="⚙ Фильтры каталога" IsExpanded="False" Margin="0,0,0,8"
+          Foreground="{DynamicResource ForegroundBrush}">
+                        <Border Padding="8" Background="{DynamicResource BackgroundBrush}">
+                            <StackPanel Margin="0 -10 0 0">
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox x:Name="ChkNewSupplyInStock" Content="В наличии" Margin="30 15 20 0" 
+                          VerticalAlignment="Center" FontSize="12"
+                          Foreground="{DynamicResource ForegroundBrush}"/>
+                                    <StackPanel Grid.Column="1" Margin="15,0,0,0">
+                                        <TextBlock Text="Цена (от — до)" FontSize="11" Margin="0,0,0,4"
+                               Foreground="{DynamicResource ForegroundBrush}"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="TxtNewSupplyPriceMin" Height="28"
+                                 addons:PlaceholderBehavior.PlaceholderText="От"/>
+                                            <TextBlock Grid.Column="1" Text="—" VerticalAlignment="Center" Margin="6,0"
+                                   Foreground="{DynamicResource ForegroundBrush}"/>
+                                            <TextBox Grid.Column="2" x:Name="TxtNewSupplyPriceMax" Height="28"
+                                 addons:PlaceholderBehavior.PlaceholderText="До"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
+                                <ScrollViewer MaxHeight="221" VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <Expander Header="Категории" IsExpanded="False" Margin="0,0,0,5"
+                              Foreground="{DynamicResource ForegroundBrush}">
+                                            <StackPanel>
+                                                <TextBox x:Name="TxtNewSupplySearchCategories" Height="28" Margin="0,0,0,5"
+                                     addons:PlaceholderBehavior.PlaceholderText="Поиск категории..."
+                                     TextChanged="NewSupplyFilterCategories_TextChanged"/>
+                                                <UniformGrid x:Name="PanelNewSupplyCategories" Columns="4" HorizontalAlignment="Stretch"/>
+                                            </StackPanel>
+                                        </Expander>
+                                        <Expander Header="Бренды" IsExpanded="False" Margin="0,0,0,5"
+                              Foreground="{DynamicResource ForegroundBrush}">
+                                            <StackPanel>
+                                                <TextBox x:Name="TxtNewSupplySearchBrands" Height="28" Margin="0,0,0,5"
+                                     addons:PlaceholderBehavior.PlaceholderText="Поиск бренда..."
+                                     TextChanged="NewSupplyFilterBrands_TextChanged"/>
+                                                <UniformGrid x:Name="PanelNewSupplyBrands" Columns="4" HorizontalAlignment="Stretch"/>
+                                            </StackPanel>
+                                        </Expander>
+                                        <Expander Header="Производители" IsExpanded="False" Margin="0,0,0,5"
+                              Foreground="{DynamicResource ForegroundBrush}">
+                                            <StackPanel>
+                                                <TextBox x:Name="TxtNewSupplySearchManufacturers" Height="28" Margin="0,0,0,5"
+                                     addons:PlaceholderBehavior.PlaceholderText="Поиск производителя..."
+                                     TextChanged="NewSupplyFilterManufacturers_TextChanged"/>
+                                                <UniformGrid x:Name="PanelNewSupplyManufacturers" Columns="4" HorizontalAlignment="Stretch"/>
+                                            </StackPanel>
+                                        </Expander>
+                                        <Expander Header="Материалы" IsExpanded="False" Margin="0,0,0,5"
+                              Foreground="{DynamicResource ForegroundBrush}">
+                                            <StackPanel>
+                                                <TextBox x:Name="TxtNewSupplySearchMaterials" Height="28" Margin="0,0,0,5"
+                                     addons:PlaceholderBehavior.PlaceholderText="Поиск материала..."
+                                     TextChanged="NewSupplyFilterMaterials_TextChanged"/>
+                                                <UniformGrid x:Name="PanelNewSupplyMaterials" Columns="4" HorizontalAlignment="Stretch"/>
+                                            </StackPanel>
+                                        </Expander>
+                                        <Expander Header="Фасовка" IsExpanded="False"
+                              Foreground="{DynamicResource ForegroundBrush}">
+                                            <StackPanel>
+                                                <TextBox x:Name="TxtNewSupplySearchPacking" Height="28" Margin="0,0,0,5"
+                                     addons:PlaceholderBehavior.PlaceholderText="Поиск фасовки..."
+                                     TextChanged="NewSupplyFilterPacking_TextChanged"/>
+                                                <UniformGrid x:Name="PanelNewSupplyPacking" Columns="4" HorizontalAlignment="Stretch"/>
+                                            </StackPanel>
+                                        </Expander>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </Border>
+                    </Expander>
+                    
                     <!-- Список товаров карточками -->
-                    <ListView Grid.Row="3" x:Name="ListViewProducts"
+                    <ListView Grid.Row="4" x:Name="ListViewProducts"
                               SelectionMode="Single"
                               SelectionChanged="ListViewProducts_SelectionChanged"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -463,34 +588,12 @@
             </Grid>
         </Grid>
 
-        <!-- Нижняя панель -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0" Cursor="Hand">
-            <StackPanel x:Name="ViewModeButtons" Orientation="Horizontal">
-                <Button Content="➕ Новая поставка" Click="NewSupply_Click" Width="130" Margin="5" Height="35" Cursor="Hand"/>
-                <Grid Margin="5" Width="120">
-                    <Button x:Name="BtnEditSupply" Content="✏ Редактировать" 
-                Click="EditSupply_Click" Height="35" IsEnabled="False"/>
-                    <Border x:Name="BtnEditSupplyOverlay" Background="Transparent" 
-                Visibility="Collapsed" ToolTip=""/>
-                </Grid>
-                <Grid Margin="5" Width="100">
-                    <Button x:Name="BtnDeleteSupply" Content="🗑 Удалить" 
-                Click="DeleteSupply_Click" Height="35" IsEnabled="False"/>
-                    <Border x:Name="BtnDeleteSupplyOverlay" Background="Transparent" 
-                Visibility="Collapsed" ToolTip=""/>
-                </Grid>
-                <Button Content="🖨 Печать поставки" Click="PrintSupply_Click" Width="130" Margin="5" Height="35" IsEnabled="False"/>
-                <Button Content="Очистить" Click="ClearForm_Click" Width="90" Height="35" Margin="3"/>
-            </StackPanel>
-            <StackPanel x:Name="NewSupplyModeButtons" Orientation="Horizontal" Visibility="Collapsed">
-                <Button x:Name="BtnSaveNewSupply" Content="💾 Оформить поставку" Click="SaveNewSupply_Click" 
-                        Width="150" Margin="5" Height="35" Cursor="Hand"
-                        IsEnabled="False"
-                        Background="{DynamicResource SuccessBrush}" Foreground="White" FontWeight="Bold"/>
-                <Button Content="↩ Отмена" Click="CancelNewSupply_Click" Width="100" Margin="5" Height="35" Cursor="Hand"/>
-            </StackPanel>
+        <!-- Нижняя панель с кнопками -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <StackPanel x:Name="ViewModeButtons" Orientation="Horizontal"/>
+            <StackPanel x:Name="NewSupplyModeButtons" Orientation="Horizontal" Visibility="Collapsed"/>
         </StackPanel>
-
+        
         <!-- Панель итого для режима создания -->
         <Border x:Name="NewSupplyTotalPanel" Grid.Row="2" Margin="0,15,170,0" Padding="10" 
                 CornerRadius="4" HorizontalAlignment="Left" Visibility="Collapsed"
