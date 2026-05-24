@@ -362,30 +362,32 @@ namespace Diplomn.Pages
         private void LoadEmployees()
         {
             var employees = context.Сотрудники.ToList();
-
-            // Заполняем панель фильтра сотрудников
             PanelEmployees.Children.Clear();
 
             foreach (var emp in employees)
             {
-                var cb = new CheckBox
-                {
-                    Margin = new Thickness(2, 1, 2, 1),
-                    Content = $"{emp.Фамилия} {emp.Имя}",
-                    Tag = emp.Код_сотрудника,
-                    FontSize = 11,
-                    Foreground = TryFindResource("ForegroundBrush") as Brush,
-                    MaxWidth = 180,
-                    VerticalAlignment = VerticalAlignment.Top
-                };
-                PanelEmployees.Children.Add(cb);
-            }
+                // Получаем права ДАННОГО сотрудника (не текущего пользователя)
+                var empRights = AccessManager.GetAccessRights(emp.Должность?.Уровень_доступа ?? 10);
 
-            // Сохраняем оригинальный список для сброса
-            var originalItems = new List<UIElement>();
-            foreach (UIElement child in PanelEmployees.Children)
-                originalItems.Add(child);
-            PanelEmployees.Tag = originalItems;
+                // Проверяем, может ли этот сотрудник создавать или редактировать продажи
+                bool canCreateOrEditSale = empRights.Sales.CanCreate || empRights.Sales.CanEdit;
+
+                // Показываем только тех, у кого есть права на создание/редактирование продаж
+                if (canCreateOrEditSale)
+                {
+                    var cb = new CheckBox
+                    {
+                        Margin = new Thickness(2, 1, 2, 1),
+                        Content = $"{emp.Фамилия} {emp.Имя}",
+                        Tag = emp.Код_сотрудника,
+                        FontSize = 11,
+                        Foreground = TryFindResource("ForegroundBrush") as Brush,
+                        MaxWidth = 180,
+                        VerticalAlignment = VerticalAlignment.Top
+                    };
+                    PanelEmployees.Children.Add(cb);
+                }
+            }
         }
 
 

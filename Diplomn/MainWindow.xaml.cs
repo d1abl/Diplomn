@@ -138,7 +138,7 @@ namespace Diplomn
 
             // Роли
             if (currentRights.Roles.CanView)
-                VisiblEmployeesWarp.Children.Add(CreateMenuButton("🔐 Роли", RolesBtn_Click));
+                VisiblEmployeesWarp.Children.Add(CreateMenuButton("🔐 Должности", RolesBtn_Click));
         }
 
         private void ConfigureProductsSection()

@@ -753,6 +753,7 @@
                              Margin="8,3,23,3"
                              Focusable="True"
                              Background="Transparent"
+                             Foreground="{DynamicResource ForegroundBrush}"
                              Visibility="Hidden"
                              IsReadOnly="{TemplateBinding IsReadOnly}">
                             <TextBox.Template>

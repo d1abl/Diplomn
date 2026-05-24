@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.Entity;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -378,19 +379,30 @@ namespace Diplomn.Pages
         {
             var employees = context.Сотрудники.ToList();
             PanelEmployees.Children.Clear();
+
             foreach (var emp in employees)
             {
-                var cb = new CheckBox
+                // Получаем права ДАННОГО сотрудника
+                var empRights = AccessManager.GetAccessRights(emp.Должность?.Уровень_доступа ?? 10);
+
+                // Проверяем, может ли этот сотрудник создавать или редактировать поставки
+                bool canCreateOrEditSupply = empRights.Supplies.CanCreate || empRights.Supplies.CanEdit;
+
+                // Показываем только тех, у кого есть права на создание/редактирование поставок
+                if (canCreateOrEditSupply)
                 {
-                    Margin = new Thickness(2, 1, 2, 1),
-                    Content = $"{emp.Фамилия} {emp.Имя?.Substring(0,1)}. {emp?.Отчество.Substring(0,1)}.",
-                    Tag = emp.Код_сотрудника,
-                    FontSize = 11,
-                    Foreground = TryFindResource("ForegroundBrush") as Brush,
-                    MaxWidth = 250,
-                    VerticalAlignment = VerticalAlignment.Top
-                };
-                PanelEmployees.Children.Add(cb);
+                    var cb = new CheckBox
+                    {
+                        Margin = new Thickness(2, 1, 2, 1),
+                        Content = $"{emp.Фамилия} {emp.Имя?.Substring(0, 1)}. {(emp.Отчество?.Length > 0 ? emp.Отчество.Substring(0, 1) + "." : "")}",
+                        Tag = emp.Код_сотрудника,
+                        FontSize = 11,
+                        Foreground = TryFindResource("ForegroundBrush") as Brush,
+                        MaxWidth = 250,
+                        VerticalAlignment = VerticalAlignment.Top
+                    };
+                    PanelEmployees.Children.Add(cb);
+                }
             }
         }
 
@@ -596,8 +608,9 @@ namespace Diplomn.Pages
 
         private void ApplyProductFilters()
         {
-            var products = GetProductFilteredQuery().Include("Категории").ToList();
-            UpdateProductsView(products);
+            LoadProducts();
+            //var products = GetProductFilteredQuery().Include("Категории").ToList();
+            //UpdateProductsView(products);
         }
         private void ApplyProductFilters_Click(object sender, RoutedEventArgs e) => ApplyProductFilters();
         private void TxtProductSearch_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) ApplyProductFilters(); }
@@ -671,8 +684,8 @@ namespace Diplomn.Pages
             TxtProductSearch.Text = "";
 
             LoadNewSupplySuppliers();
-            LoadProducts();
             LoadNewSupplyLookups();
+            LoadProducts();
             UpdateNewSupplyModeButtonsState();
         }
 
@@ -757,45 +770,81 @@ namespace Diplomn.Pages
             PopulateFilterPanel(PanelNewSupplyPacking, context.Фасовка.ToList(), "Количество", "Код_фасовки");
         }
 
-        private void PopulateFilterPanel(Panel panel, IEnumerable<object> items, string dp, string vp)
+        private void PopulateFilterPanel(Panel panel, IEnumerable<object> items, string displayProperty, string valueProperty)
         {
             panel.Children.Clear();
+
             foreach (var item in items)
             {
+                var displayValue = item.GetType().GetProperty(displayProperty)?.GetValue(item)?.ToString() ?? "";
+                var tagValue = item.GetType().GetProperty(valueProperty)?.GetValue(item);
+
                 var cb = new CheckBox
                 {
                     Margin = new Thickness(2, 1, 2, 1),
+                    Content = displayValue,
+                    Tag = tagValue,
                     FontSize = 11,
+                    Foreground = TryFindResource("ForegroundBrush") as Brush,
                     MaxWidth = 180,
-                    VerticalAlignment = VerticalAlignment.Top,
-                    Content = item.GetType().GetProperty(dp)?.GetValue(item)?.ToString() ?? "",
-                    Tag = item.GetType().GetProperty(vp)?.GetValue(item),
-                    Foreground = TryFindResource("ForegroundBrush") as Brush
+                    VerticalAlignment = VerticalAlignment.Top
                 };
+
                 panel.Children.Add(cb);
             }
         }
 
-        private List<int> GetCheckedIdsFromPanel(Panel panel) => panel.Children.OfType<CheckBox>()
-            .Where(cb => cb.IsChecked == true && cb.Tag != null && int.TryParse(cb.Tag.ToString(), out _)).Select(cb => (int)cb.Tag).ToList();
+        private List<int> GetCheckedIdsFromPanel(Panel panel)
+        {
+            return panel.Children.OfType<CheckBox>()
+                .Where(cb => cb.IsChecked == true && cb.Tag != null && int.TryParse(cb.Tag.ToString(), out _))
+                .Select(cb => (int)cb.Tag)
+                .ToList();
+        }
 
         private IQueryable<Товары> GetNewSupplyFilteredQuery()
         {
             var query = context.Товары.AsQueryable();
+
             string st = GetActualText(TxtProductSearch);
-            if (!string.IsNullOrWhiteSpace(st)) query = query.Where(p => p.Наименование.ToLower().Contains(st.ToLower()));
-            if (ChkNewSupplyInStock.IsChecked == true) query = query.Where(p => p.Количество > 0);
-            if (decimal.TryParse(GetActualText(TxtNewSupplyPriceMin), out decimal pmin)) query = query.Where(p => p.Цена_за_ед_продажа >= pmin);
-            if (decimal.TryParse(GetActualText(TxtNewSupplyPriceMax), out decimal pmax)) query = query.Where(p => p.Цена_за_ед_продажа <= pmax);
-            var ids = GetCheckedIdsFromPanel(PanelNewSupplyCategories); if (ids.Any()) query = query.Where(p => ids.Contains(p.Код_категория));
-            ids = GetCheckedIdsFromPanel(PanelNewSupplyBrands); if (ids.Any()) query = query.Where(p => ids.Contains(p.Код_бренда));
-            ids = GetCheckedIdsFromPanel(PanelNewSupplyManufacturers); if (ids.Any()) query = query.Where(p => ids.Contains(p.Код_производителя));
-            ids = GetCheckedIdsFromPanel(PanelNewSupplyMaterials); if (ids.Any()) query = query.Where(p => ids.Contains(p.Код_материала));
-            ids = GetCheckedIdsFromPanel(PanelNewSupplyPacking); if (ids.Any()) query = query.Where(p => ids.Contains(p.Код_фасовки));
+            if (!string.IsNullOrWhiteSpace(st))
+                query = query.Where(p => p.Наименование.ToLower().Contains(st.ToLower()));
+
+            if (ChkNewSupplyInStock.IsChecked == true)
+                query = query.Where(p => p.Количество > 0);
+
+            if (decimal.TryParse(GetActualText(TxtNewSupplyPriceMin), out decimal pmin))
+                query = query.Where(p => p.Цена_за_ед_продажа >= pmin);
+            if (decimal.TryParse(GetActualText(TxtNewSupplyPriceMax), out decimal pmax))
+                query = query.Where(p => p.Цена_за_ед_продажа <= pmax);
+
+            var catIds = GetCheckedIdsFromPanel(PanelNewSupplyCategories);
+            var brandIds = GetCheckedIdsFromPanel(PanelNewSupplyBrands);
+            var manIds = GetCheckedIdsFromPanel(PanelNewSupplyManufacturers);
+            var matIds = GetCheckedIdsFromPanel(PanelNewSupplyMaterials);
+            var packIds = GetCheckedIdsFromPanel(PanelNewSupplyPacking);
+
+            if (catIds.Any()) query = query.Where(p => catIds.Contains(p.Код_категория));
+            if (brandIds.Any()) query = query.Where(p => brandIds.Contains(p.Код_бренда));
+            if (manIds.Any()) query = query.Where(p => manIds.Contains(p.Код_производителя));
+            if (matIds.Any()) query = query.Where(p => matIds.Contains(p.Код_материала));
+            if (packIds.Any()) query = query.Where(p => packIds.Contains(p.Код_фасовки));
+
             return query;
         }
+        private void LoadProducts()
+        {
+            var products = GetNewSupplyFilteredQuery()
+                .Include("Категории")
+                .Include("Бренд")
+                .Include("Производитель")
+                .Include("Материал")
+                .Include("Фасовка")
+                .ToList();
+            UpdateProductsView(products);
 
-        private void LoadProducts() { var p = GetNewSupplyFilteredQuery().Include("Категории").ToList(); UpdateProductsView(p); }
+
+        }
         private void ClearProductFilters_Click(object sender, RoutedEventArgs e) { ClearProductFilters(); LoadProducts(); }
         private void ClearProductFilters()
         {
@@ -814,7 +863,12 @@ namespace Diplomn.Pages
         private void UpdateProductsView(List<Товары> products)
         {
             productsView.Clear();
-            foreach (var p in products) productsView.Add(new ProductSupplyViewModel(p));
+            foreach (var product in products)
+            {
+                productsView.Add(new ProductSupplyViewModel(product));
+            }
+                
+
             ListViewProducts.ItemsSource = productsView;
         }
 
@@ -1353,7 +1407,10 @@ namespace Diplomn.Pages
 
         public ProductSupplyViewModel(Товары product)
         {
-            OriginalProduct = product; Наименование = product.Наименование; Цена_за_ед_продажа = product.Цена_за_ед_продажа; Количество = product.Количество;
+            OriginalProduct = product; 
+            Наименование = product.Наименование; 
+            Цена_за_ед_продажа = product.Цена_за_ед_продажа; 
+            Количество = product.Количество;
             CategoryName = product.Категории?.Категория != null ? $"📂 {product.Категории.Категория}" : "📂 Без категории";
             PhotoSource = LoadImage(product.Фото);
         }
