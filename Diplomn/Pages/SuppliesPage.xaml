@@ -381,7 +381,7 @@
                                         </Grid>
                                     </StackPanel>
                                 </Grid>
-                                <ScrollViewer MaxHeight="221" VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer MaxHeight="170" VerticalScrollBarVisibility="Auto">
                                     <StackPanel>
                                         <Expander Header="Категории" IsExpanded="False" Margin="0,0,0,5"
                               Foreground="{DynamicResource ForegroundBrush}">

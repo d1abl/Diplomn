@@ -64,15 +64,15 @@
                           Background="Transparent" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                     <ListView.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal" Margin="5"/>
+                            <WrapPanel Orientation="Horizontal" Margin="0 5 0 0"/>
                         </ItemsPanelTemplate>
                     </ListView.ItemsPanel>
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <Border Margin="4" Width="250" Height="100"
+                            <Border Margin="0" Width="235" Height="90"
                                     Background="{DynamicResource BackgroundBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                    CornerRadius="6" Padding="10" Cursor="Hand">
+                                    CornerRadius="6" Padding="0 10 0 0" Cursor="Hand">
                                 <Border.Style>
                                     <Style TargetType="Border">
                                         <Style.Triggers>

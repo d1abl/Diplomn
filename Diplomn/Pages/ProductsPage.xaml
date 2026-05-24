@@ -119,7 +119,7 @@
                             </Grid>
 
                             <!-- Категории, бренды и т.д. -->
-                            <ScrollViewer MaxHeight="221" VerticalScrollBarVisibility="Auto">
+                            <ScrollViewer MaxHeight="170" VerticalScrollBarVisibility="Auto">
                                 <StackPanel>
                                     <!-- Категории -->
                                     <Expander Header="Категории" IsExpanded="False" Margin="0,0,0,5"

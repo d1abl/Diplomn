@@ -38,7 +38,7 @@ namespace Diplomn
                 {
                     this.Title = "Oculus+ - Авторизация";
                     ButtomGrid.Visibility = Visibility.Collapsed;
-                    MenuPanel.Visibility = Visibility.Collapsed;
+                    MenuPanel.Visibility = Visibility.Collapsed;                    
                 }
                 else if (page is MainMenu)
                 {
@@ -251,7 +251,12 @@ namespace Diplomn
         #region Методы навигации
         public void BtnBack_Click(object sender, RoutedEventArgs e) => 
             MainFrame?.GoBack();
-               
+        private void BtnMainMenu_Click(object sender, RoutedEventArgs e) => 
+            MainFrame?.NavigateIfDifferent(new MainMenu(currentUser));
+
+        private void BtnExit_Click(object sender, RoutedEventArgs e) => 
+            MainFrame?.Navigate(new AuthPage());
+
         private void CurrentUser_Click(object sender, RoutedEventArgs e) =>
             MainFrame.NavigateIfDifferent(new CurrentEmployeeEditPage(currentUser));
         
@@ -362,6 +367,7 @@ namespace Diplomn
             VisiblBtn.Visibility = Visibility.Collapsed;
         }
         #endregion
+
 
     }
 }

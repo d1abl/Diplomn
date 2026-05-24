@@ -161,6 +161,7 @@
         <Setter Property="CanUserAddRows" Value="False"/>
         <Setter Property="SelectionUnit" Value="FullRow"/>
         <Setter Property="SelectionMode" Value="Single"/>
+        <Setter Property="IsReadOnly" Value="True"/>
     </Style>
 
     <!-- DataGridColumnHeader -->
