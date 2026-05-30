@@ -7,11 +7,13 @@ using System.Data.Entity;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace Diplomn.Pages
 {
@@ -34,6 +36,9 @@ namespace Diplomn.Pages
         private Grid editButtonContainer;
         private Grid deleteButtonContainer;
         private Grid clearButtonContainer;
+
+        // Таймер для уведомлений
+        private DispatcherTimer _successTimer;
 
         #endregion
 
@@ -70,6 +75,29 @@ namespace Diplomn.Pages
             CmbManufacturer.SelectionChanged += (s, e) => UpdateButtonsState();
             CmbMaterial.SelectionChanged += (s, e) => UpdateButtonsState();
             CmbPacking.SelectionChanged += (s, e) => UpdateButtonsState();
+
+            // Добавляем сброс подсветки при изменении полей
+            TxtProductName.TextChanged += OnFieldTextChanged;
+            TxtPrice.TextChanged += OnFieldTextChanged;
+            CmbCategory.SelectionChanged += (s, e) => OnFieldTextChanged(s, e);
+            CmbBrand.SelectionChanged += (s, e) => OnFieldTextChanged(s, e);
+            CmbManufacturer.SelectionChanged += (s, e) => OnFieldTextChanged(s, e);
+            CmbMaterial.SelectionChanged += (s, e) => OnFieldTextChanged(s, e);
+            CmbPacking.SelectionChanged += (s, e) => OnFieldTextChanged(s, e);
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку ошибок при изменении текста в поле
+        /// </summary>
+        private void OnFieldTextChanged(object sender, EventArgs e)
+        {
+            if (sender is Control control)
+            {
+                control.BorderBrush = SystemColors.ControlDarkBrush;
+                control.BorderThickness = new Thickness(1);
+                control.ToolTip = null;
+            }
+            UpdateButtonsState();
         }
 
         #endregion
@@ -138,7 +166,7 @@ namespace Diplomn.Pages
             {
                 Background = Brushes.Transparent,
                 IsHitTestVisible = true,
-                ToolTip = GetButtonTooltip(text)
+                ToolTip = GetButtonTooltip(text, false)
             };
 
             button.IsEnabledChanged += (s, e) =>
@@ -154,7 +182,7 @@ namespace Diplomn.Pages
                     else
                     {
                         overlay.Visibility = Visibility.Visible;
-                        overlay.ToolTip = GetButtonTooltip(btn.Content?.ToString());
+                        overlay.ToolTip = GetButtonTooltip(btn.Content?.ToString(), false);
                     }
                 }
             };
@@ -162,25 +190,31 @@ namespace Diplomn.Pages
             return (button, overlay);
         }
 
-        private string GetButtonTooltip(string buttonContent)
+        private string GetButtonTooltip(string buttonContent, bool isActive)
         {
             if (string.IsNullOrEmpty(buttonContent)) return "";
 
             if (buttonContent.Contains("Добавить"))
             {
-                var missing = GetMissingRequiredFields();
-                if (missing.Any())
-                    return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                if (!isActive)
+                {
+                    var missing = GetMissingRequiredFields();
+                    if (missing.Any())
+                        return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                }
                 return "Нажмите для добавления товара";
             }
 
             if (buttonContent.Contains("Обновить"))
             {
-                if (ListViewProducts.SelectedItem == null)
+                if (!isActive && ListViewProducts.SelectedItem == null)
                     return "Выберите товар из списка";
-                var missing = GetMissingRequiredFields();
-                if (missing.Any())
-                    return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                if (!isActive)
+                {
+                    var missing = GetMissingRequiredFields();
+                    if (missing.Any())
+                        return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                }
                 return "Нажмите для обновления товара";
             }
 
@@ -196,6 +230,33 @@ namespace Diplomn.Pages
         #endregion
 
         #region Валидация полей
+
+        /// <summary>
+        /// Подсвечивает поле с ошибкой
+        /// </summary>
+        private void HighlightError(Control control, string errorMessage)
+        {
+            control.BorderBrush = Brushes.Red;
+            control.BorderThickness = new Thickness(2);
+            control.ToolTip = errorMessage;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку всех полей
+        /// </summary>
+        private void ClearAllHighlights()
+        {
+            var controls = new Control[] { TxtProductName, TxtPrice, CmbCategory, CmbBrand, CmbManufacturer, CmbMaterial, CmbPacking, TxtProductId, TxtQuantity };
+            foreach (var control in controls)
+            {
+                if (control != null)
+                {
+                    control.BorderBrush = SystemColors.ControlDarkBrush;
+                    control.BorderThickness = new Thickness(1);
+                    control.ToolTip = null;
+                }
+            }
+        }
 
         private List<string> GetMissingRequiredFields()
         {
@@ -228,6 +289,119 @@ namespace Diplomn.Pages
         private bool AreRequiredFieldsFilled()
         {
             return !GetMissingRequiredFields().Any();
+        }
+
+        /// <summary>
+        /// Проверяет корректность данных товара с подсветкой полей
+        /// </summary>
+        private bool ValidateProduct(out string errorMessage, int? excludeId = null)
+        {
+            var errors = new List<string>();
+            var errorFields = new Dictionary<Control, string>();
+
+            var name = GetActualText(TxtProductName);
+            var priceText = GetActualText(TxtPrice);
+
+            // Сбрасываем подсветку
+            ClearAllHighlights();
+
+            // Наименование товара
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                errors.Add("• Наименование товара не введено");
+                errorFields[TxtProductName] = "Наименование товара обязательно для заполнения";
+            }
+            else if (name.Length < 2)
+            {
+                errors.Add("• Наименование должно содержать минимум 2 символа");
+                errorFields[TxtProductName] = "Наименование должно содержать минимум 2 символа";
+            }
+            else if (name.Length > 200)
+            {
+                errors.Add("• Наименование не должно превышать 200 символов");
+                errorFields[TxtProductName] = "Наименование не должно превышать 200 символов";
+            }
+            else
+            {
+                // Проверка уникальности наименования
+                bool nameExists;
+                if (excludeId.HasValue)
+                    nameExists = context.Товары.Any(p => p.Наименование == name && p.Код_товара != excludeId.Value);
+                else
+                    nameExists = context.Товары.Any(p => p.Наименование == name);
+
+                if (nameExists)
+                {
+                    errors.Add("• Товар с таким наименованием уже существует");
+                    errorFields[TxtProductName] = "Товар с таким наименованием уже существует";
+                }
+            }
+
+            // Цена
+            if (string.IsNullOrWhiteSpace(priceText))
+            {
+                errors.Add("• Цена не введена");
+                errorFields[TxtPrice] = "Цена обязательна для заполнения";
+            }
+            else if (!decimal.TryParse(priceText, out decimal price))
+            {
+                errors.Add("• Некорректное значение цены");
+                errorFields[TxtPrice] = "Введите корректное числовое значение";
+            }
+            else if (price < 0)
+            {
+                errors.Add("• Цена не может быть отрицательной");
+                errorFields[TxtPrice] = "Цена не может быть отрицательной";
+            }
+            else if (price > 999999999)
+            {
+                errors.Add("• Слишком большая цена");
+                errorFields[TxtPrice] = "Цена не должна превышать 999 999 999";
+            }
+
+            // Категория
+            if (CmbCategory.SelectedValue == null)
+            {
+                errors.Add("• Категория не выбрана");
+                errorFields[CmbCategory] = "Выберите категорию товара";
+            }
+
+            // Бренд
+            if (CmbBrand.SelectedValue == null)
+            {
+                errors.Add("• Бренд не выбран");
+                errorFields[CmbBrand] = "Выберите бренд товара";
+            }
+
+            // Производитель
+            if (CmbManufacturer.SelectedValue == null)
+            {
+                errors.Add("• Производитель не выбран");
+                errorFields[CmbManufacturer] = "Выберите производителя товара";
+            }
+
+            // Материал
+            if (CmbMaterial.SelectedValue == null)
+            {
+                errors.Add("• Материал не выбран");
+                errorFields[CmbMaterial] = "Выберите материал товара";
+            }
+
+            // Фасовка
+            if (CmbPacking.SelectedValue == null)
+            {
+                errors.Add("• Фасовка не выбрана");
+                errorFields[CmbPacking] = "Выберите фасовку товара";
+            }
+
+            // Подсвечиваем поля с ошибками
+            foreach (var field in errorFields)
+            {
+                HighlightError(field.Key, field.Value);
+            }
+
+            errorMessage = string.Join(Environment.NewLine, errors);
+            return errors.Count == 0;
         }
 
         #endregion
@@ -315,7 +489,6 @@ namespace Diplomn.Pages
         {
             if (panel == null) return;
 
-            // Используем GetActualText для игнорирования плейсхолдера
             var search = GetActualText(searchTextBox)?.ToLower() ?? "";
 
             foreach (UIElement child in panel.Children)
@@ -324,12 +497,10 @@ namespace Diplomn.Pages
                 {
                     if (string.IsNullOrWhiteSpace(search))
                     {
-                        // Показываем все элементы
                         checkBox.Visibility = Visibility.Visible;
                     }
                     else
                     {
-                        // Показываем только совпадающие
                         var content = checkBox.Content?.ToString()?.ToLower() ?? "";
                         checkBox.Visibility = content.Contains(search)
                             ? Visibility.Visible
@@ -366,6 +537,7 @@ namespace Diplomn.Pages
         }
 
         #endregion
+
         private void LoadData()
         {
             var products = context.Товары
@@ -499,8 +671,7 @@ namespace Diplomn.Pages
 
                 if (!products.Any())
                 {
-                    MessageBox.Show("Нет данных для сохранения отчета.", "Информация",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowSuccess("Нет данных для сохранения отчета.");
                     return;
                 }
 
@@ -650,10 +821,10 @@ namespace Diplomn.Pages
                     }
                 }
 
-                //var result = MessageBox.Show($"Каталог товаров сохранён!\n\n{saveFileDialog.FileName}\nВсего: {products.Count}\nВ наличии: {inStock}\n\nОткрыть PDF?",
-                //    "Каталог сохранён", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                var result = MessageBox.Show($"Каталог товаров сохранён!\n\n{saveFileDialog.FileName}\nВсего: {products.Count}\nВ наличии: {inStock}\n\nОткрыть PDF?",
+                    "Каталог сохранён", MessageBoxButton.YesNo, MessageBoxImage.Information);
 
-                //if (result == MessageBoxResult.Yes)
+                if (result == MessageBoxResult.Yes)
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = saveFileDialog.FileName, UseShellExecute = true });
             }
             catch (Exception ex)
@@ -683,7 +854,12 @@ namespace Diplomn.Pages
                 LoadProductPhoto(product);
                 selectedImageData = null;
             }
+            else
+            {
+                ClearForm();
+            }
 
+            ClearAllHighlights();
             UpdateButtonsState();
         }
 
@@ -725,49 +901,6 @@ namespace Diplomn.Pages
 
         #endregion
 
-        #region Валидация
-
-        private bool ValidateProduct(out string errorMessage, int? excludeId = null)
-        {
-            var errors = new StringBuilder();
-            var name = GetActualText(TxtProductName);
-            var priceText = GetActualText(TxtPrice);
-
-            if (string.IsNullOrWhiteSpace(name))
-                errors.AppendLine("• Введите наименование товара");
-
-            if (!decimal.TryParse(priceText, out decimal price))
-                errors.AppendLine("• Введите корректную цену");
-            else if (price < 0)
-                errors.AppendLine("• Цена не может быть отрицательной");
-
-            if (CmbCategory.SelectedValue == null)
-                errors.AppendLine("• Выберите категорию");
-            if (CmbBrand.SelectedValue == null)
-                errors.AppendLine("• Выберите бренд");
-            if (CmbManufacturer.SelectedValue == null)
-                errors.AppendLine("• Выберите производителя");
-            if (CmbMaterial.SelectedValue == null)
-                errors.AppendLine("• Выберите материал");
-            if (CmbPacking.SelectedValue == null)
-                errors.AppendLine("• Выберите фасовку");
-
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                var exists = excludeId.HasValue
-                    ? context.Товары.Any(p => p.Наименование == name && p.Код_товара != excludeId.Value)
-                    : context.Товары.Any(p => p.Наименование == name);
-
-                if (exists)
-                    errors.AppendLine("• Товар с таким наименованием уже существует");
-            }
-
-            errorMessage = errors.ToString();
-            return errors.Length == 0;
-        }
-
-        #endregion
-
         #region CRUD операции
 
         private void Add_Click(object sender, RoutedEventArgs e)
@@ -776,7 +909,6 @@ namespace Diplomn.Pages
             {
                 if (!ValidateProduct(out var error))
                 {
-                    MessageBox.Show(error, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -796,7 +928,7 @@ namespace Diplomn.Pages
                 context.Товары.Add(product);
                 context.SaveChanges();
 
-                MessageBox.Show("Товар добавлен!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Товар «{product.Наименование}» добавлен!");
                 LoadData();
                 ClearForm();
             }
@@ -812,7 +944,7 @@ namespace Diplomn.Pages
             {
                 if (string.IsNullOrWhiteSpace(TxtProductId.Text))
                 {
-                    MessageBox.Show("Выберите товар!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    HighlightError(TxtProductId, "Выберите товар из списка!");
                     return;
                 }
 
@@ -821,16 +953,16 @@ namespace Diplomn.Pages
 
                 if (product == null)
                 {
-                    MessageBox.Show("Товар не найден!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    HighlightError(TxtProductId, "Товар не найден в базе данных!");
                     return;
                 }
 
                 if (!ValidateProduct(out var error, productId))
                 {
-                    MessageBox.Show(error, "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
+                var oldName = product.Наименование;
                 product.Наименование = GetActualText(TxtProductName);
                 product.Цена_за_ед_продажа = decimal.Parse(GetActualText(TxtPrice));
                 product.Код_категория = (int)CmbCategory.SelectedValue;
@@ -845,7 +977,7 @@ namespace Diplomn.Pages
 
                 context.SaveChanges();
 
-                MessageBox.Show("Товар обновлён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Товар обновлён с «{oldName}» на «{product.Наименование}»!");
                 LoadData();
                 ClearForm();
             }
@@ -861,7 +993,7 @@ namespace Diplomn.Pages
             {
                 if (string.IsNullOrWhiteSpace(TxtProductId.Text))
                 {
-                    MessageBox.Show("Выберите товар!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    HighlightError(TxtProductId, "Выберите товар из списка!");
                     return;
                 }
 
@@ -870,14 +1002,24 @@ namespace Diplomn.Pages
 
                 if (product == null)
                 {
-                    MessageBox.Show("Товар не найден!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    HighlightError(TxtProductId, "Товар не найден в базе данных!");
                     return;
                 }
 
-                if (context.Состав_продажи.Any(s => s.Код_товара == productId) ||
-                    context.Состав_поставки.Any(o => o.Код_товара == productId))
+                // Собираем информацию о связанных данных
+                var errors = new List<string>();
+                var salesCount = context.Состав_продажи.Count(s => s.Код_товара == productId);
+                var suppliesCount = context.Состав_поставки.Count(o => o.Код_товара == productId);
+
+                if (salesCount > 0)
+                    errors.Add($"Продажи: {salesCount} шт.");
+                if (suppliesCount > 0)
+                    errors.Add($"Поставки: {suppliesCount} шт.");
+
+                if (errors.Any())
                 {
-                    MessageBox.Show("Нельзя удалить товар — он используется в продажах или поставках!",
+                    MessageBox.Show($"Нельзя удалить товар — он используется:\n• {string.Join("\n• ", errors)}\n\n" +
+                                   "Сначала удалите или переназначьте связанные записи.",
                         "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
@@ -887,9 +1029,10 @@ namespace Diplomn.Pages
 
                 if (result == MessageBoxResult.Yes)
                 {
+                    var productName = product.Наименование;
                     context.Товары.Remove(product);
                     context.SaveChanges();
-                    MessageBox.Show("Товар удалён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowSuccess($"Товар «{productName}» удалён!");
                     LoadData();
                     ClearForm();
                 }
@@ -919,10 +1062,34 @@ namespace Diplomn.Pages
             selectedImageData = null;
             ListViewProducts.SelectedItem = null;
 
+            ClearAllHighlights();
             UpdateButtonsState();
         }
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+
+        #endregion
+
+        #region Уведомления
+
+        /// <summary>
+        /// Показывает сообщение об успехе с автоматическим скрытием
+        /// </summary>
+        private void ShowSuccess(string message)
+        {
+            SuccessText.Text = message;
+            SuccessBorder.Visibility = Visibility.Visible;
+            SuccessBorder.Focusable = true;
+            SuccessBorder.Focus();
+            _successTimer?.Stop();
+            _successTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _successTimer.Tick += (s, e) =>
+            {
+                SuccessBorder.Visibility = Visibility.Collapsed;
+                _successTimer.Stop();
+            };
+            _successTimer.Start();
+        }
 
         #endregion
 

@@ -7,7 +7,7 @@
 
     <!-- Style 2 resources -->
     <SolidColorBrush x:Key="BackgroundBrush" Color="#282828" />
-    <SolidColorBrush x:Key="ForegroundBrush" Color="Violet" />
+    <SolidColorBrush x:Key="ForegroundBrush" Color="#31916e" />
     <SolidColorBrush x:Key="BorderBrush" Color="#45475A" />
     <SolidColorBrush x:Key="AccentBrush" Color="#89B4FA" />
     <SolidColorBrush x:Key="DangerBrush" Color="#F38BA8" />

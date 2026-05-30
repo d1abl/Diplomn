@@ -1472,11 +1472,19 @@ namespace Diplomn.Pages
                     AddReportFooter(doc, bf);
 
                     doc.Close();
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = sfd.FileName,
-                        UseShellExecute = true
-                    });
+
+                    var result = MessageBox.Show($"Всего чеков: {sales.Count} \nОбщая сумма: {grandTotal:N2} ₽ \n\nОткрыть PDF?",
+"Каталог сохранён", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+                    if (result == MessageBoxResult.Yes)
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = sfd.FileName, UseShellExecute = true });
+
+
+                    //System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    //{
+                    //    FileName = sfd.FileName,
+                    //    UseShellExecute = true
+                    //});
                 }
 
                 //MessageBox.Show($"Отчёт сохранён!\n{sales.Count} чеков\nОбщая сумма: {grandTotal:N2} ₽", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);

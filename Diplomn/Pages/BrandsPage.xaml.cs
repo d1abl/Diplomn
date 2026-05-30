@@ -512,7 +512,7 @@ namespace Diplomn.Pages
         private void ShowSuccess(string message)
         {
             SuccessText.Text = message;
-            SuccessBorder.Visibility = Visibility.Visible;
+                        SuccessBorder.Visibility = Visibility.Visible;
 
             _successTimer?.Stop();
             _successTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };

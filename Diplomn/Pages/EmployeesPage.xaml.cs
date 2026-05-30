@@ -155,8 +155,8 @@ namespace Diplomn.Pages
 
                 if (!employees.Any())
                 {
-                    MessageBox.Show("Нет данных для сохранения отчета.", "Информация",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    // Заменяем MessageBox на уведомление
+                    ShowSuccess("Нет данных для сохранения отчета.");
                     return;
                 }
 
@@ -606,10 +606,7 @@ namespace Diplomn.Pages
         /// <summary>
         /// Проверяет корректность данных сотрудника с подсветкой полей
         /// </summary>
-        /// <summary>
-        /// Проверяет корректность данных сотрудника с подсветкой полей
-        /// </summary>
-        private bool ValidateEmployee(out string errorMessage, bool skipPasswordValidation = false)
+        private bool ValidateEmployee(out string errorMessage, bool skipPasswordValidation = false, int? excludeEmployeeId = null)
         {
             var errors = new List<string>();
             var errorFields = new Dictionary<Control, string>();
@@ -711,6 +708,21 @@ namespace Diplomn.Pages
                 errors.Add("• Логин содержит недопустимые символы");
                 errorFields[TxtLogin] = "Логин может содержать только буквы, цифры и символы _ @ . -";
             }
+            else
+            {
+                // Проверка уникальности логина (только если логин валидный)
+                bool loginExists;
+                if (excludeEmployeeId.HasValue)
+                    loginExists = context.Сотрудники.Any(s => s.Логин == login && s.Код_сотрудника != excludeEmployeeId.Value);
+                else
+                    loginExists = context.Сотрудники.Any(s => s.Логин == login);
+
+                if (loginExists)
+                {
+                    errors.Add("• Логин уже используется");
+                    errorFields[TxtLogin] = "Этот логин уже используется другим сотрудником";
+                }
+            }
 
             // Пароль (проверяется только если не пропущен)
             if (!skipPasswordValidation)
@@ -728,10 +740,28 @@ namespace Diplomn.Pages
             }
 
             // Телефон
-            if (!string.IsNullOrWhiteSpace(phone) && !Regex.IsMatch(phone, @"^\+?\d{11}$"))
+            if (!string.IsNullOrWhiteSpace(phone))
             {
-                errors.Add("• Телефон должен содержать 11 цифр (например: +79001234567)");
-                errorFields[TxtPhone] = "Телефон должен содержать 11 цифр (например: +79001234567)";
+                if (!Regex.IsMatch(phone, @"^\+?\d{11}$"))
+                {
+                    errors.Add("• Телефон должен содержать 11 цифр (например: +79001234567)");
+                    errorFields[TxtPhone] = "Телефон должен содержать 11 цифр (например: +79001234567)";
+                }
+                else
+                {
+                    // Проверка уникальности телефона (только если телефон валидный)
+                    bool phoneExists;
+                    if (excludeEmployeeId.HasValue)
+                        phoneExists = context.Сотрудники.Any(s => s.Телефон == phone && s.Код_сотрудника != excludeEmployeeId.Value);
+                    else
+                        phoneExists = context.Сотрудники.Any(s => s.Телефон == phone);
+
+                    if (phoneExists)
+                    {
+                        errors.Add("• Телефон уже используется");
+                        errorFields[TxtPhone] = "Этот телефон уже используется другим сотрудником";
+                    }
+                }
             }
 
             // Подсвечиваем поля с ошибками
@@ -742,7 +772,7 @@ namespace Diplomn.Pages
 
             errorMessage = string.Join(Environment.NewLine, errors);
             return errors.Count == 0;
-        }
+        }        
         #endregion
 
         #region Управление состоянием кнопок
@@ -885,37 +915,17 @@ namespace Diplomn.Pages
 
         #region CRUD операции
 
-        /// <summary>
-        /// Добавляет нового сотрудника
-        /// </summary>
         private void Add_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 if (!ValidateEmployee(out var error))
                 {
-                    // Не показываем MessageBox, поля уже подсвечены
                     return;
                 }
 
                 var login = GetActualText(TxtLogin);
                 var phone = GetActualText(TxtPhone);
-
-                // Проверка уникальности логина
-                if (context.Сотрудники.Any(s => s.Логин == login))
-                {
-                    HighlightError(TxtLogin, "Этот логин уже используется другим сотрудником");
-                    TxtLogin.Focus();
-                    return;
-                }
-
-                // Проверка уникальности телефона
-                if (!string.IsNullOrWhiteSpace(phone) && context.Сотрудники.Any(s => s.Телефон == phone))
-                {
-                    HighlightError(TxtPhone, "Этот телефон уже используется другим сотрудником");
-                    TxtPhone.Focus();
-                    return;
-                }
 
                 var employee = new Сотрудники
                 {
@@ -942,17 +952,15 @@ namespace Diplomn.Pages
                     "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        /// <summary>
-        /// Обновляет данные выбранного сотрудника
-        /// </summary>
         private void Update_Click(object sender, RoutedEventArgs e)
         {
             try
             {
+                ClearAllHighlights();
+
                 if (string.IsNullOrWhiteSpace(TxtEmployeeId.Text))
                 {
-                    MessageBox.Show("Выберите сотрудника!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    HighlightError(TxtEmployeeId, "Выберите сотрудника из списка!");
                     return;
                 }
 
@@ -961,39 +969,21 @@ namespace Diplomn.Pages
 
                 if (employee == null)
                 {
-                    MessageBox.Show("Сотрудник не найден!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    HighlightError(TxtEmployeeId, "Сотрудник не найден в базе данных!");
                     return;
                 }
 
-                // Получаем введенный пароль
                 var password = GetActualPassword();
-
-                // Если пароль не введен (пустой) или совпадает с текущим - пропускаем валидацию пароля
                 var skipPasswordValidation = string.IsNullOrEmpty(password) || password == employee.Пароль;
 
-                if (!ValidateEmployee(out var error, skipPasswordValidation))
+                // Передаём ID сотрудника для исключения из проверки уникальности
+                if (!ValidateEmployee(out var error, skipPasswordValidation, employeeId))
                 {
                     return;
                 }
 
                 var login = GetActualText(TxtLogin);
                 var phone = GetActualText(TxtPhone);
-
-                // Проверка уникальности логина
-                if (context.Сотрудники.Any(s => s.Логин == login && s.Код_сотрудника != employeeId))
-                {
-                    HighlightError(TxtLogin, "Этот логин уже используется другим сотрудником");
-                    TxtLogin.Focus();
-                    return;
-                }
-
-                // Проверка уникальности телефона
-                if (!string.IsNullOrWhiteSpace(phone) && context.Сотрудники.Any(s => s.Телефон == phone && s.Код_сотрудника != employeeId))
-                {
-                    HighlightError(TxtPhone, "Этот телефон уже используется другим сотрудником");
-                    TxtPhone.Focus();
-                    return;
-                }
 
                 var oldName = $"{employee.Фамилия} {employee.Имя}";
                 employee.Фамилия = GetActualText(TxtLastName);
@@ -1003,14 +993,12 @@ namespace Diplomn.Pages
                 employee.Код_должности = (int)CmbPosition.SelectedValue;
                 employee.Логин = login;
 
-                // Пароль меняем только если он введен и отличается от текущего
                 if (!string.IsNullOrEmpty(password) && password != employee.Пароль)
                     employee.Пароль = password;
 
                 if (selectedImageData != null)
                     employee.Аватарка = selectedImageData;
 
-                // Если редактируется текущий пользователь — обновляем его локально
                 if (currentUser.Код_сотрудника == employee.Код_сотрудника)
                 {
                     currentUser.Фамилия = employee.Фамилия;
@@ -1045,9 +1033,10 @@ namespace Diplomn.Pages
         {
             try
             {
+                // Заменяем MessageBox на подсветку и ранний возврат
                 if (string.IsNullOrWhiteSpace(TxtEmployeeId.Text))
                 {
-                    MessageBox.Show("Выберите сотрудника!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    HighlightError(TxtEmployeeId, "Выберите сотрудника из списка!");
                     return;
                 }
 
@@ -1056,13 +1045,34 @@ namespace Diplomn.Pages
 
                 if (employee == null)
                 {
-                    MessageBox.Show("Сотрудник не найден!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    HighlightError(TxtEmployeeId, "Сотрудник не найден в базе данных!");
                     return;
                 }
 
                 if (currentUser.Код_сотрудника == employee.Код_сотрудника)
                 {
-                    MessageBox.Show("Нельзя удалить свою учётную запись!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show($"Нельзя удалить свою учётную запись!",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Собираем все связанные данные для информативного сообщения
+                var errors = new List<string>();
+
+                var salesCount = context.Продажи.Count(s => s.Код_сотрудника == employeeId);
+                if (salesCount > 0)
+                    errors.Add($"Продажи: {salesCount} шт.");
+
+                var suppliesCount = context.Поставка.Count(s => s.Код_сотрудника == employeeId);
+                if (suppliesCount > 0)
+                    errors.Add($"Поставки: {suppliesCount} шт.");
+
+                if (errors.Any())
+                {
+                    // Для связанных данных используем MessageBox, так как это не проблема с конкретным полем
+                    MessageBox.Show($"Нельзя удалить сотрудника — у него есть связанные записи:\n• {string.Join("\n• ", errors)}\n\n" +
+                                   "Сначала удалите или переназначьте связанные продажи и поставки.",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -1085,7 +1095,6 @@ namespace Diplomn.Pages
                     "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
         #endregion
 
         #region Очистка формы
@@ -1120,7 +1129,7 @@ namespace Diplomn.Pages
         private void ShowSuccess(string message)
         {
             SuccessText.Text = message;
-            SuccessBorder.Visibility = Visibility.Visible;
+                        SuccessBorder.Visibility = Visibility.Visible;
 
             _successTimer?.Stop();
             _successTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };

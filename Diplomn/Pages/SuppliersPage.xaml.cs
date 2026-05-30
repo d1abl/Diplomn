@@ -12,6 +12,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace Diplomn.Pages
 {
@@ -34,6 +35,9 @@ namespace Diplomn.Pages
         private Grid editButtonContainer;
         private Grid deleteButtonContainer;
         private Grid clearButtonContainer;
+
+        // Таймер для уведомлений
+        private DispatcherTimer _successTimer;
 
         #endregion
 
@@ -70,6 +74,30 @@ namespace Diplomn.Pages
             TxtContactLastName.TextChanged += (s, e) => UpdateButtonsState();
             TxtContactFirstName.TextChanged += (s, e) => UpdateButtonsState();
             TxtPhone.TextChanged += (s, e) => UpdateButtonsState();
+
+            // Добавляем сброс подсветки при изменении полей
+            TxtSupplierName.TextChanged += OnFieldTextChanged;
+            TxtInn.TextChanged += OnFieldTextChanged;
+            TxtAddress.TextChanged += OnFieldTextChanged;
+            TxtEmail.TextChanged += OnFieldTextChanged;
+            TxtContactLastName.TextChanged += OnFieldTextChanged;
+            TxtContactFirstName.TextChanged += OnFieldTextChanged;
+            TxtContactMiddleName.TextChanged += OnFieldTextChanged;
+            TxtPhone.TextChanged += OnFieldTextChanged;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку ошибок при изменении текста в поле
+        /// </summary>
+        private void OnFieldTextChanged(object sender, EventArgs e)
+        {
+            if (sender is Control control)
+            {
+                control.BorderBrush = SystemColors.ControlDarkBrush;
+                control.BorderThickness = new Thickness(1);
+                control.ToolTip = null;
+            }
+            UpdateButtonsState();
         }
 
         #endregion
@@ -138,7 +166,7 @@ namespace Diplomn.Pages
             {
                 Background = Brushes.Transparent,
                 IsHitTestVisible = true,
-                ToolTip = GetButtonTooltip(text)
+                ToolTip = GetButtonTooltip(text, false)
             };
 
             button.IsEnabledChanged += (s, e) =>
@@ -154,7 +182,7 @@ namespace Diplomn.Pages
                     else
                     {
                         overlay.Visibility = Visibility.Visible;
-                        overlay.ToolTip = GetButtonTooltip(btn.Content?.ToString());
+                        overlay.ToolTip = GetButtonTooltip(btn.Content?.ToString(), false);
                     }
                 }
             };
@@ -162,25 +190,31 @@ namespace Diplomn.Pages
             return (button, overlay);
         }
 
-        private string GetButtonTooltip(string buttonContent)
+        private string GetButtonTooltip(string buttonContent, bool isActive)
         {
             if (string.IsNullOrEmpty(buttonContent)) return "";
 
             if (buttonContent.Contains("Добавить"))
             {
-                var missing = GetMissingRequiredFields();
-                if (missing.Any())
-                    return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                if (!isActive)
+                {
+                    var missing = GetMissingRequiredFields();
+                    if (missing.Any())
+                        return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                }
                 return "Нажмите для добавления поставщика";
             }
 
             if (buttonContent.Contains("Обновить"))
             {
-                if (ListViewSuppliers.SelectedItem == null)
+                if (!isActive && ListViewSuppliers.SelectedItem == null)
                     return "Выберите поставщика из списка";
-                var missing = GetMissingRequiredFields();
-                if (missing.Any())
-                    return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                if (!isActive)
+                {
+                    var missing = GetMissingRequiredFields();
+                    if (missing.Any())
+                        return $"Для активации заполните:\n• {string.Join("\n• ", missing)}";
+                }
                 return "Нажмите для обновления поставщика";
             }
 
@@ -196,6 +230,33 @@ namespace Diplomn.Pages
         #endregion
 
         #region Валидация полей
+
+        /// <summary>
+        /// Подсвечивает поле с ошибкой
+        /// </summary>
+        private void HighlightError(Control control, string errorMessage)
+        {
+            control.BorderBrush = Brushes.Red;
+            control.BorderThickness = new Thickness(2);
+            control.ToolTip = errorMessage;
+        }
+
+        /// <summary>
+        /// Сбрасывает подсветку всех полей
+        /// </summary>
+        private void ClearAllHighlights()
+        {
+            var controls = new Control[] { TxtSupplierName, TxtInn, TxtAddress, TxtEmail, TxtContactLastName, TxtContactFirstName, TxtContactMiddleName, TxtPhone, TxtSupplierId };
+            foreach (var control in controls)
+            {
+                if (control != null)
+                {
+                    control.BorderBrush = SystemColors.ControlDarkBrush;
+                    control.BorderThickness = new Thickness(1);
+                    control.ToolTip = null;
+                }
+            }
+        }
 
         private List<string> GetMissingRequiredFields()
         {
@@ -228,6 +289,190 @@ namespace Diplomn.Pages
         private bool AreRequiredFieldsFilled()
         {
             return !GetMissingRequiredFields().Any();
+        }
+
+        /// <summary>
+        /// Проверяет корректность данных поставщика с подсветкой полей
+        /// </summary>
+        private bool ValidateSupplier(out string errorMessage, int? excludeId = null)
+        {
+            var errors = new List<string>();
+            var errorFields = new Dictionary<Control, string>();
+
+            var name = GetActualText(TxtSupplierName);
+            var inn = GetActualText(TxtInn);
+            var address = GetActualText(TxtAddress);
+            var email = GetActualText(TxtEmail);
+            var contactLastName = GetActualText(TxtContactLastName);
+            var contactFirstName = GetActualText(TxtContactFirstName);
+            var contactMiddleName = GetActualText(TxtContactMiddleName);
+            var phone = GetActualText(TxtPhone);
+
+            // Сбрасываем подсветку
+            ClearAllHighlights();
+
+            // Наименование поставщика
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                errors.Add("• Наименование поставщика не введено");
+                errorFields[TxtSupplierName] = "Наименование поставщика обязательно для заполнения";
+            }
+            else if (name.Length < 2)
+            {
+                errors.Add("• Наименование должно содержать минимум 2 символа");
+                errorFields[TxtSupplierName] = "Наименование должно содержать минимум 2 символа";
+            }
+            else if (name.Length > 200)
+            {
+                errors.Add("• Наименование не должно превышать 200 символов");
+                errorFields[TxtSupplierName] = "Наименование не должно превышать 200 символов";
+            }
+
+            // ИНН
+            if (string.IsNullOrWhiteSpace(inn))
+            {
+                errors.Add("• ИНН не введён");
+                errorFields[TxtInn] = "ИНН обязателен для заполнения";
+            }
+            else if (!Regex.IsMatch(inn, @"^\d+$"))
+            {
+                errors.Add("• ИНН должен содержать только цифры");
+                errorFields[TxtInn] = "ИНН должен содержать только цифры";
+            }
+            else if (inn.Length != 10 && inn.Length != 12)
+            {
+                errors.Add("• ИНН должен содержать 10 или 12 цифр");
+                errorFields[TxtInn] = "ИНН должен содержать 10 или 12 цифр";
+            }
+            else
+            {
+                // Проверка уникальности ИНН
+                bool innExists;
+                if (excludeId.HasValue)
+                    innExists = context.Поставщики.Any(s => s.ИНН == inn && s.Код_поставщика != excludeId.Value);
+                else
+                    innExists = context.Поставщики.Any(s => s.ИНН == inn);
+
+                if (innExists)
+                {
+                    errors.Add("• Поставщик с таким ИНН уже существует");
+                    errorFields[TxtInn] = "Поставщик с таким ИНН уже существует";
+                }
+            }
+
+            // Адрес
+            if (string.IsNullOrWhiteSpace(address))
+            {
+                errors.Add("• Адрес не введён");
+                errorFields[TxtAddress] = "Адрес обязателен для заполнения";
+            }
+            else if (address.Length < 5)
+            {
+                errors.Add("• Адрес должен содержать минимум 5 символов");
+                errorFields[TxtAddress] = "Адрес должен содержать минимум 5 символов";
+            }
+            else if (address.Length > 300)
+            {
+                errors.Add("• Адрес не должен превышать 300 символов");
+                errorFields[TxtAddress] = "Адрес не должен превышать 300 символов";
+            }
+
+            // Email
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                errors.Add("• Email не введён");
+                errorFields[TxtEmail] = "Email обязателен для заполнения";
+            }
+            else if (!Regex.IsMatch(email, @"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"))
+            {
+                errors.Add("• Неверный формат Email");
+                errorFields[TxtEmail] = "Введите корректный Email (например: supplier@mail.ru)";
+            }
+            else if (email.Length > 100)
+            {
+                errors.Add("• Email не должен превышать 100 символов");
+                errorFields[TxtEmail] = "Email не должен превышать 100 символов";
+            }
+            else
+            {
+                // Проверка уникальности Email
+                bool emailExists;
+                if (excludeId.HasValue)
+                    emailExists = context.Поставщики.Any(s => s.Email_поставщика == email && s.Код_поставщика != excludeId.Value);
+                else
+                    emailExists = context.Поставщики.Any(s => s.Email_поставщика == email);
+
+                if (emailExists)
+                {
+                    errors.Add("• Поставщик с таким Email уже существует");
+                    errorFields[TxtEmail] = "Поставщик с таким Email уже существует";
+                }
+            }
+
+            // Фамилия контактного лица
+            if (string.IsNullOrWhiteSpace(contactLastName))
+            {
+                errors.Add("• Фамилия контактного лица не введена");
+                errorFields[TxtContactLastName] = "Фамилия контактного лица обязательна для заполнения";
+            }
+            else if (!Regex.IsMatch(contactLastName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
+            {
+                errors.Add("• Фамилия содержит недопустимые символы");
+                errorFields[TxtContactLastName] = "Фамилия может содержать только буквы и дефис";
+            }
+            else if (contactLastName.Length > 50)
+            {
+                errors.Add("• Фамилия не должна превышать 50 символов");
+                errorFields[TxtContactLastName] = "Фамилия не должна превышать 50 символов";
+            }
+
+            // Имя контактного лица
+            if (string.IsNullOrWhiteSpace(contactFirstName))
+            {
+                errors.Add("• Имя контактного лица не введено");
+                errorFields[TxtContactFirstName] = "Имя контактного лица обязательно для заполнения";
+            }
+            else if (!Regex.IsMatch(contactFirstName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
+            {
+                errors.Add("• Имя содержит недопустимые символы");
+                errorFields[TxtContactFirstName] = "Имя может содержать только буквы и дефис";
+            }
+            else if (contactFirstName.Length > 50)
+            {
+                errors.Add("• Имя не должно превышать 50 символов");
+                errorFields[TxtContactFirstName] = "Имя не должно превышать 50 символов";
+            }
+
+            // Отчество контактного лица (опционально)
+            if (!string.IsNullOrWhiteSpace(contactMiddleName))
+            {
+                if (!Regex.IsMatch(contactMiddleName, @"^[A-Za-zА-Яа-яЁё\-]+$"))
+                {
+                    errors.Add("• Отчество содержит недопустимые символы");
+                    errorFields[TxtContactMiddleName] = "Отчество может содержать только буквы и дефис";
+                }
+                else if (contactMiddleName.Length > 50)
+                {
+                    errors.Add("• Отчество не должно превышать 50 символов");
+                    errorFields[TxtContactMiddleName] = "Отчество не должно превышать 50 символов";
+                }
+            }
+
+            // Телефон
+            if (!string.IsNullOrWhiteSpace(phone) && !Regex.IsMatch(phone, @"^\+?\d{11}$"))
+            {
+                errors.Add("• Телефон должен содержать 11 цифр (например: +79001234567)");
+                errorFields[TxtPhone] = "Телефон должен содержать 11 цифр (например: +79001234567)";
+            }
+
+            // Подсвечиваем поля с ошибками
+            foreach (var field in errorFields)
+            {
+                HighlightError(field.Key, field.Value);
+            }
+
+            errorMessage = string.Join(Environment.NewLine, errors);
+            return errors.Count == 0;
         }
 
         #endregion
@@ -313,7 +558,10 @@ namespace Diplomn.Pages
             {
                 var suppliers = GetFilteredQuery().ToList();
                 if (!suppliers.Any())
-                { MessageBox.Show("Нет данных для сохранения отчета.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+                {
+                    ShowSuccess("Нет данных для сохранения отчета.");
+                    return;
+                }
 
                 var sfd = new SaveFileDialog { Filter = "PDF файл (*.pdf)|*.pdf", Title = "Сохранить отчет о поставщиках", FileName = $"Отчет_поставщики_{DateTime.Now:yyyy-MM-dd_HH-mm}" };
                 if (sfd.ShowDialog() != true) return;
@@ -401,7 +649,12 @@ namespace Diplomn.Pages
                 TxtContactMiddleName.Text = s.Отчество_контактного_лица; TxtPhone.Text = s.Телефон_контактного_лица;
                 LoadSupplierLogo(s); selectedImageData = null;
             }
+            else
+            {
+                ClearForm();
+            }
 
+            ClearAllHighlights();
             UpdateButtonsState();
         }
 
@@ -423,51 +676,17 @@ namespace Diplomn.Pages
 
         #endregion
 
-        #region Валидация
-
-        private bool ValidateSupplier(out string errorMessage, int? excludeId = null)
-        {
-            var errors = new StringBuilder();
-            var name = GetActualText(TxtSupplierName); var inn = GetActualText(TxtInn);
-            var email = GetActualText(TxtEmail); var address = GetActualText(TxtAddress);
-            var cl = GetActualText(TxtContactLastName); var cf = GetActualText(TxtContactFirstName);
-            var phone = GetActualText(TxtPhone);
-
-            if (string.IsNullOrWhiteSpace(name)) errors.AppendLine("• Введите наименование");
-            if (string.IsNullOrWhiteSpace(inn)) errors.AppendLine("• Введите ИНН");
-            else if (!Regex.IsMatch(inn, @"^\d+$")) errors.AppendLine("• ИНН должен содержать только цифры");
-            else if (inn.Length != 10 && inn.Length != 12) errors.AppendLine("• ИНН должен содержать 10 или 12 цифр");
-            else
-            {
-                var exInn = excludeId.HasValue ? context.Поставщики.Any(s => s.ИНН == inn && s.Код_поставщика != excludeId.Value) : context.Поставщики.Any(s => s.ИНН == inn);
-                if (exInn) errors.AppendLine("• Поставщик с таким ИНН уже существует");
-            }
-            if (string.IsNullOrWhiteSpace(address)) errors.AppendLine("• Введите адрес");
-            else if (address.Length < 5) errors.AppendLine("• Адрес должен содержать минимум 5 символов");
-            if (string.IsNullOrWhiteSpace(email)) errors.AppendLine("• Введите Email");
-            else if (!Regex.IsMatch(email, @"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")) errors.AppendLine("• Неверный формат Email");
-            else
-            {
-                var exEm = excludeId.HasValue ? context.Поставщики.Any(s => s.Email_поставщика == email && s.Код_поставщика != excludeId.Value) : context.Поставщики.Any(s => s.Email_поставщика == email);
-                if (exEm) errors.AppendLine("• Поставщик с таким Email уже существует");
-            }
-            if (string.IsNullOrWhiteSpace(cl)) errors.AppendLine("• Введите фамилию контактного лица");
-            if (string.IsNullOrWhiteSpace(cf)) errors.AppendLine("• Введите имя контактного лица");
-            if (!string.IsNullOrWhiteSpace(phone) && !Regex.IsMatch(phone, @"^\+?\d{11}$")) errors.AppendLine("• Телефон должен содержать 11 цифр");
-
-            errorMessage = errors.ToString();
-            return errors.Length == 0;
-        }
-
-        #endregion
-
         #region CRUD операции
 
         private void Add_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (!ValidateSupplier(out var err)) { MessageBox.Show(err, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+                if (!ValidateSupplier(out var err))
+                {
+                    return;
+                }
+
                 var s = new Поставщики
                 {
                     Наименование_поставщика = GetActualText(TxtSupplierName),
@@ -481,7 +700,7 @@ namespace Diplomn.Pages
                     Логотип = selectedImageData
                 };
                 context.Поставщики.Add(s); context.SaveChanges();
-                MessageBox.Show("Поставщик добавлен!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Поставщик «{s.Наименование_поставщика}» добавлен!");
                 LoadData(); ClearForm();
             }
             catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
@@ -491,18 +710,32 @@ namespace Diplomn.Pages
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(TxtSupplierId.Text)) { MessageBox.Show("Выберите поставщика!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
-                var id = int.Parse(TxtSupplierId.Text); var s = context.Поставщики.Find(id);
-                if (s == null) { MessageBox.Show("Поставщик не найден!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); return; }
-                if (!ValidateSupplier(out var err, id)) { MessageBox.Show(err, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+                if (string.IsNullOrWhiteSpace(TxtSupplierId.Text))
+                {
+                    HighlightError(TxtSupplierId, "Выберите поставщика из списка!");
+                    return;
+                }
 
+                var id = int.Parse(TxtSupplierId.Text); var s = context.Поставщики.Find(id);
+                if (s == null)
+                {
+                    HighlightError(TxtSupplierId, "Поставщик не найден в базе данных!");
+                    return;
+                }
+
+                if (!ValidateSupplier(out var err, id))
+                {
+                    return;
+                }
+
+                var oldName = s.Наименование_поставщика;
                 s.Наименование_поставщика = GetActualText(TxtSupplierName); s.ИНН = GetActualText(TxtInn);
                 s.Адрес_поставщика = GetActualText(TxtAddress); s.Email_поставщика = GetActualText(TxtEmail);
                 s.Фамилия_контактного_лица = GetActualText(TxtContactLastName); s.Имя_контактного_лица = GetActualText(TxtContactFirstName);
                 s.Отчество_контактного_лица = GetActualText(TxtContactMiddleName); s.Телефон_контактного_лица = GetActualText(TxtPhone);
                 if (selectedImageData != null) s.Логотип = selectedImageData;
                 context.SaveChanges();
-                MessageBox.Show("Поставщик обновлён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowSuccess($"Поставщик обновлён с «{oldName}» на «{s.Наименование_поставщика}»!");
                 LoadData(); ClearForm();
             }
             catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
@@ -512,12 +745,33 @@ namespace Diplomn.Pages
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(TxtSupplierId.Text)) { MessageBox.Show("Выберите поставщика!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+                if (string.IsNullOrWhiteSpace(TxtSupplierId.Text))
+                {
+                    HighlightError(TxtSupplierId, "Выберите поставщика из списка!");
+                    return;
+                }
+
                 var id = int.Parse(TxtSupplierId.Text); var s = context.Поставщики.Find(id);
-                if (s == null) { MessageBox.Show("Поставщик не найден!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); return; }
-                if (context.Поставка.Any(o => o.Код_поставщика == id)) { MessageBox.Show("Нельзя удалить — есть связанные поставки!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
-                if (MessageBox.Show($"Удалить «{s.Наименование_поставщика}»?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-                { context.Поставщики.Remove(s); context.SaveChanges(); MessageBox.Show("Удалён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information); LoadData(); ClearForm(); }
+                if (s == null)
+                {
+                    HighlightError(TxtSupplierId, "Поставщик не найден в базе данных!");
+                    return;
+                }
+
+                if (context.Поставка.Any(o => o.Код_поставщика == id))
+                {
+                    MessageBox.Show("Нельзя удалить поставщика — есть связанные поставки!\n\nСначала удалите или переназначьте связанные поставки.",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (MessageBox.Show($"Удалить поставщика «{s.Наименование_поставщика}»?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                {
+                    var supplierName = s.Наименование_поставщика;
+                    context.Поставщики.Remove(s); context.SaveChanges();
+                    ShowSuccess($"Поставщик «{supplierName}» удалён!");
+                    LoadData(); ClearForm();
+                }
             }
             catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
         }
@@ -533,10 +787,30 @@ namespace Diplomn.Pages
             SupplierLogo.Source = new BitmapImage(new Uri("/Photos/istocklogo.png", UriKind.RelativeOrAbsolute));
             selectedImageData = null; ListViewSuppliers.SelectedItem = null;
 
+            ClearAllHighlights();
             UpdateButtonsState();
         }
 
         private void ClearForm_Click(object sender, RoutedEventArgs e) => ClearForm();
+
+        /// <summary>
+        /// Показывает сообщение об успехе с автоматическим скрытием
+        /// </summary>
+        private void ShowSuccess(string message)
+        {
+            SuccessText.Text = message;
+                                    SuccessBorder.Visibility = Visibility.Visible;
+            SuccessBorder.Focusable = true;
+            SuccessBorder.Focus();
+            _successTimer?.Stop();
+            _successTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _successTimer.Tick += (s, e) =>
+            {
+                SuccessBorder.Visibility = Visibility.Collapsed;
+                _successTimer.Stop();
+            };
+            _successTimer.Start();
+        }
 
         private BitmapImage LoadImageFromBytes(byte[] d)
         {

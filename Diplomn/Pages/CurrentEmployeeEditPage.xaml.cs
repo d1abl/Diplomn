@@ -444,7 +444,7 @@ namespace Diplomn.Pages
         private void ShowSuccess(string message)
         {
             SuccessText.Text = message;
-            SuccessBorder.Visibility = Visibility.Visible;
+                        SuccessBorder.Visibility = Visibility.Visible;
             //ErrorBorder.Visibility = Visibility.Collapsed;
 
             _successTimer?.Stop();

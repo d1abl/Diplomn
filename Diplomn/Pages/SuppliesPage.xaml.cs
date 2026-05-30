@@ -1181,7 +1181,7 @@ namespace Diplomn.Pages
             try
             {
                 var supplies = GetBaseQuery().OrderByDescending(s => s.Дата_оформления_постивки).ToList();
-                if (!supplies.Any()) { MessageBox.Show("Нет данных.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+                if (!supplies.Any()) { MessageBox.Show("Нет данных для отчёта.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information); return; }
 
                 var sfd = new SaveFileDialog { Filter = "PDF файл (*.pdf)|*.pdf", Title = "Сохранить отчёт", FileName = $"Отчёт_поставки_{DateTime.Now:yyyy-MM-dd_HH-mm}" };
                 if (sfd.ShowDialog() != true) return;
@@ -1266,11 +1266,12 @@ namespace Diplomn.Pages
                     // Футер
                     AddReportFooter(doc, bf);
                     doc.Close();
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = sfd.FileName,
-                        UseShellExecute = true
-                    });
+                    var result = MessageBox.Show($"Всего поставок: {supplies.Count} \nОбщая сумма: {grandTotal:N2}₽ \n\nОткрыть PDF?",
+    "Каталог сохранён", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+                    if (result == MessageBoxResult.Yes)
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = sfd.FileName, UseShellExecute = true });
+                    
                 }
                 //MessageBox.Show($"Отчёт сохранён!\n{supplies.Count} поставок\nОбщая сумма: {grandTotal:N2} ₽", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
             }
