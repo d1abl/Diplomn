@@ -229,7 +229,7 @@
                         <TextBox x:Name="TxtEmployee" IsReadOnly="True" Height="32" Margin="0,0,0,15" FontSize="19"
                                  addons:PlaceholderBehavior.PlaceholderText="Сотрудник" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
-                        <TextBlock Text="Состав чека:" FontWeight="Bold" FontSize="13" Margin="0,0,0,8"
+                        <TextBlock Text="Состав чека:" FontWeight="Bold" FontSize="19" Margin="0,0,0,8"
                                    Foreground="{DynamicResource ForegroundBrush}"/>
                         <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
                             <!-- Список товаров в чеке -->
