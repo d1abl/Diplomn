@@ -29,7 +29,7 @@ namespace Diplomn.Pages
         private ObservableCollection<SaleItemDisplay> newSaleItems;
         private AccessManager.AccessRights rights;
         private int? editingSaleCode = null;
-        private const int MaxEditHours = 24;
+        private const int MaxEditHours = 168;
 
         #region Поля Кнопок
 
@@ -189,6 +189,7 @@ namespace Diplomn.Pages
                 Content = text,
                 Width = width,
                 Height = 35,
+                FontSize = 19,
                 IsEnabled = false,
                 Cursor = Cursors.Hand
             };
@@ -345,10 +346,10 @@ namespace Diplomn.Pages
                 return false;
             }
 
-            // Проверка по времени (не старше 24 часов)
+            // Проверка по времени (не старше 168 часов)
             if (sale.Дата_продажи < DateTime.Now.AddHours(-MaxEditHours))
             {
-                errorMessage = $"Невозможно редактировать — прошло более {MaxEditHours} ч. с момента продажи.";
+                errorMessage = $"Невозможно редактировать — прошло более 7 дней с момента продажи.";
                 return false;
             }
 

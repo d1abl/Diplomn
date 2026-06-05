@@ -180,6 +180,7 @@ namespace Diplomn.Pages
                 Content = text,
                 Width = width,
                 Height = 35,
+                FontSize = 19,
                 IsEnabled = false,
                 Cursor = Cursors.Hand
             };

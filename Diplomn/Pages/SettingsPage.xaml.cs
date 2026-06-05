@@ -25,6 +25,7 @@ namespace Diplomn.Pages
         private Сотрудники currentUser;
         private readonly Dictionary<string, Uri> themes = new Dictionary<string, Uri>
         {
+            { "BaseTheme" , new Uri("/Themes/BaseTheme.xaml", UriKind.Relative) },
             { "Theme1", new Uri("/Themes/Theme1.xaml", UriKind.Relative) },
             { "Theme2", new Uri("/Themes/Theme2.xaml", UriKind.Relative) },
             { "Theme3", new Uri("/Themes/Theme3.xaml", UriKind.Relative) }

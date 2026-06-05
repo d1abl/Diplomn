@@ -14,9 +14,9 @@
         <Border Grid.Row="0" BorderBrush="{DynamicResource BorderBrush}" 
                 BorderThickness="0,0,0,1" Padding="0,0,0,10" Margin="0,0,0,20">
             <StackPanel>
-                <TextBlock Text="Настройки" FontSize="18" FontWeight="Bold"
+                <TextBlock Text="Настройки" FontSize="24" FontWeight="Bold"
                            Foreground="{DynamicResource ForegroundBrush}"/>
-                <TextBlock Text="Системные настройки приложения" FontSize="13" Opacity="0.7"
+                <TextBlock Text="Системные настройки приложения" FontSize="18" Opacity="0.7"
                            Foreground="{DynamicResource ForegroundBrush}"/>
             </StackPanel>
         </Border>
@@ -28,21 +28,21 @@
                 <Border Padding="20" CornerRadius="8" Margin="0,0,0,20"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="О магазине" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"
+                        <TextBlock Text="О магазине" FontSize="22" FontWeight="Bold" Margin="0,0,0,15"
                                    Foreground="{DynamicResource AccentBrush}"/>
-                        <TextBlock FontSize="14" Foreground="{DynamicResource ForegroundBrush}">
+                        <TextBlock FontSize="18" Foreground="{DynamicResource ForegroundBrush}">
                             <Bold>Название:</Bold> Oculus+
                         </TextBlock>
-                        <TextBlock FontSize="14" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
+                        <TextBlock FontSize="18" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
                             <Bold>Телефон:</Bold> +7 (461) 345 12-34
                         </TextBlock>
-                        <TextBlock FontSize="14" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
+                        <TextBlock FontSize="18" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
                             <Bold>Email:</Bold> Oculus@глаза.ру
                         </TextBlock>
-                        <TextBlock FontSize="14" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
+                        <TextBlock FontSize="18" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
                             <Bold>Сайт:</Bold> Oculus.ру
                         </TextBlock>
-                        <TextBlock FontSize="14" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
+                        <TextBlock FontSize="18" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
                             <Bold>Часы работы:</Bold> 9:00 – 17:00 ежедневно
                         </TextBlock>
                     </StackPanel>
@@ -52,20 +52,20 @@
                 <Border Padding="20" CornerRadius="8" Margin="0,0,0,20"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="О системе" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"
+                        <TextBlock Text="О системе" FontSize="22" FontWeight="Bold" Margin="0,0,0,15"
                                    Foreground="{DynamicResource AccentBrush}"/>
-                        <TextBlock FontSize="14" Foreground="{DynamicResource ForegroundBrush}">
+                        <TextBlock FontSize="18" Foreground="{DynamicResource ForegroundBrush}">
                             <Bold>Версия:</Bold> 1.0.0
                         </TextBlock>
-                        <TextBlock FontSize="14" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
+                        <TextBlock FontSize="18" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
                             <Bold>Разработчик:</Bold> Тихонов Д.А.
                         </TextBlock>
-                        <TextBlock FontSize="14" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
+                        <TextBlock FontSize="18" Margin="0,5,0,0" Foreground="{DynamicResource ForegroundBrush}">
                             <Bold>База данных:</Bold> Microsoft SQL Server
                         </TextBlock>
-                        <TextBlock FontSize="10" Margin="0,10,0,0" Foreground="{DynamicResource ForegroundBrush}"
+                        <TextBlock FontSize="18" Margin="0,10,0,0" Foreground="{DynamicResource ForegroundBrush}"
                                    TextWrapping="Wrap" Opacity="0.7">
-                            Система управления товарами и продажами для магазина оптики.
+                            Система управления товарами и продажами для магазина оптики. <LineBreak/>
                             Обеспечивает полный цикл работы: 
                             от учёта поставщиков до продаж конечному покупателю.
                         </TextBlock>
@@ -76,16 +76,17 @@
                 <Border Padding="20" CornerRadius="8" Margin="0,0,0,20"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="Оформление" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"
+                        <TextBlock Text="Оформление" FontSize="22" FontWeight="Bold" Margin="0,0,0,15"
                                    Foreground="{DynamicResource AccentBrush}"/>
-                        <TextBlock FontSize="14" Foreground="{DynamicResource ForegroundBrush}">
+                        <TextBlock FontSize="20" Foreground="{DynamicResource ForegroundBrush}">
                             Тема: Светлая (по умолчанию)
                         </TextBlock>
                         <StackPanel Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Top" Width="300">
-                            <TextBlock Text="Сменить тему:" FontWeight="Bold" Margin="0,0,0,4" />
+                            <TextBlock Text="Сменить тему:" FontWeight="Bold" FontSize="18" Margin="0,0,0,4" />
                             <ComboBox x:Name="ThemeSelector" SelectionChanged="ThemeSelector_SelectionChanged"
                       Style="{DynamicResource PlaceholderComboBox}"
                       Tag="Выберите тему оформления">
+                                <ComboBoxItem Content="BaseTheme" Tag="BaseTheme"/>
                                 <ComboBoxItem Content="Theme 1" Tag="Theme1" />
                                 <ComboBoxItem Content="Theme 2" Tag="Theme2" />
                                 <ComboBoxItem Content="Theme 3" Tag="Theme3" />

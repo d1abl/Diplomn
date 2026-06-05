@@ -17,7 +17,7 @@
             <StackPanel>
                 <TextBlock Text="Должности" FontSize="18" FontWeight="Bold"
                            Foreground="{DynamicResource ForegroundBrush}"/>
-                <TextBlock Text="Управление ролями и уровнями доступа" FontSize="13" Opacity="0.7"
+                <TextBlock Text="Управление ролями и уровнями доступа" FontSize="16" Opacity="0.7"
                            Foreground="{DynamicResource ForegroundBrush}"/>
             </StackPanel>
         </Border>
@@ -41,7 +41,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="TxtSearch" Height="32"
+                        <TextBox x:Name="TxtSearch" Height="32" FontSize="19"
                                  addons:PlaceholderBehavior.PlaceholderText="Поиск по названию..."
                                  KeyDown="TxtSearch_KeyDown"/>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
@@ -55,9 +55,9 @@
                           SelectionChanged="DataGridRoles_SelectionChanged"
                           AutoGenerateColumns="False">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Код" Binding="{Binding Код_должности}" Width="60"/>
-                        <DataGridTextColumn Header="Название" Binding="{Binding Название}" Width="180"/>
-                        <DataGridTextColumn Header="Уровень доступа" Binding="{Binding Уровень_доступа}" Width="120"/>
+                        <DataGridTextColumn FontSize="18" Header="Код" Binding="{Binding Код_должности}" Width="60"/>
+                        <DataGridTextColumn FontSize="18" Header="Название" Binding="{Binding Название}" Width="250" />
+                        <DataGridTextColumn FontSize="18" Header="Уровень доступа" Binding="{Binding Уровень_доступа}" Width="120"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
@@ -66,21 +66,21 @@
                     Opacity="0.2" Margin="15,0"/>
 
             <StackPanel Grid.Column="2">
-                <TextBlock Text="Редактирование должности" FontWeight="Bold" FontSize="14" 
+                <TextBlock Text="Редактирование должности" FontWeight="Bold" FontSize="18" 
                            Margin="0,0,0,15" Foreground="{DynamicResource ForegroundBrush}"/>
 
-                <TextBlock Text="Код" FontSize="12" Margin="0,0,0,4"/>
-                <TextBox x:Name="TxtRoleId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
+                <TextBlock Text="Код" FontSize="19" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtRoleId" IsReadOnly="True" Height="32" Margin="0,0,0,12" FontSize="19"
                          addons:PlaceholderBehavior.PlaceholderText="Код должности" 
                          Focusable="False" Cursor="Arrow" Opacity="0.4" 
                          ToolTip="Заполняется автоматически"/>
 
-                <TextBlock Text="Название *" FontSize="12" Margin="0,0,0,4"/>
-                <TextBox x:Name="TxtRoleName" Height="32" Margin="0,0,0,12"
+                <TextBlock Text="Название *" FontSize="19" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtRoleName" Height="32" Margin="0,0,0,12" FontSize="19"
                          addons:PlaceholderBehavior.PlaceholderText="Введите название"/>
 
-                <TextBlock Text="Уровень доступа (1-10)" FontSize="12" Margin="0,0,0,4"/>
-                <TextBox x:Name="TxtAccessLevel" Height="32" Margin="0,0,0,15"
+                <TextBlock Text="Уровень доступа (1-10)" FontSize="19" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtAccessLevel" Height="32" Margin="0,0,0,15" FontSize="19"
                          addons:PlaceholderBehavior.PlaceholderText="Введите уровень доступа"/>
 
                 <!-- Подсказка по уровням -->
@@ -88,9 +88,9 @@
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                         Background="{DynamicResource BackgroundBrush}">
                     <StackPanel>
-                        <TextBlock Text="Уровни доступа:" FontWeight="Bold" FontSize="12" 
+                        <TextBlock Text="Уровни доступа:" FontWeight="Bold" FontSize="19" 
                                    Margin="0,0,0,6" Foreground="{DynamicResource ForegroundBrush}"/>
-                        <TextBlock FontSize="11" Opacity="0.7" Margin="0,0,0,2"
+                        <TextBlock FontSize="18" Opacity="0.7" Margin="0,0,0,2"
                                    Foreground="{DynamicResource ForegroundBrush}">
                             • 1 — Администратор<LineBreak/>
                             • 2 — Старший менеджер<LineBreak/>

@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Diplomn"
         mc:Ignorable="d"
-        Title="HR - Система управления товаром" MinHeight="900" MinWidth="1320" Height="900" Width="1800">
+        Title="HR - Система управления товаром" MinHeight="900" MaxHeight="1100" MinWidth="1320" MaxWidth="1940" Height="900" Width="1800">
     <Grid>
         <!-- Grid для MainWondow -->
         <Grid.RowDefinitions>

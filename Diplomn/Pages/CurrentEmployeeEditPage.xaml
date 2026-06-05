@@ -23,7 +23,7 @@
                            FontSize="18" FontWeight="Bold"
                            Foreground="{DynamicResource ForegroundBrush}"/>
                 <TextBlock Text="Изменение личных данных" 
-                           FontSize="13" Opacity="0.7"
+                           FontSize="16" Opacity="0.7"
                            Foreground="{DynamicResource ForegroundBrush}"/>
             </StackPanel>
         </Border>
@@ -52,7 +52,7 @@
                     </Image>
                 </Border>
                 <TextBlock Text="Нажмите для смены фото" 
-                           FontSize="10" Opacity="0.6" 
+                           FontSize="14" Opacity="0.6" 
                            HorizontalAlignment="Center" 
                            Margin="0,10,0,15"
                            Foreground="{DynamicResource ForegroundBrush}"/>
@@ -62,18 +62,18 @@
                                Foreground="{DynamicResource ForegroundBrush}"/>
 
                 <!-- Фамилия -->
-                <TextBlock Text="Фамилия *" FontSize="12" Margin="0,0,0,4"/>
-                <TextBox x:Name="TxtLastName" Height="34" Margin="0,0,0,14"
+                <TextBlock Text="Фамилия *" FontSize="19" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtLastName" Height="34" Margin="0,0,0,14" FontSize="19"
                              addons:PlaceholderBehavior.PlaceholderText="Введите фамилию"/>
 
                 <!-- Имя -->
-                <TextBlock Text="Имя *" FontSize="12" Margin="0,0,0,4"/>
-                <TextBox x:Name="TxtFirstName" Height="34" Margin="0,0,0,14"
+                <TextBlock Text="Имя *" FontSize="19" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtFirstName" Height="34" Margin="0,0,0,14" FontSize="19"
                              addons:PlaceholderBehavior.PlaceholderText="Введите имя"/>
 
                 <!-- Отчество -->
-                <TextBlock Text="Отчество" FontSize="12" Margin="0,0,0,4"/>
-                <TextBox x:Name="TxtMiddleName" Height="34" Margin="0,0,0,14"
+                <TextBlock Text="Отчество" FontSize="19" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtMiddleName" Height="34" Margin="0,0,0,14" FontSize="19"
                              addons:PlaceholderBehavior.PlaceholderText="Введите отчество (необязательно)"/>
             </StackPanel>
 
@@ -92,29 +92,29 @@
                                Foreground="{DynamicResource ForegroundBrush}"/>
 
                     <!-- Телефон -->
-                    <TextBlock Text="Телефон" FontSize="12" Margin="0,0,0,4"/>
-                    <TextBox x:Name="TxtPhone" Height="34" Margin="0,0,0,14"
+                    <TextBlock Text="Телефон" FontSize="19" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TxtPhone" Height="34" Margin="0,0,0,14" FontSize="19"
                              addons:PlaceholderBehavior.PlaceholderText="+79001234567"/>
 
                     <!-- Должность (только чтение) -->
-                    <TextBlock Text="Должность" FontSize="12" Margin="0,0,0,4"/>
-                    <TextBox x:Name="TxtEmployeePosition" Height="34" Margin="0,0,0,14"
+                    <TextBlock Text="Должность" FontSize="19" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TxtEmployeePosition" Height="34" Margin="0,0,0,14" FontSize="19"
                              IsReadOnly="True" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"
                              addons:PlaceholderBehavior.PlaceholderText="Должность"/>
 
                     <!-- Логин (только чтение) -->
-                    <TextBlock Text="Логин" FontSize="12" Margin="0,0,0,4"/>
-                    <TextBox x:Name="TxtLogin" Height="34" Margin="0,0,0,14"
+                    <TextBlock Text="Логин" FontSize="19" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TxtLogin" Height="34" Margin="0,0,0,14" FontSize="19"
                              IsReadOnly="True" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"
                              addons:PlaceholderBehavior.PlaceholderText="Логин"/>
 
                     <!-- Пароль -->
-                    <TextBlock Text="Новый пароль" FontSize="12" Margin="0,0,0,4"/>
+                    <TextBlock Text="Новый пароль" FontSize="19" Margin="0,0,0,4"/>
                     <TextBlock Text="Оставьте пустым, если не хотите менять" 
-                               FontSize="10" Opacity="0.5" Margin="0,0,0,4"
+                               FontSize="12" Opacity="0.5" Margin="0,0,0,4"
                                Foreground="{DynamicResource ForegroundBrush}"/>
                     <PasswordBox x:Name="PassBox" Height="34" Margin="0,0,0,20"
-                                addons:PlaceholderBehavior.HasEye="True"
+                                addons:PlaceholderBehavior.HasEye="True" FontSize="19"
                                 addons:PlaceholderBehavior.PlaceholderText="Введите новый пароль"/>
 
                     <!-- Кнопка сохранения -->

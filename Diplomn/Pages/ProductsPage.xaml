@@ -21,7 +21,7 @@
             <StackPanel>
                 <TextBlock x:Name="WelcomeText" FontSize="18" FontWeight="Bold"
                            Foreground="{DynamicResource ForegroundBrush}"/>
-                <TextBlock Text="Каталог товаров" FontSize="13" Opacity="0.7"
+                <TextBlock Text="Каталог товаров" FontSize="16" Opacity="0.7"
                            Foreground="{DynamicResource ForegroundBrush}"/>
             </StackPanel>
         </Border>
@@ -49,7 +49,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="TxtSearch" Height="32"
+                        <TextBox x:Name="TxtSearch" Height="32" FontSize="19"
                                  addons:PlaceholderBehavior.PlaceholderText="Поиск по наименованию..."
                                  KeyDown="TxtSearch_KeyDown" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
@@ -76,12 +76,12 @@
                                 <!-- В наличии - левая колонка -->
                                 <CheckBox x:Name="ChkInStock" Content="В наличии" 
               VerticalAlignment="Center"
-              FontSize="12"
+              FontSize="19"
               Foreground="{DynamicResource ForegroundBrush}"/>
 
                                 <!-- Цена - средняя колонка -->
                                 <StackPanel Grid.Column="1" Margin="15,0">
-                                    <TextBlock Text="Цена (от — до)" FontSize="11" Margin="0,0,0,4"
+                                    <TextBlock Text="Цена (от — до)" FontSize="18" Margin="0,0,0,4"
                    Foreground="{DynamicResource ForegroundBrush}"/>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -100,7 +100,7 @@
 
                                 <!-- Количество - правая колонка -->
                                 <StackPanel Grid.Column="2" Margin="15,0,0,0">
-                                    <TextBlock Text="Количество (от — до)" FontSize="11" Margin="0,0,0,4"
+                                    <TextBlock Text="Количество (от — до)" FontSize="18" Margin="0,0,0,4"
                    Foreground="{DynamicResource ForegroundBrush}"/>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -202,7 +202,7 @@
                     </ListView.ItemsPanel>
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <Border Margin="3" Width="200" Height="275"
+                            <Border Margin="3" Width="340" Height="320"
                                     Background="{DynamicResource BackgroundBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" 
                                     BorderThickness="1" CornerRadius="6"
@@ -227,39 +227,39 @@
                                     </Border>
 
                                     <!-- Наименование -->
-                                    <TextBlock Text="{Binding Наименование}" FontWeight="Bold" FontSize="13"
+                                    <TextBlock Text="{Binding Наименование}" FontWeight="Bold" FontSize="24"
                                                TextTrimming="CharacterEllipsis" ToolTip="{Binding Наименование}"
                                                Foreground="{DynamicResource ForegroundBrush}"/>
-
+                                      
                                     <!-- Категория -->
-                                    <TextBlock Text="{Binding КатегорияНазвание}" Margin="0,3,0,6"
-                                               TextTrimming="CharacterEllipsis" FontSize="11" Opacity="0.7"
+                                    <TextBlock Text="{Binding КатегорияНазвание}" Margin="0,3,0,4"
+                                               TextTrimming="CharacterEllipsis" FontSize="18" Opacity="0.7"
                                                Foreground="{DynamicResource ForegroundBrush}"/>
 
                                     <!-- Цена -->
-                                    <TextBlock Text="{Binding PriceDisplay}" FontSize="13" FontWeight="Bold"
-                                               Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,4"/>
-
+                                    <TextBlock Text="{Binding PriceDisplay}" FontSize="20" FontWeight="Bold"
+                                               Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,5"/>
+                                    
                                     <!-- Количество -->
-                                    <TextBlock Text="{Binding QuantityDisplay}" FontSize="11" Margin="0,0,0,4"
+                                    <TextBlock Text="{Binding QuantityDisplay}" FontSize="18" Margin="0,0,0,4"
                                                Foreground="{DynamicResource ForegroundBrush}"/>
 
                                     <!-- Статус -->
-                                    <TextBlock Text="{Binding StockStatus}" FontSize="11"
+                                    <TextBlock Text="{Binding StockStatus}" FontSize="16"
                                                Foreground="{DynamicResource ForegroundBrush}"/>
 
                                     <!-- Детали -->
-                                    <WrapPanel Margin="0,5,0,0" Width="180">
-                                        <TextBlock Text="{Binding БрендНазвание}" FontSize="9" Margin="0,0,4,0"
+                                    <WrapPanel Margin="-10,5,0,0" Width="300">
+                                        <TextBlock Text="{Binding БрендНазвание}" FontSize="12" Margin="0,0,4,0"
                                                    TextTrimming="CharacterEllipsis" Opacity="0.6"
                                                    Foreground="{DynamicResource ForegroundBrush}"/>
-                                        <TextBlock Text="{Binding ПроизводительНазвание}" FontSize="9" Margin="0,0,4,0"
+                                        <TextBlock Text="{Binding ПроизводительНазвание}" FontSize="12" Margin="0,0,4,0"
                                                    TextTrimming="CharacterEllipsis" Opacity="0.6"
                                                    Foreground="{DynamicResource ForegroundBrush}"/>
-                                        <TextBlock Text="{Binding МатериалНазвание}" FontSize="9" Margin="0,0,4,0"
+                                        <TextBlock Text="{Binding МатериалНазвание}" FontSize="12" Margin="0,0,4,0"
                                                    TextTrimming="CharacterEllipsis" Opacity="0.6"
                                                    Foreground="{DynamicResource ForegroundBrush}"/>
-                                        <TextBlock Text="{Binding ФасовкаНазвание}" FontSize="9"
+                                        <TextBlock Text="{Binding ФасовкаНазвание}" FontSize="12"
                                                    TextTrimming="CharacterEllipsis" Opacity="0.6"
                                                    Foreground="{DynamicResource ForegroundBrush}"/>
                                     </WrapPanel>
@@ -287,65 +287,65 @@
                             Cursor="Hand" MouseLeftButtonDown="SelectPhoto_Click">
                         <Image x:Name="ProductPhoto" Source="/Photos/istockproductphoto.png" Stretch="UniformToFill"/>
                     </Border>
-                    <TextBlock Text="Нажмите для изменения фото" FontSize="10" 
+                    <TextBlock Text="Нажмите для изменения фото" FontSize="14" 
                                HorizontalAlignment="Center" Opacity="0.6" Margin="0,0,0,15"
                                Foreground="{DynamicResource ForegroundBrush}"/>
 
                     <!-- Код -->
-                    <TextBlock Text="Код товара" FontSize="12" Margin="0,0,0,4"/>
-                    <TextBox x:Name="TxtProductId" IsReadOnly="True" Height="32" Margin="0,0,0,12"
+                    <TextBlock Text="Код товара" FontSize="19" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TxtProductId" IsReadOnly="True" Height="32" Margin="0,0,0,12" FontSize="19"
                              addons:PlaceholderBehavior.PlaceholderText="Код товара" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически"/>
 
                     <!-- Наименование -->
-                    <TextBlock Text="Наименование *" FontSize="12" Margin="0,0,0,4"/>
-                    <TextBox x:Name="TxtProductName" Height="32" Margin="0,0,0,12"
+                    <TextBlock Text="Наименование *" FontSize="19" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TxtProductName" Height="32" Margin="0,0,0,12" FontSize="19"
                              addons:PlaceholderBehavior.PlaceholderText="Введите наименование"/>
 
                     <!-- Цена -->
-                    <TextBlock Text="Цена продажи *" FontSize="12" Margin="0,0,0,4"/>
-                    <TextBox x:Name="TxtPrice" Height="32" Margin="0,0,0,12"
+                    <TextBlock Text="Цена продажи *" FontSize="19" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TxtPrice" Height="32" Margin="0,0,0,12" FontSize="19"
                              addons:PlaceholderBehavior.PlaceholderText="Введите цену"/>
 
                     <!-- Категория -->
-                    <TextBlock Text="Категория *" FontSize="12" Margin="0,0,0,4"/>
-                    <ComboBox x:Name="CmbCategory" Height="34" Margin="0,0,0,12"
+                    <TextBlock Text="Категория *" FontSize="19" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="CmbCategory" Height="34" Margin="0,0,0,12" FontSize="19"
                               Style="{DynamicResource PlaceholderComboBox}"
                               Tag="Выберите категорию"
                               DisplayMemberPath="Категория" SelectedValuePath="Код_категория"/>
 
                     <!-- Бренд -->
-                    <TextBlock Text="Бренд" FontSize="12" Margin="0,0,0,4"/>
-                    <ComboBox x:Name="CmbBrand" Height="34" Margin="0,0,0,12"
+                    <TextBlock Text="Бренд" FontSize="19" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="CmbBrand" Height="34" Margin="0,0,0,12" FontSize="19"
                               Style="{DynamicResource PlaceholderComboBox}"
                               Tag="Выберите бренд"
                               DisplayMemberPath="Наименование_бредна" SelectedValuePath="Код_бренда"/>
 
                     <!-- Производитель -->
-                    <TextBlock Text="Производитель" FontSize="12" Margin="0,0,0,4"/>
-                    <ComboBox x:Name="CmbManufacturer" Height="34" Margin="0,0,0,12"
+                    <TextBlock Text="Производитель" FontSize="19" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="CmbManufacturer" Height="34" Margin="0,0,0,12" FontSize="19"
                               Style="{DynamicResource PlaceholderComboBox}"
                               Tag="Выберите производителя"
                               DisplayMemberPath="Наименование_произваодителя" SelectedValuePath="Код_производителя"/>
 
                     <!-- Материал -->
-                    <TextBlock Text="Материал" FontSize="12" Margin="0,0,0,4"/>
-                    <ComboBox x:Name="CmbMaterial" Height="34" Margin="0,0,0,12"
+                    <TextBlock Text="Материал" FontSize="19" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="CmbMaterial" Height="34" Margin="0,0,0,12" FontSize="19"
                               Style="{DynamicResource PlaceholderComboBox}"
                               Tag="Выберите материал"
                               DisplayMemberPath="Наименование_материала" SelectedValuePath="Код_материала"/>
 
                     <!-- Фасовка -->
-                    <TextBlock Text="Фасовка" FontSize="12" Margin="0,0,0,4"/>
-                    <ComboBox x:Name="CmbPacking" Height="34" Margin="0,0,0,12"
+                    <TextBlock Text="Фасовка" FontSize="19" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="CmbPacking" Height="34" Margin="0,0,0,12" FontSize="19"
                               IsEditable="True"
                               Style="{DynamicResource PlaceholderComboBox}"
                               Tag="Выберите фасовку"
                               DisplayMemberPath="Количество" SelectedValuePath="Код_фасовки"/>
 
                     <!-- Количество на складе -->
-                    <TextBlock Text="Количество на складе" FontSize="12" Margin="0,0,0,4"/>
+                    <TextBlock Text="Количество на складе" FontSize="19" Margin="0,0,0,4"/>
                     <TextBox x:Name="TxtQuantity" Height="32" IsReadOnly="True" Focusable="False" Cursor="Arrow" Opacity="0.4" ToolTip="Заполняется автоматически" 
-                             Text="0" Margin="0,0,0,15" Foreground="{DynamicResource ForegroundBrush}"
+                             Text="0" Margin="0,0,0,15" Foreground="{DynamicResource ForegroundBrush}" FontSize="19"
                              addons:PlaceholderBehavior.PlaceholderText="Количество на складе"/>
 
                     <!-- Кнопки действий -->

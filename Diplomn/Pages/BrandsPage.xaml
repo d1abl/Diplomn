@@ -68,10 +68,10 @@
                           SelectionChanged="DataGridBrands_SelectionChanged"
                           AutoGenerateColumns="False">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Код" 
+                        <DataGridTextColumn FontSize="18" Header="Код" 
                                            Binding="{Binding Код_бренда}" 
                                            Width="60"/>
-                        <DataGridTextColumn Header="Наименование" 
+                        <DataGridTextColumn FontSize="18" Header="Наименование" 
                                            Binding="{Binding Наименование_бредна}" 
                                            Width="*"/>
                     </DataGrid.Columns>
@@ -108,20 +108,20 @@
                            Margin="0,0,0,15"
                            Foreground="{DynamicResource ForegroundBrush}"/>
 
-                <TextBlock Text="Код" FontSize="12" Margin="0,0,0,4"/>
+                <TextBlock Text="Код" FontSize="19" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtBrandId" 
                          IsReadOnly="True" 
                          Height="32" 
-                         Margin="0,0,0,12"
+                         Margin="0,0,0,12" FontSize="19"
                          addons:PlaceholderBehavior.PlaceholderText="Код бренда" 
                          Focusable="False" 
                          Cursor="Arrow" 
                          Opacity="0.4" 
                          ToolTip="Заполняется автоматически"/>
 
-                <TextBlock Text="Наименование *" FontSize="12" Margin="0,0,0,4"/>
+                <TextBlock Text="Наименование *" FontSize="19" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtBrandName" 
-                         Height="32" 
+                         Height="32" FontSize="19"
                          Margin="0,0,0,15"
                          addons:PlaceholderBehavior.PlaceholderText="Введите название бренда"/>
 

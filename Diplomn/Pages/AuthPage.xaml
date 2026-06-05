@@ -26,7 +26,7 @@
             <StackPanel>
                 <!-- Логотип / Название -->
                 <TextBlock Text="Oculus+" 
-                           FontSize="28" 
+                           FontSize="38" 
                            FontWeight="Bold" 
                            Foreground="{DynamicResource AccentBrush}"
                            HorizontalAlignment="Center"
@@ -34,7 +34,7 @@
 
                 <!-- Подзаголовок -->
                 <TextBlock Text="Вход в систему" 
-                           FontSize="16"
+                           FontSize="19"
                            Foreground="{DynamicResource ForegroundBrush}"
                            HorizontalAlignment="Center"
                            Margin="0,0,0,30"
@@ -42,26 +42,26 @@
 
                 <!-- Поле: Логин -->
                 <TextBlock Text="Логин" 
-                           FontSize="12" 
+                           FontSize="19" 
                            Margin="0,0,0,5" 
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource ForegroundBrush}"/>
                 <TextBox x:Name="LoginBox"  Text="admin"
                          Height="38" 
                          Margin="0,0,0,15" Foreground="{DynamicResource ForegroundBrush}"
-                         FontSize="14"
+                         FontSize="18"
                          addons:PlaceholderBehavior.PlaceholderText="Введите логин"/>
 
                 <!-- Поле: Пароль -->
                 <TextBlock Text="Пароль" 
-                           FontSize="12" 
+                           FontSize="19" 
                            Margin="0,0,0,5" 
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource ForegroundBrush}"/>
                 <PasswordBox x:Name="PassBox" Password="admin123"
                              Height="38" 
                              Margin="0,0,0,25" Foreground="{DynamicResource ForegroundBrush}"
-                             FontSize="14"
+                             FontSize="20"
                              addons:PlaceholderBehavior.HasEye="True"
                              addons:PlaceholderBehavior.PlaceholderText="Введите пароль"/>
 

@@ -131,6 +131,7 @@ namespace Diplomn.Pages
                 Content = text,
                 Width = width,
                 Height = 34,
+                FontSize = 19,
                 IsEnabled = false
             };
 
